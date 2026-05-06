@@ -1,0 +1,229 @@
+package client
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	stdImage "image"
+	"image/color"
+	"log"
+
+	"github.com/ebitenui/ebitenui"
+	eimage "github.com/ebitenui/ebitenui/image"
+	"github.com/ebitenui/ebitenui/widget"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/ognev-dev/goplease-ebitengine-client/assets"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/setanarut/anim"
+	"golang.org/x/image/colornames"
+)
+
+var animPlayer *anim.AnimationPlayer
+
+const (
+	ConnectingLabel   = "Connecting..."
+	SearchingOppLabel = "Searching for opponent…"
+	ConnErrorLabel    = "Connection error. Press Esc to go back."
+)
+
+type SearchScreen struct {
+	ui              *ebitenui.UI
+	statusLbl       *widget.Text
+	elapsedLbl      *widget.Text
+	animPlaceholder *widget.Container
+	tick            int
+}
+
+func NewSearchScreen() *SearchScreen {
+	s := &SearchScreen{}
+
+	img, _, err := stdImage.Decode(bytes.NewReader(assets.Runner_png))
+	if err != nil {
+		log.Fatal(err)
+	}
+	spriteSheet := anim.Atlas{
+		Name:  "Default",
+		Image: ebiten.NewImageFromImage(img),
+	}
+	animPlayer = anim.NewAnimationPlayer(spriteSheet)
+	animPlayer.NewAnim("run", 0, 0, 128, 128, 8, false, false, 12)
+
+	root := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	// Central column: animation placeholder + status + elapsed
+	center := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(12),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.MinSize(300, 0),
+		),
+	)
+
+	// placeholder for a runner animation
+	animPlaceholder := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.MinSize(128, 128),
+		),
+	)
+
+	statusFace, err := ui.TextFace(25)
+	if err != nil {
+		log.Fatal(err)
+	}
+	statusLbl := widget.NewText(
+		widget.TextOpts.Text(ConnectingLabel, &statusFace, colornames.Lightgray),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  true,
+			}),
+		),
+	)
+
+	elapsedFace, err := ui.TextFace(15)
+	if err != nil {
+		log.Fatal(err)
+	}
+	elapsedLbl := widget.NewText(
+		widget.TextOpts.Text("elapsed: 0s", &elapsedFace, colornames.Gray),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  true,
+			}),
+		),
+	)
+
+	center.AddChild(animPlaceholder)
+	center.AddChild(statusLbl)
+	center.AddChild(elapsedLbl)
+
+	footer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				StretchHorizontal:  true,
+			}),
+		),
+	)
+
+	hintFace, err := ui.TextFace(15)
+	if err != nil {
+		log.Fatal(err)
+	}
+	hintLbl := widget.NewText(
+		widget.TextOpts.Text("[Esc] cancel", &hintFace, colornames.Dimgray),
+		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				Stretch:  true,
+			}),
+		),
+	)
+	footer.AddChild(hintLbl)
+
+	root.AddChild(center)
+	root.AddChild(footer)
+
+	s.ui = &ebitenui.UI{Container: root}
+	s.statusLbl = statusLbl
+	s.elapsedLbl = elapsedLbl
+	s.animPlaceholder = animPlaceholder
+	return s
+}
+
+func (s *SearchScreen) Update(g *Game) (Screen, error) {
+	s.tick++
+	s.ui.Update()
+	animPlayer.Update()
+
+	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
+
+	if g.Server.Status == StatusConnected && s.statusLbl.Label == ConnectingLabel {
+		//g.Server.Send(map[string]any{"action": "new_game"})
+		g.Server.NewGame()
+		s.statusLbl.Label = SearchingOppLabel
+	}
+	if g.Server.Status == StatusError {
+		s.statusLbl.Label = ConnErrorLabel
+	}
+
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if g.Server.Status == StatusConnected {
+			g.Server.Send(map[string]any{"type": "cancel_match"})
+		}
+		return NewMainScreen(), nil
+	}
+
+	for {
+		select {
+		case msg := <-g.Server.Inbox:
+			if next := s.handleMessage(msg); next != nil {
+				return next, nil
+			}
+		default:
+			return s, nil
+		}
+	}
+}
+
+func (s *SearchScreen) handleMessage(msg WSMessage) Screen {
+	switch msg.Action {
+	case SearchingOppAction:
+		s.statusLbl.Label = SearchingOppLabel
+	case NewGameAction:
+		var payload struct {
+			RoomID       string          `json:"room_id"`
+			InitialState json.RawMessage `json:"initial_state"`
+		}
+		if err := json.Unmarshal(msg.Data, &payload); err == nil {
+			return NewRoomScreen(payload.RoomID, payload.InitialState)
+		}
+	case ErrorAction:
+		var e struct {
+			Message string `json:"message"`
+		}
+		_ = json.Unmarshal(msg.Data, &e)
+		s.statusLbl.Label = "Error: " + e.Message
+	}
+	return nil
+}
+
+func (s *SearchScreen) Draw(screen *ebiten.Image) {
+	s.ui.Draw(screen)
+
+	frame := animPlayer.CurrentFrame
+	rect := s.animPlaceholder.GetWidget().Rect
+	fw := frame.Bounds().Dx()
+	fh := frame.Bounds().Dy()
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(
+		float64(rect.Min.X+rect.Dx()/2-fw/2),
+		float64(rect.Min.Y+rect.Dy()/2-fh/2),
+	)
+
+	screen.DrawImage(frame, op)
+}
