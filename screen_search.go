@@ -162,7 +162,6 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
 	if g.Server.Status == StatusConnected && s.statusLbl.Label == ConnectingLabel {
-		//g.Server.Send(map[string]any{"action": "new_game"})
 		g.Server.NewGame()
 		s.statusLbl.Label = SearchingOppLabel
 	}
@@ -194,13 +193,7 @@ func (s *SearchScreen) handleMessage(msg WSMessage) Screen {
 	case SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
 	case NewGameAction:
-		var payload struct {
-			RoomID       string          `json:"room_id"`
-			InitialState json.RawMessage `json:"initial_state"`
-		}
-		if err := json.Unmarshal(msg.Data, &payload); err == nil {
-			return NewRoomScreen(payload.RoomID, payload.InitialState)
-		}
+		return NewRoomScreen(msg.Data)
 	case ErrorAction:
 		var e struct {
 			Message string `json:"message"`

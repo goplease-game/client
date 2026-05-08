@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
+	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -65,13 +67,19 @@ type RoomScreen struct {
 	statusLine string
 }
 
-func NewRoomScreen(roomID string, initialState json.RawMessage) *RoomScreen {
+func NewRoomScreen(newGamePayload json.RawMessage) *RoomScreen {
+	var data ds.NewGamePayload
+	err := json.Unmarshal(newGamePayload, &data)
+	if err != nil {
+		log.Fatalf("new game payload: %v", err)
+	}
+
 	s := &RoomScreen{
-		roomID:          roomID,
+		roomID:          data.RoomID,
 		selectedHandIdx: -1,
 		statusLine:      "Place your units, then press End Turn",
 	}
-	_ = json.Unmarshal(initialState, &s.state)
+
 	return s
 }
 
