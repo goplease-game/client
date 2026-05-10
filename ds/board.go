@@ -1,6 +1,6 @@
 package ds
 
-type Board [][]*BoardCell
+type Board [][]*BoardCell // [row][col]cell
 
 type BoardCell struct {
 	Unit       *Unit `json:"unit"`

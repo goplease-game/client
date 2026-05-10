@@ -1,15 +1,15 @@
-package client
+package ws
 
 import (
 	"encoding/json"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 )
-
-const wsURL = "ws://localhost:8080/goplease/"
 
 type Action string
 
@@ -25,24 +25,26 @@ const (
 	ErrorAction           Action = "error"
 )
 
-// WSMessage mirrors the server's OutgoingMsg.
-type WSMessage struct {
+// Message mirrors the server's OutgoingMsg.
+type Message struct {
 	Action Action          `json:"action"`
 	Data   json.RawMessage `json:"data"`
 }
 
-// WSClient manages a single WebSocket connection.
+// Client manages a single WebSocket connection.
 // It is safe to call Send from any goroutine.
 // Incoming messages are delivered on the Inbox channel.
-type WSClient struct {
-	Inbox  chan WSMessage // buffered; read by the game loop
-	Status ConnStatus     // read by screens; written only by wsClient goroutines
+type Client struct {
+	Inbox  chan Message // buffered; read by the game loop
+	Status ConnStatus   // read by screens; written only by wsClient goroutines
 
 	mu       sync.Mutex
 	conn     *websocket.Conn
 	outbox   chan []byte
 	stopOnce sync.Once
 	stop     chan struct{}
+
+	msgLogger *log.Logger
 }
 
 type ConnStatus int
@@ -54,18 +56,30 @@ const (
 	StatusError
 )
 
-func NewWSClient() *WSClient {
-	return &WSClient{
-		Inbox:  make(chan WSMessage, 128),
-		outbox: make(chan []byte, 128),
-		stop:   make(chan struct{}),
-		Status: StatusDisconnected,
+func wsURL() string {
+	return "ws://" + config.Get().ServerAddr + "/goplease/"
+}
+
+func NewClient() *Client {
+	c := &Client{
+		Inbox:     make(chan Message, 128),
+		outbox:    make(chan []byte, 128),
+		stop:      make(chan struct{}),
+		Status:    StatusDisconnected,
+		msgLogger: nil,
 	}
+
+	if config.Get().LogProtocol {
+		f, _ := os.OpenFile("protocol_log.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		c.msgLogger = log.New(f, "", log.Ltime|log.Lmicroseconds)
+	}
+
+	return c
 }
 
 // Connect dials the server in the background.
 // Safe to call multiple times — ignored if already connected.
-func (c *WSClient) Connect(playerID string) {
+func (c *Client) Connect(playerID string) {
 	c.mu.Lock()
 	if c.Status == StatusConnecting || c.Status == StatusConnected {
 		c.mu.Unlock()
@@ -77,15 +91,13 @@ func (c *WSClient) Connect(playerID string) {
 	go c.dial(playerID)
 }
 
-func (c *WSClient) dial(playerID string) {
-	url := wsURL + "?player_id=" + playerID
-
+func (c *Client) dial(playerID string) {
 	var conn *websocket.Conn
 	var err error
 
 	// Retry loop with backoff (3 attempts).
-	for attempt := 1; attempt <= 3; attempt++ {
-		conn, _, err = websocket.DefaultDialer.Dial(url, nil)
+	for attempt := range 3 {
+		conn, _, err = websocket.DefaultDialer.Dial(wsURL(), nil)
 		if err == nil {
 			break
 		}
@@ -111,7 +123,7 @@ func (c *WSClient) dial(playerID string) {
 	go c.writeLoop(conn)
 }
 
-func (c *WSClient) readLoop(conn *websocket.Conn) {
+func (c *Client) readLoop(conn *websocket.Conn) {
 	defer c.close()
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -121,7 +133,10 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 			}
 			return
 		}
-		var msg WSMessage
+
+		c.logMessage(raw, false)
+
+		var msg Message
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			log.Printf("[ws] bad JSON: %v", err)
 			continue
@@ -134,12 +149,14 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 	}
 }
 
-func (c *WSClient) writeLoop(conn *websocket.Conn) {
+func (c *Client) writeLoop(conn *websocket.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case data := <-c.outbox:
+			c.logMessage(data, true)
+
 			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 				log.Printf("[ws] write error: %v", err)
 				c.close()
@@ -159,7 +176,7 @@ func (c *WSClient) writeLoop(conn *websocket.Conn) {
 }
 
 // Send encodes v as JSON and enqueues it for sending.
-func (c *WSClient) Send(v any) {
+func (c *Client) Send(v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		log.Printf("[ws] marshal error: %v", err)
@@ -172,7 +189,18 @@ func (c *WSClient) Send(v any) {
 	}
 }
 
-func (c *WSClient) close() {
+func (c *Client) logMessage(msg []byte, out bool) {
+	if c.msgLogger != nil {
+		key := "<-"
+		if out {
+			key = "->"
+		}
+
+		c.msgLogger.Printf("%s %s", key, msg)
+	}
+}
+
+func (c *Client) close() {
 	c.stopOnce.Do(func() {
 		c.mu.Lock()
 		c.Status = StatusDisconnected
@@ -185,10 +213,10 @@ func (c *WSClient) close() {
 }
 
 // Disconnect closes the connection gracefully.
-func (c *WSClient) Disconnect() { c.close() }
+func (c *Client) Disconnect() { c.close() }
 
-func (c *WSClient) NewGame() {
-	c.Send(WSMessage{
+func (c *Client) NewGame() {
+	c.Send(Message{
 		Action: NewGameAction,
 		Data:   nil,
 	})

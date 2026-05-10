@@ -1,92 +1,78 @@
-package client
+package game
 
 import (
 	"encoding/json"
-	"fmt"
 	"image/color"
 	"log"
 
+	"github.com/ebitenui/ebitenui"
+	"github.com/ebitenui/ebitenui/image"
+	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"golang.org/x/image/colornames"
 )
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 
 const (
-	cellSize   = 50 // pixels per board cell
-	boardCols  = 12
-	boardRows  = 12
-	boardOffX  = (ScreenWidth - cellSize*boardCols) / 2
-	boardOffY  = 20
-	handPanelY = boardOffY + cellSize*boardRows + 8
+	cellSize = 50 // pixels per board cell
 )
-
-// ── Lightweight state types (mirrors server snapshots) ───────────────────────
-
-type UnitSnap struct {
-	InstanceID string `json:"instance_id"`
-	Name       string `json:"name"`
-	OwnerID    string `json:"owner_id"`
-	HP         int    `json:"hp"`
-	MaxHP      int    `json:"max_hp"`
-	Col        int    `json:"col"`
-	Row        int    `json:"row"`
-	Upgraded   bool   `json:"upgraded"`
-}
-
-type StateSnap struct {
-	Phase        string `json:"phase"`
-	CurrentTurn  int    `json:"current_turn"`
-	MaxTurns     int    `json:"max_turns"`
-	ActivePlayer int    `json:"active_player"`
-	Board        struct {
-		Units []UnitSnap `json:"units"`
-	} `json:"board"`
-	Players []struct {
-		ID       string     `json:"id"`
-		Name     string     `json:"name"`
-		HandSize int        `json:"hand_size"`
-		Hand     []UnitSnap `json:"hand,omitempty"`
-	} `json:"players"`
-}
 
 // ── RoomScreen ────────────────────────────────────────────────────────────────
 
 type RoomScreen struct {
-	roomID string
-	state  StateSnap
+	ui *ebitenui.UI
 
-	// Placement interaction
-	selectedHandIdx int // index into my hand, -1 = none
-	hoveredCol      int
-	hoveredRow      int
+	roomID       string
+	phase        ds.Phase
+	isMyTurn     bool
+	board        ds.Board
+	myPlayer     ds.Player
+	opponentName string
 
+	// Interaction
+	selectedBoardRow int // board cell selected (unit on board), -1 = none
+	selectedBoardCol int
+	hoveredRow       int
+	hoveredCol       int
+
+	// Status
 	statusLine string
 }
 
 func NewRoomScreen(newGamePayload json.RawMessage) *RoomScreen {
 	var data ds.NewGamePayload
-	err := json.Unmarshal(newGamePayload, &data)
-	if err != nil {
+	if err := json.Unmarshal(newGamePayload, &data); err != nil {
 		log.Fatalf("new game payload: %v", err)
 	}
 
 	s := &RoomScreen{
-		roomID:          data.RoomID,
-		selectedHandIdx: -1,
-		statusLine:      "Place your units, then press End Turn",
+		roomID:           data.RoomID,
+		phase:            data.Phase,
+		isMyTurn:         data.IsMyTurn,
+		board:            data.Board,
+		opponentName:     data.Opponent,
+		selectedBoardRow: -1,
+		selectedBoardCol: -1,
+		hoveredRow:       -1,
+		hoveredCol:       -1,
+		statusLine:       "Place a unit",
+	}
+	if data.Player != nil {
+		s.myPlayer = *data.Player
 	}
 
+	s.drawUI(data)
 	return s
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
 
 func (s *RoomScreen) Update(g *Game) (Screen, error) {
-	// Drain inbox
+	// Drain server inbox
 	for {
 		select {
 		case msg := <-g.Server.Inbox:
@@ -97,35 +83,14 @@ func (s *RoomScreen) Update(g *Game) (Screen, error) {
 	}
 doneInbox:
 
-	s.updateMouse(g)
-	s.updateKeys(g)
 	return s, nil
 }
 
-func (s *RoomScreen) handleMessage(g *Game, msg WSMessage) {
+func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
 	switch msg.Action {
-	case "state_update", "unit_placed", "unit_recalled":
-		_ = json.Unmarshal(msg.Data, &s.state)
-
-	case "turn_result":
-		var payload struct {
-			NewPhase string `json:"new_phase"`
-		}
-		_ = json.Unmarshal(msg.Data, &payload)
-		s.statusLine = fmt.Sprintf("Simulation done. Phase: %s", payload.NewPhase)
-		// Also expect a follow-up state_update from the server.
-
 	case "game_over":
-		var payload struct {
-			Winner string `json:"winner"`
-			Reason string `json:"reason"`
-		}
-		_ = json.Unmarshal(msg.Data, &payload)
-		if payload.Winner == g.PlayerID {
-			s.statusLine = "You WIN! (" + payload.Reason + ")"
-		} else {
-			s.statusLine = "You lose. (" + payload.Reason + ")"
-		}
+		// TODO
+		s.statusLine = "Game over"
 
 	case "error":
 		var e struct {
@@ -136,178 +101,182 @@ func (s *RoomScreen) handleMessage(g *Game, msg WSMessage) {
 	}
 }
 
-func (s *RoomScreen) updateMouse(g *Game) {
-	mx, my := ebiten.CursorPosition()
-
-	// Board hover
-	col := (mx - boardOffX) / cellSize
-	row := (my - boardOffY) / cellSize
-	if col >= 0 && col < boardCols && row >= 0 && row < boardRows {
-		s.hoveredCol = col
-		s.hoveredRow = row
-	} else {
-		s.hoveredCol = -1
-		s.hoveredRow = -1
-	}
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		if s.selectedHandIdx >= 0 && s.hoveredCol >= 0 {
-			// Place selected unit
-			myHand := s.myHand(g.PlayerID)
-			if s.selectedHandIdx < len(myHand) {
-				unit := myHand[s.selectedHandIdx]
-				g.Server.Send(map[string]any{
-					"type":             "place_unit",
-					"unit_instance_id": unit.InstanceID,
-					"col":              s.hoveredCol,
-					"row":              s.hoveredRow,
-				})
-				s.selectedHandIdx = -1
-			}
-		} else if s.hoveredCol >= 0 {
-			// Recall unit from board
-			g.Server.Send(map[string]any{
-				"type": "recall_unit",
-				"col":  s.hoveredCol,
-				"row":  s.hoveredRow,
-			})
-		}
-	}
-
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight) {
-		s.selectedHandIdx = -1
-	}
-
-	// Hand slot clicks
-	myHand := s.myHand(g.PlayerID)
-	for i := range myHand {
-		sx := boardOffX + i*52
-		sy := handPanelY
-		if mx >= sx && mx < sx+48 && my >= sy && my < sy+48 {
-			if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-				s.selectedHandIdx = i
-			}
-		}
-	}
-}
-
-func (s *RoomScreen) updateKeys(g *Game) {
-	if inpututil.IsKeyJustPressed(ebiten.KeyEnter) || inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		g.Server.Send(map[string]any{"type": "end_turn"})
-		s.statusLine = "Waiting for simulation…"
-	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		s.selectedHandIdx = -1
-	}
-}
-
 // ── Draw ──────────────────────────────────────────────────────────────────────
 
 func (s *RoomScreen) Draw(screen *ebiten.Image) {
-	s.drawBoard(screen)
-	s.drawHand(screen)
-	s.drawHUD(screen)
+	s.ui.Draw(screen)
 }
 
-func (s *RoomScreen) drawBoard(screen *ebiten.Image) {
-	for row := 0; row < boardCols; row++ {
-		for col := 0; col < boardRows; col++ {
-			x := float32(boardOffX + col*cellSize)
-			y := float32(boardOffY + row*cellSize)
+func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
+	textFace, err := ui.TextFace(40)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-			// Cell background
-			bg := color.NRGBA{R: 30, G: 30, B: 45, A: 255}
-			if row < 2 {
-				bg = color.NRGBA{R: 20, G: 50, B: 80, A: 255} // player 1 safe zone
-			} else if row >= boardCols-2 {
-				bg = color.NRGBA{R: 80, G: 20, B: 20, A: 255} // player 2 safe zone
-			}
-			if col == s.hoveredCol && row == s.hoveredRow {
-				bg = color.NRGBA{R: 60, G: 60, B: 90, A: 255}
-			}
-			vector.DrawFilledRect(screen, x, y, cellSize-1, cellSize-1, bg, false)
+	newText := func(content string) *widget.Text {
+		return widget.NewText(
+			widget.TextOpts.Text(content, &textFace, colornames.White),
+			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
+			widget.TextOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+					Position: widget.RowLayoutPositionCenter,
+				}),
+			),
+		)
+	}
+	root := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
 
-			// Grid outline
-			vector.StrokeRect(screen, x, y, cellSize-1, cellSize-1,
-				1, color.NRGBA{R: 50, G: 50, B: 70, A: 255}, false)
+	const headerH = 80
+	const footerH = 80
+
+	header := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(5),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				StretchHorizontal:  true,
+			}),
+			widget.WidgetOpts.MinSize(0, headerH),
+		),
+	)
+
+	footer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				StretchHorizontal:  true,
+			}),
+			widget.WidgetOpts.MinSize(0, footerH),
+		),
+	)
+
+	center := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    true,
+			}),
+			widget.WidgetOpts.MinSize(0, 0),
+		),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				StretchHorizontal:  true,
+				StretchVertical:    true,
+				Padding: &widget.Insets{
+					Top:    headerH,
+					Bottom: footerH,
+				},
+			}),
+		),
+	)
+
+	// --------------------------------------------------------------
+	// BOARD --------------------------------------------------------
+	// --------------------------------------------------------------
+
+	cellColor := colornames.Darkgray
+	boardColor := colornames.Slategray
+
+	board := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(
+			image.NewNineSliceColor(boardColor),
+		),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(len(data.Board[0])),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(25)),
+			widget.GridLayoutOpts.Spacing(1, 1),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	for _, row := range data.Board {
+		for range row {
+			cell := widget.NewContainer(
+				widget.ContainerOpts.BackgroundImage(
+					image.NewNineSliceColor(cellColor),
+				),
+				widget.ContainerOpts.WidgetOpts(
+					widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
+					widget.WidgetOpts.MinSize(64, 64),
+				),
+				widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+			)
+			board.AddChild(cell)
 		}
 	}
 
-	// Draw units on board
-	for _, u := range s.state.Board.Units {
-		s.drawUnit(screen, u,
-			boardOffX+u.Col*cellSize,
-			boardOffY+u.Row*cellSize)
+	center.AddChild(board)
+
+	// --------------------------------------------------------------
+	// UNITS --------------------------------------------------------
+	// --------------------------------------------------------------
+
+	unitCellColor := colornames.Darkgray
+	unitPanelColor := colornames.Slategray
+
+	unitPanel := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(
+			image.NewNineSliceColor(unitPanelColor),
+		),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(len(data.Player.Units)),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
+			widget.GridLayoutOpts.Spacing(1, 1),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	for _, unit := range data.Player.Units {
+		cell := widget.NewContainer(
+			widget.ContainerOpts.BackgroundImage(
+				image.NewNineSliceColor(unitCellColor),
+			),
+			widget.ContainerOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
+				widget.WidgetOpts.MinSize(64, 64),
+			),
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		)
+
+		cell.AddChild(newText(unit.Name))
+		unitPanel.AddChild(cell)
 	}
-}
 
-func (s *RoomScreen) drawUnit(screen *ebiten.Image, u UnitSnap, px, py int) {
-	// Unit background colour by owner (player 1 = blue, player 2 = red)
-	c := color.NRGBA{R: 60, G: 100, B: 200, A: 220}
-	if len(s.state.Players) > 1 && u.OwnerID == s.state.Players[1].ID {
-		c = color.NRGBA{R: 200, G: 60, B: 60, A: 220}
-	}
-	if u.Upgraded {
-		c.A = 255
-		c.R += 30
-	}
-	vector.DrawFilledRect(screen, float32(px+2), float32(py+2), cellSize-5, cellSize-5, c, false)
+	center.AddChild(board)
 
-	// HP bar
-	barW := float32(cellSize - 6)
-	hpFrac := float32(u.HP) / float32(u.MaxHP)
-	vector.DrawFilledRect(screen, float32(px+3), float32(py+cellSize-8), barW*hpFrac, 4,
-		color.NRGBA{R: 80, G: 220, B: 80, A: 255}, false)
+	header.AddChild(newText("im header"))
+	footer.AddChild(unitPanel)
 
-	// Name abbreviation (first 3 chars)
-	label := u.Name
-	if len(label) > 3 {
-		label = label[:3]
-	}
-	ebitenutil.DebugPrintAt(screen, label, px+4, py+4)
-}
+	root.AddChild(center)
+	root.AddChild(header)
+	root.AddChild(footer)
 
-func (s *RoomScreen) drawHand(screen *ebiten.Image) {
-	myHand := s.myHand("")
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Hand (%d):", len(myHand)), boardOffX, handPanelY-14)
-
-	for i, u := range myHand {
-		x := boardOffX + i*52
-		y := handPanelY
-
-		bg := color.NRGBA{R: 40, G: 80, B: 140, A: 255}
-		if i == s.selectedHandIdx {
-			bg = color.NRGBA{R: 80, G: 160, B: 255, A: 255}
-		}
-		vector.DrawFilledRect(screen, float32(x), float32(y), 48, 48, bg, false)
-		label := u.Name
-		if len(label) > 3 {
-			label = label[:3]
-		}
-		ebitenutil.DebugPrintAt(screen, label, x+4, y+4)
-		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%d/%d", u.HP, u.MaxHP), x+2, y+30)
-	}
-}
-
-func (s *RoomScreen) drawHUD(screen *ebiten.Image) {
-	ebitenutil.DebugPrintAt(screen,
-		fmt.Sprintf("Turn %d/%d  Phase: %s",
-			s.state.CurrentTurn, s.state.MaxTurns, s.state.Phase),
-		4, 4)
-	ebitenutil.DebugPrintAt(screen, s.statusLine, 4, ScreenHeight-20)
-	ebitenutil.DebugPrintAt(screen, "[Enter] End Turn   [Esc] Deselect", 4, ScreenHeight-36)
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// myHand returns the local player's hand units from the last state snapshot.
-// If playerID is empty it returns the first player's hand (for drawing the hand
-// during development before the player ID is wired up).
-func (s *RoomScreen) myHand(playerID string) []UnitSnap {
-	for _, p := range s.state.Players {
-		if playerID == "" || p.ID == playerID {
-			return p.Hand
-		}
-	}
-	return nil
+	s.ui = &ebitenui.UI{Container: root}
 }

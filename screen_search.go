@@ -1,4 +1,4 @@
-package client
+package game
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/ognev-dev/goplease-ebitengine-client/assets"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"github.com/setanarut/anim"
 	"golang.org/x/image/colornames"
 )
@@ -161,16 +162,16 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
-	if g.Server.Status == StatusConnected && s.statusLbl.Label == ConnectingLabel {
+	if g.Server.Status == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
 		g.Server.NewGame()
 		s.statusLbl.Label = SearchingOppLabel
 	}
-	if g.Server.Status == StatusError {
+	if g.Server.Status == ws.StatusError {
 		s.statusLbl.Label = ConnErrorLabel
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if g.Server.Status == StatusConnected {
+		if g.Server.Status == ws.StatusConnected {
 			g.Server.Send(map[string]any{"type": "cancel_match"})
 		}
 		return NewMainScreen(), nil
@@ -188,13 +189,13 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 	}
 }
 
-func (s *SearchScreen) handleMessage(msg WSMessage) Screen {
+func (s *SearchScreen) handleMessage(msg ws.Message) Screen {
 	switch msg.Action {
-	case SearchingOppAction:
+	case ws.SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
-	case NewGameAction:
+	case ws.NewGameAction:
 		return NewRoomScreen(msg.Data)
-	case ErrorAction:
+	case ws.ErrorAction:
 		var e struct {
 			Message string `json:"message"`
 		}

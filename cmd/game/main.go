@@ -5,14 +5,16 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 )
 
 func main() {
-	ebiten.SetWindowSize(client.ScreenWidth, client.ScreenHeight)
+	conf := config.Get()
+	ebiten.SetWindowSize(conf.WindowW, conf.WindowH)
 	ebiten.SetWindowTitle("go, please")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
-	if err := ebiten.RunGame(client.NewGame()); err != nil {
+	if err := ebiten.RunGame(game.NewGame()); err != nil {
 		log.Fatal(err)
 	}
 }

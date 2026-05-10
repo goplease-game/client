@@ -1,0 +1,5 @@
+resolution: 1200x900
+server_addr: localhost:8080
+
+use_mock_data: true
+log_protocol: true

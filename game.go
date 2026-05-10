@@ -1,13 +1,11 @@
-package client
+package game
 
 import (
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
-)
-
-const (
-	ScreenWidth  = 1200
-	ScreenHeight = 900
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
+	"github.com/ognev-dev/goplease-ebitengine-client/mock"
+	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
 // Game is the root ebiten.Game implementation.
@@ -15,16 +13,24 @@ const (
 // Update/Draw to the currently active Screen.
 type Game struct {
 	screen   Screen // active screen
-	Server   *WSClient
+	Server   *ws.Client
 	PlayerID string // stable UUID for this client session
 }
 
 func NewGame() *Game {
 	g := &Game{
 		PlayerID: uuid.NewString(),
-		Server:   NewWSClient(),
+		Server:   ws.NewClient(),
 	}
-	g.screen = NewMainScreen()
+
+	config.Get().UseMockData = true
+	data, err := mock.GetActionPayload(ws.NewGameAction)
+	if err != nil {
+		panic(err)
+	}
+	g.screen = NewRoomScreen(data)
+
+	//g.screen = NewMainScreen()
 	return g
 }
 
@@ -47,5 +53,6 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(outsideW, outsideH int) (int, int) {
-	return ScreenWidth, ScreenHeight
+	conf := config.Get()
+	return conf.WindowW, conf.WindowH
 }

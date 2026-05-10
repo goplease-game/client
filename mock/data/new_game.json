@@ -1,0 +1,669 @@
+{
+  "room_id": "4c1b3919-c3bf-4f61-8799-3d41e9846c45",
+  "phase": "unit_placement",
+  "is_my_turn": true,
+  "board": [
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ],
+    [
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": true
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      },
+      {
+        "unit": null,
+        "is_safe_zone": false
+      }
+    ]
+  ],
+  "player": {
+    "id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+    "name": "Player 1",
+    "is_bot": false,
+    "units": [
+      {
+        "id": "019e0d5c-4076-738e-a5ed-9f45e55c6967",
+        "template_id": 1,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "Bas",
+        "max_hp": 12,
+        "current_hp": 12,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 2,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_melee_attack",
+          "shield_wall",
+          "provoke",
+          "shield_bash",
+          "last_stand"
+        ],
+        "cooldowns": {}
+      },
+      {
+        "id": "019e0d5c-4076-738f-9a7a-c839a49d8e44",
+        "template_id": 2,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "Grit",
+        "max_hp": 6,
+        "current_hp": 6,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 2,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_melee_attack",
+          "battle_cry",
+          "cleave",
+          "slam",
+          "frenzy"
+        ],
+        "cooldowns": {}
+      },
+      {
+        "id": "019e0d5c-4076-7390-9356-918349ee76d0",
+        "template_id": 3,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "Fletch",
+        "max_hp": 6,
+        "current_hp": 6,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 1,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_range_attack",
+          "piercing_shot",
+          "prey",
+          "disengage",
+          "cover_file"
+        ],
+        "cooldowns": {}
+      },
+      {
+        "id": "019e0d5c-4076-7391-8720-f32d5a82c2e2",
+        "template_id": 4,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "Silver",
+        "max_hp": 6,
+        "current_hp": 6,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 3,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_melee_attack",
+          "shadow_step",
+          "backstab",
+          "eliminate",
+          "opportunity"
+        ],
+        "cooldowns": {}
+      },
+      {
+        "id": "019e0d5c-4076-7392-b309-49097e2aedbe",
+        "template_id": 5,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "Mist",
+        "max_hp": 9,
+        "current_hp": 9,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 1,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_magic_attack",
+          "translocation",
+          "time_warp",
+          "enfeeble",
+          "meditation"
+        ],
+        "cooldowns": {}
+      },
+      {
+        "id": "019e0d5c-4076-7393-a8c7-af8c26403df1",
+        "template_id": 6,
+        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "name": "July",
+        "max_hp": 9,
+        "current_hp": 9,
+        "current_shield": 0,
+        "ap": 1,
+        "mp": 2,
+        "row": -1,
+        "col": -1,
+        "abilities": [
+          "basic_magic_attack",
+          "heal",
+          "balance_life",
+          "cleanse",
+          "renewal"
+        ],
+        "cooldowns": {}
+      }
+    ]
+  },
+  "opponent": "Bot"
+}
