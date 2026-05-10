@@ -13,7 +13,6 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	"github.com/ognev-dev/goplease-ebitengine-client/assets"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"github.com/setanarut/anim"
@@ -39,7 +38,9 @@ type SearchScreen struct {
 func NewSearchScreen() *SearchScreen {
 	s := &SearchScreen{}
 
-	img, _, err := stdImage.Decode(bytes.NewReader(assets.Runner_png))
+	runner := Asset("runner.png")
+
+	img, _, err := stdImage.Decode(bytes.NewReader(runner))
 	if err != nil {
 		log.Fatal(err)
 	}
