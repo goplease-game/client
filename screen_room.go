@@ -3,7 +3,6 @@ package game
 import (
 	"encoding/json"
 	"fmt"
-	img "image"
 	"image/color"
 	"log"
 	"path"
@@ -17,27 +16,76 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-// ── Layout constants ──────────────────────────────────────────────────────────
-
 const (
-	cellSize = 50
+	cellSize = 64
+	headerH  = 80
+	footerH  = 90
 )
-
-// ── Colors ──────────────────────────────────────────────────────────
 
 var (
 	boardCellColor     = colornames.Darkgray
 	dropZoneColor      = colornames.Limegreen
 	dropZoneHoverColor = colornames.Palegreen
+	highlightColor     = colornames.Gold
 )
 
-// ── dndUnit ───────────────────────────────────────────────────────────────────
+// ── SafeZoneCell ─────────────────────────────────────────────────────────────
+
+type SafeZoneCell struct {
+	container     *widget.Container
+	activeGraphic *widget.Graphic
+	occupied      bool
+	row, col      int
+}
+
+func (sc *SafeZoneCell) SetHighlight(active bool) {
+	// Если мы выключаем подсветку, нам неважно, занята клетка или нет —
+	// графику нужно убрать в любом случае.
+	if !active {
+		sc.container.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+		if sc.activeGraphic != nil {
+			sc.container.RemoveChild(sc.activeGraphic)
+			sc.activeGraphic = nil
+		}
+		return
+	}
+
+	// А вот если включаем (active == true), тогда проверяем на занятость
+	if sc.occupied {
+		return
+	}
+
+	sc.container.SetBackgroundImage(image.NewNineSliceColor(dropZoneColor))
+	if sc.activeGraphic == nil {
+		dropImg := ImageAsset("drop_point.png", ImageSize{W: 52, H: 52})
+		sc.activeGraphic = widget.NewGraphic(
+			widget.GraphicOpts.Image(dropImg),
+			widget.GraphicOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
+			),
+		)
+		sc.container.AddChild(sc.activeGraphic)
+	}
+}
+
+func (sc *SafeZoneCell) SetHover(hover bool) {
+	if !sc.occupied {
+		c := dropZoneColor
+		if hover {
+			c = dropZoneHoverColor
+		}
+		sc.container.SetBackgroundImage(image.NewNineSliceColor(c))
+	}
+}
+
+// ── Drag-and-Drop Logic ──────────────────────────────────────────────────────
 
 type dndUnit struct {
-	unit         ds.Unit
-	dragWidget   *widget.Container
-	sourceWidget *widget.Container
-	current      widget.HasWidget
+	unit       ds.Unit
+	dragWidget *widget.Container
 }
 
 func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
@@ -45,9 +93,7 @@ func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
 		unitImg := unitImage(d.unit.TemplateID)
 		d.dragWidget = widget.NewContainer(
 			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-			widget.ContainerOpts.BackgroundImage(
-				image.NewNineSliceColor(colornames.Ghostwhite),
-			),
+			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Ghostwhite)),
 		)
 		d.dragWidget.AddChild(widget.NewGraphic(
 			widget.GraphicOpts.Image(unitImg),
@@ -63,151 +109,76 @@ func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
 	return d.dragWidget, d.unit
 }
 
-func (d *dndUnit) Update(canDrop bool, targetWidget widget.HasWidget, _ interface{}) {
-	if d.current != nil && d.current != targetWidget {
-		d.current.(*widget.Container).SetBackgroundImage(
-			image.NewNineSliceColor(dropZoneColor),
-		)
-
-		d.current = nil
-	}
-	if canDrop && targetWidget != nil {
-		targetWidget.(*widget.Container).SetBackgroundImage(
-			image.NewNineSliceColor(dropZoneHoverColor),
-		)
-		d.current = targetWidget
-	}
-}
-
-func (d *dndUnit) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
-	if d.current != nil {
-		d.current.(*widget.Container).SetBackgroundImage(
-			image.NewNineSliceColor(dropZoneColor),
-		)
-
-		d.current = nil
-	}
-}
-
-// ── safeZoneCell ──────────────────────────────────────────────────────────────
-
-type safeZoneCell struct {
-	container     *widget.Container
-	activeGraphic *widget.Graphic
-	occupied      *bool
-}
-
-// ── dndUnitWithGlobalHighlight ────────────────────────────────────────────────
-type dndUnitWithGlobalHighlight struct {
+type dndHandler struct {
 	*dndUnit
-	safeZoneCells []*safeZoneCell
-	dragActive    bool
+	safeCells   []*SafeZoneCell
+	currentCell *SafeZoneCell
 }
 
-func (d *dndUnitWithGlobalHighlight) Create(parent widget.HasWidget) (*widget.Container, interface{}) {
-	if !d.dragActive {
-		d.dragActive = true
-		dropImg := ImageAsset("drop_point.png", ImageSize{W: 52, H: 52})
-
-		for _, sc := range d.safeZoneCells {
-			if !*sc.occupied {
-				sc.container.SetBackgroundImage(image.NewNineSliceColor(dropZoneColor))
-
-				g := widget.NewGraphic(
-					widget.GraphicOpts.Image(dropImg),
-					widget.GraphicOpts.WidgetOpts(
-						widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-							HorizontalPosition: widget.AnchorLayoutPositionCenter,
-							VerticalPosition:   widget.AnchorLayoutPositionCenter,
-						}),
-					),
-				)
-				sc.container.AddChild(g)
-				sc.activeGraphic = g
-			}
-		}
+func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interface{}) {
+	for _, sc := range d.safeCells {
+		sc.SetHighlight(true)
 	}
 	return d.dndUnit.Create(parent)
 }
 
-func (d *dndUnitWithGlobalHighlight) Update(canDrop bool, targetWidget widget.HasWidget, data interface{}) {
-	d.dndUnit.Update(canDrop, targetWidget, data)
-}
-
-func (d *dndUnitWithGlobalHighlight) EndDrag(dropped bool, sourceWidget widget.HasWidget, data interface{}) {
-	d.dragActive = false
-	d.dndUnit.EndDrag(dropped, sourceWidget, data)
-	for _, sc := range d.safeZoneCells {
-		if !*sc.occupied {
-			sc.container.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
-			if sc.activeGraphic != nil {
-				sc.container.RemoveChild(sc.activeGraphic)
-				sc.activeGraphic = nil
+func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ interface{}) {
+	if d.currentCell != nil {
+		d.currentCell.SetHover(false)
+		d.currentCell = nil
+	}
+	if canDrop && target != nil {
+		for _, sc := range d.safeCells {
+			if sc.container == target {
+				sc.SetHover(true)
+				d.currentCell = sc
+				break
 			}
 		}
 	}
 }
 
-// ── RoomScreen ────────────────────────────────────────────────────────────────
-
-type RoomScreen struct {
-	ui *ebitenui.UI
-
-	roomID       string
-	phase        ds.Phase
-	isMyTurn     bool
-	board        ds.Board
-	myPlayer     ds.Player
-	opponentName string
-
-	selectedBoardRow int
-	selectedBoardCol int
-	hoveredRow       int
-	hoveredCol       int
-
-	statusLine string
-
-	unitsQueue []string // unit.ID
-
-	unitCards        map[string]*widget.Container
-	unitPanelRef     *widget.Container
-	queuePanelRef    *widget.Container
-	headerRef        *widget.Container
-	footerRef        *widget.Container
-	queuePanelIn     bool
-	unitPanelIn      bool
-	boardCellWidgets [][]*widget.Container // [row][col]
+func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
+	for _, sc := range d.safeCells {
+		sc.SetHighlight(false)
+	}
 }
 
-func NewRoomScreen(newGamePayload json.RawMessage) *RoomScreen {
+// ── RoomScreen ───────────────────────────────────────────────────────────────
+
+type RoomScreen struct {
+	ui               *ebitenui.UI
+	roomID           string
+	myPlayer         ds.Player
+	boardCellWidgets [][]*widget.Container
+	unitCards        map[string]*widget.Container
+	safeZoneCells    []*SafeZoneCell
+
+	headerRef     *widget.Container
+	footerRef     *widget.Container
+	queuePanelRef *widget.Container
+	unitPanelRef  *widget.Container
+
+	unitsQueue  []string
+	queueIn     bool
+	unitPanelIn bool
+}
+
+func NewRoomScreen(payload json.RawMessage) *RoomScreen {
 	var data ds.NewGamePayload
-	if err := json.Unmarshal(newGamePayload, &data); err != nil {
-		log.Fatalf("new game payload: %v", err)
+	if err := json.Unmarshal(payload, &data); err != nil {
+		log.Fatalf("failed to unmarshal: %v", err)
 	}
 
 	s := &RoomScreen{
-		roomID:           data.RoomID,
-		phase:            data.Phase,
-		isMyTurn:         data.IsMyTurn,
-		board:            data.Board,
-		opponentName:     data.Opponent,
-		selectedBoardRow: -1,
-		selectedBoardCol: -1,
-		hoveredRow:       -1,
-		hoveredCol:       -1,
-		statusLine:       "Place a unit",
-		unitsQueue:       []string{},
-		unitCards:        make(map[string]*widget.Container),
-	}
-	if data.Player != nil {
-		s.myPlayer = *data.Player
+		roomID:    data.RoomID,
+		myPlayer:  *data.Player,
+		unitCards: make(map[string]*widget.Container),
 	}
 
-	s.drawUI(data)
+	s.setupUI(data)
 	return s
 }
-
-// ── Update ────────────────────────────────────────────────────────────────────
 
 func (s *RoomScreen) Update(g *Game) (Screen, error) {
 	for {
@@ -215,63 +186,257 @@ func (s *RoomScreen) Update(g *Game) (Screen, error) {
 		case msg := <-g.Server.Inbox:
 			s.handleMessage(g, msg)
 		default:
-			goto doneInbox
+			goto done
 		}
 	}
-doneInbox:
-
+done:
 	s.ui.Update()
 	return s, nil
 }
-
-func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
-	switch msg.Action {
-	case "game_over":
-		s.statusLine = "Game over"
-
-	case "unit_queued":
-		var payload struct {
-			UnitID string `json:"unit_id"`
-		}
-		if err := json.Unmarshal(msg.Data, &payload); err == nil {
-			s.addUnitToQueue(payload.UnitID)
-		}
-
-	case "error":
-		var e struct {
-			Message string `json:"message"`
-		}
-		_ = json.Unmarshal(msg.Data, &e)
-		s.statusLine = "Error: " + e.Message
-	}
-}
-
-// ── Draw ──────────────────────────────────────────────────────────────────────
 
 func (s *RoomScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 }
 
-func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
-	for _, u := range s.myPlayer.Units {
-		if u.ID == id {
-			return u, true
-		}
-	}
-	return ds.Unit{}, false
+func (s *RoomScreen) setupUI(data ds.NewGamePayload) {
+	root := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+
+	s.headerRef = s.createHeader()
+	s.footerRef = s.createFooter()
+	center := s.createBoardContainer(data.Board)
+
+	root.AddChild(center)
+	root.AddChild(s.headerRef)
+	root.AddChild(s.footerRef)
+
+	s.setupUnitPanel()
+	s.ui = &ebitenui.UI{Container: root}
 }
 
-func (s *RoomScreen) boardCellWidget(u ds.Unit) *widget.Container {
-	if u.Row < 0 || u.Col < 0 {
-		return nil
+func (s *RoomScreen) createHeader() *widget.Container {
+	h := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{StretchHorizontal: true}),
+			widget.WidgetOpts.MinSize(0, headerH),
+		),
+	)
+
+	s.queuePanelRef = widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Midnightblue)),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(4)),
+			widget.RowLayoutOpts.Spacing(4),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	return h
+}
+
+func (s *RoomScreen) createFooter() *widget.Container {
+	return widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:  widget.AnchorLayoutPositionEnd,
+				StretchHorizontal: true,
+			}),
+			widget.WidgetOpts.MinSize(0, footerH),
+		),
+	)
+}
+
+func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container {
+	cols := 0
+	if len(boardData) > 0 {
+		cols = len(boardData[0])
 	}
-	if u.Row >= len(s.boardCellWidgets) {
-		return nil
+
+	container := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				StretchHorizontal: true,
+				StretchVertical:   true,
+				Padding:           &widget.Insets{Top: headerH, Bottom: footerH},
+			}),
+		),
+	)
+
+	boardWidget := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(cols),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(25)),
+			widget.GridLayoutOpts.Spacing(2, 2),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	s.boardCellWidgets = make([][]*widget.Container, len(boardData))
+	for r, row := range boardData {
+		s.boardCellWidgets[r] = make([]*widget.Container, len(row))
+		for c, cellData := range row {
+			s.boardCellWidgets[r][c] = s.createCell(r, c, cellData)
+			boardWidget.AddChild(s.boardCellWidgets[r][c])
+		}
 	}
-	if u.Col >= len(s.boardCellWidgets[u.Row]) {
-		return nil
+
+	container.AddChild(boardWidget)
+	return container
+}
+
+func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
+	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
+	sc := &SafeZoneCell{row: r, col: c}
+
+	opts := []widget.ContainerOpt{
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(cellSize, cellSize),
+		),
 	}
-	return s.boardCellWidgets[u.Row][u.Col]
+
+	if isDroppable {
+		opts = append(opts, widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
+				_, ok := args.Data.(ds.Unit)
+				return ok && !sc.occupied
+			}),
+			widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
+				unit, ok := args.Data.(ds.Unit)
+				if !ok {
+					return
+				}
+				sc.occupied = true
+				sc.SetHighlight(false)
+				sc.container.AddChild(widget.NewGraphic(
+					widget.GraphicOpts.Image(unitImage(unit.TemplateID)),
+					widget.GraphicOpts.WidgetOpts(
+						widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+							HorizontalPosition: widget.AnchorLayoutPositionCenter,
+							VerticalPosition:   widget.AnchorLayoutPositionCenter,
+						}),
+					),
+				))
+				s.onUnitPlaced(unit.ID, r, c)
+			}),
+		))
+	}
+
+	cell := widget.NewContainer(opts...)
+	sc.container = cell
+	if isDroppable {
+		s.safeZoneCells = append(s.safeZoneCells, sc)
+	}
+
+	return cell
+}
+
+func (s *RoomScreen) setupUnitPanel() {
+	if len(s.myPlayer.Units) == 0 {
+		return
+	}
+
+	s.unitPanelRef = widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(len(s.myPlayer.Units)),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
+			widget.GridLayoutOpts.Spacing(4, 4),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	for _, u := range s.myPlayer.Units {
+		card := s.buildUnitCard(u)
+		s.unitPanelRef.AddChild(card)
+		s.unitCards[u.ID] = card
+	}
+
+	s.footerRef.AddChild(s.unitPanelRef)
+	s.unitPanelIn = true
+}
+
+func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
+	dnd := &dndHandler{
+		dndUnit:   &dndUnit{unit: u},
+		safeCells: s.safeZoneCells,
+	}
+
+	card := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Ghostwhite)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(cellSize, cellSize),
+			widget.WidgetOpts.EnableDragAndDrop(widget.NewDragAndDrop(
+				widget.DragAndDropOpts.ContentsCreater(dnd),
+				widget.DragAndDropOpts.MinDragStartDistance(10),
+			)),
+		),
+	)
+
+	card.AddChild(widget.NewGraphic(
+		widget.GraphicOpts.Image(unitImage(u.TemplateID)),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
+			}),
+			widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(colornames.Ghostwhite))
+			}),
+		),
+	))
+
+	return card
+}
+
+func (s *RoomScreen) onUnitPlaced(unitID string, r, c int) {
+	if card, ok := s.unitCards[unitID]; ok {
+		s.unitPanelRef.RemoveChild(card)
+		delete(s.unitCards, unitID)
+	}
+
+	if len(s.unitCards) == 0 && s.unitPanelIn {
+		s.footerRef.RemoveChild(s.unitPanelRef)
+		s.unitPanelIn = false
+	}
+
+	for i := range s.myPlayer.Units {
+		if s.myPlayer.Units[i].ID == unitID {
+			s.myPlayer.Units[i].Row = r
+			s.myPlayer.Units[i].Col = c
+			break
+		}
+	}
+	s.addUnitToQueue(unitID)
 }
 
 func (s *RoomScreen) addUnitToQueue(unitID string) {
@@ -288,38 +453,35 @@ func (s *RoomScreen) rebuildQueuePanel() {
 	if s.queuePanelRef == nil || s.headerRef == nil {
 		return
 	}
-
 	s.queuePanelRef.RemoveChildren()
 
 	if len(s.unitsQueue) == 0 {
-		if s.queuePanelIn {
+		if s.queueIn {
 			s.headerRef.RemoveChild(s.queuePanelRef)
-			s.queuePanelIn = false
+			s.queueIn = false
 		}
 		return
 	}
 
-	if !s.queuePanelIn {
+	if !s.queueIn {
 		s.headerRef.AddChild(s.queuePanelRef)
-		s.queuePanelIn = true
+		s.queueIn = true
 	}
 
 	for i := len(s.unitsQueue) - 1; i >= 0; i-- {
-		u, ok := s.unitByID(s.unitsQueue[i])
+		uID := s.unitsQueue[i]
+		u, ok := s.unitByID(uID)
 		if !ok {
 			continue
 		}
 
-		unitID := u.ID
-		queueCard := widget.NewContainer(
+		card := widget.NewContainer(
 			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
 			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-			widget.ContainerOpts.WidgetOpts(
-				widget.WidgetOpts.MinSize(54, 54),
-			),
+			widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(54, 54)),
 		)
 
-		queueCard.AddChild(widget.NewGraphic(
+		card.AddChild(widget.NewGraphic(
 			widget.GraphicOpts.Image(unitImage(u.TemplateID)),
 			widget.GraphicOpts.WidgetOpts(
 				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -327,333 +489,54 @@ func (s *RoomScreen) rebuildQueuePanel() {
 					VerticalPosition:   widget.AnchorLayoutPositionCenter,
 				}),
 				widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
-					queueCard.SetBackgroundImage(image.NewNineSliceColor(colornames.Gold))
-					if u, ok := s.unitByID(unitID); ok {
-						if bc := s.boardCellWidget(u); bc != nil {
-							bc.SetBackgroundImage(image.NewNineSliceColor(colornames.Gold))
-						}
+					card.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
+					if bc := s.boardCellWidget(u); bc != nil {
+						bc.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
 					}
 				}),
 				widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
-					queueCard.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
-					if u, ok := s.unitByID(unitID); ok {
-						if bc := s.boardCellWidget(u); bc != nil {
-							bc.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
-						}
+					card.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+					if bc := s.boardCellWidget(u); bc != nil {
+						bc.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
 					}
 				}),
 			),
 		))
-
-		s.queuePanelRef.AddChild(queueCard)
+		s.queuePanelRef.AddChild(card)
 	}
 }
 
-// ── drawUI ────────────────────────────────────────────────────────────────────
-
-func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
-	// ── root ──────────────────────────────────────────────────────────────
-	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
-
-	const headerH, footerH = 80, 90
-
-	// ── header ────────────────────────────────────────────────────────────
-	header := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				StretchHorizontal:  true,
-			}),
-			widget.WidgetOpts.MinSize(0, headerH),
-		),
-	)
-
-	queuePanel := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Midnightblue)),
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(4)),
-			widget.RowLayoutOpts.Spacing(4),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
-
-	s.queuePanelRef = queuePanel
-	s.headerRef = header
-
-	// ── footer ────────────────────────────────────────────────────────────
-	footer := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionEnd,
-				StretchHorizontal:  true,
-			}),
-			widget.WidgetOpts.MinSize(0, footerH),
-		),
-	)
-
-	// ── center ────────────────────────────────────────────────────────────
-	center := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-				StretchHorizontal:  true,
-				StretchVertical:    true,
-				Padding: &widget.Insets{
-					Top:    headerH,
-					Bottom: footerH,
-				},
-			}),
-		),
-	)
-
-	// ── board ─────────────────────────────────────────────────────────────
-	var safeZoneCells []*safeZoneCell
-
-	cols := 0
-	if len(data.Board) > 0 {
-		cols = len(data.Board[0])
+func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
+	switch msg.Action {
+	case "unit_queued":
+		var payload struct {
+			UnitID string `json:"unit_id"`
+		}
+		if err := json.Unmarshal(msg.Data, &payload); err == nil {
+			s.addUnitToQueue(payload.UnitID)
+		}
 	}
+}
 
-	board := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
-		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			widget.GridLayoutOpts.Columns(cols),
-			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(25)),
-			widget.GridLayoutOpts.Spacing(2, 2),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
-
-	s.boardCellWidgets = make([][]*widget.Container, len(data.Board))
-	for i := range s.boardCellWidgets {
-		if len(data.Board[i]) > 0 {
-			s.boardCellWidgets[i] = make([]*widget.Container, len(data.Board[i]))
+func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
+	for _, u := range s.myPlayer.Units {
+		if u.ID == id {
+			return u, true
 		}
 	}
 
-	for rowIdx, row := range data.Board {
-		for colIdx, cellData := range row {
-			isDroppable := cellData != nil && cellData.IsSafeZone && cellData.Unit == nil
-
-			var cell *widget.Container
-			if isDroppable {
-				var c *widget.Container
-				occupied := false
-				dropRow, dropCol := rowIdx, colIdx
-
-				sc := &safeZoneCell{
-					container: c,
-					occupied:  &occupied,
-				}
-
-				c = widget.NewContainer(
-					widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
-					widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-					widget.ContainerOpts.WidgetOpts(
-						widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
-						widget.WidgetOpts.MinSize(64, 64),
-						widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
-							_, ok := args.Data.(ds.Unit)
-							return ok && !occupied
-						}),
-						widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
-							droppedUnit := args.Data.(ds.Unit)
-							occupied = true
-
-							// TODO Server
-							// g.Server.Send(ws.Message{Action: "place_unit", Data: ...})
-
-							if sc.activeGraphic != nil {
-								sc.container.RemoveChild(sc.activeGraphic)
-								sc.activeGraphic = nil
-							}
-
-							c.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
-
-							unitImg := unitImage(droppedUnit.TemplateID)
-							c.AddChild(widget.NewGraphic(
-								widget.GraphicOpts.Image(unitImg),
-								widget.GraphicOpts.WidgetOpts(
-									widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-										HorizontalPosition: widget.AnchorLayoutPositionCenter,
-										VerticalPosition:   widget.AnchorLayoutPositionCenter,
-									}),
-								),
-							))
-
-							for i, u := range s.myPlayer.Units {
-								if u.ID == droppedUnit.ID {
-									s.myPlayer.Units[i].Row = dropRow
-									s.myPlayer.Units[i].Col = dropCol
-									break
-								}
-							}
-
-							s.onUnitPlaced(droppedUnit.ID)
-						}),
-					),
-				)
-
-				sc.container = c
-				safeZoneCells = append(safeZoneCells, sc)
-				s.boardCellWidgets[rowIdx][colIdx] = c
-				cell = c
-			} else {
-				cell = widget.NewContainer(
-					widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
-					widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-					widget.ContainerOpts.WidgetOpts(
-						widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
-						widget.WidgetOpts.MinSize(64, 64),
-					),
-				)
-			}
-
-			board.AddChild(cell)
-		}
-	}
-
-	center.AddChild(board)
-
-	// ── unit panel ────────────────────────────────────────────────────────
-	unitCols := len(data.Player.Units)
-	if unitCols == 0 {
-		unitCols = 1
-	}
-
-	unitPanel := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
-		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			widget.GridLayoutOpts.Columns(unitCols),
-			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
-			widget.GridLayoutOpts.Spacing(4, 4),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
-
-	s.unitPanelRef = unitPanel
-	s.footerRef = footer
-
-	for _, unit := range data.Player.Units {
-		u := unit
-		unitCard := s.buildUnitCard(u, safeZoneCells)
-		unitPanel.AddChild(unitCard)
-	}
-
-	if len(data.Player.Units) > 0 {
-		footer.AddChild(unitPanel)
-		s.unitPanelIn = true
-	}
-
-	// ── assemble ──────────────────────────────────────────────────────────
-	root.AddChild(center)
-	root.AddChild(header)
-	root.AddChild(footer)
-
-	s.ui = &ebitenui.UI{Container: root}
+	return ds.Unit{}, false
 }
 
-func (s *RoomScreen) buildUnitCard(u ds.Unit, safeZoneCells []*safeZoneCell) *widget.Container {
-	dnd := &dndUnitWithGlobalHighlight{
-		dndUnit:       &dndUnit{unit: u},
-		safeZoneCells: safeZoneCells,
+func (s *RoomScreen) boardCellWidget(u ds.Unit) *widget.Container {
+	if u.Row < 0 || u.Row >= len(s.boardCellWidgets) || u.Col < 0 || u.Col >= len(s.boardCellWidgets[u.Row]) {
+		return nil
 	}
-
-	unitCard := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Ghostwhite)),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
-			widget.WidgetOpts.MinSize(64, 64),
-			widget.WidgetOpts.EnableDragAndDrop(
-				widget.NewDragAndDrop(
-					widget.DragAndDropOpts.ContentsCreater(dnd),
-					widget.DragAndDropOpts.MinDragStartDistance(10),
-					widget.DragAndDropOpts.ContentsOriginVertical(widget.DND_ANCHOR_START),
-					widget.DragAndDropOpts.ContentsOriginHorizontal(widget.DND_ANCHOR_START),
-					widget.DragAndDropOpts.Offset(img.Point{X: -10, Y: -10}),
-				),
-			),
-		),
-	)
-
-	dnd.dndUnit.sourceWidget = unitCard
-
-	unitImg := unitImage(u.TemplateID)
-	unitCard.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImg),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
-				unitCard.SetBackgroundImage(image.NewNineSliceColor(colornames.Gold))
-			}),
-			widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
-				unitCard.SetBackgroundImage(image.NewNineSliceColor(colornames.Ghostwhite))
-			}),
-		),
-	))
-
-	s.unitCards[u.ID] = unitCard
-
-	return unitCard
-}
-
-func (s *RoomScreen) onUnitPlaced(unitID string) {
-	if card, ok := s.unitCards[unitID]; ok {
-		s.unitPanelRef.RemoveChild(card)
-		delete(s.unitCards, unitID)
-	}
-
-	if len(s.unitCards) == 0 && s.unitPanelRef != nil && s.footerRef != nil && s.unitPanelIn {
-		s.footerRef.RemoveChild(s.unitPanelRef)
-		s.unitPanelIn = false
-	}
-
-	s.addUnitToQueue(unitID)
+	return s.boardCellWidgets[u.Row][u.Col]
 }
 
 func unitImage(templateID int) *ebiten.Image {
 	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
 
-	return ImageAsset(up, ImageSize{
-		W: 64, H: 64,
-	})
-}
-
-func imageToNineSlice(img *ebiten.Image) *image.NineSlice {
-	w, h := img.Bounds().Dx(), img.Bounds().Dy()
-	return image.NewNineSlice(img,
-		[3]int{0, w, 0},
-		[3]int{0, h, 0},
-	)
+	return ImageAsset(up, ImageSize{W: 64, H: 64})
 }
