@@ -13,7 +13,6 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
@@ -94,14 +93,14 @@ func (d *dndUnit) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
 
 type safeZoneCell struct {
 	container     *widget.Container
-	activeGraphic *widget.Graphic // nil когда драга нет
+	activeGraphic *widget.Graphic
 	occupied      *bool
 }
 
 // ── dndUnitWithGlobalHighlight ────────────────────────────────────────────────
 type dndUnitWithGlobalHighlight struct {
 	*dndUnit
-	safeZoneCells []*safeZoneCell // ← указатели
+	safeZoneCells []*safeZoneCell
 	dragActive    bool
 }
 
@@ -170,11 +169,14 @@ type RoomScreen struct {
 
 	unitsQueue []string // unit.ID
 
-	unitCards     map[string]*widget.Container
-	unitPanelRef  *widget.Container
-	queuePanelRef *widget.Container // ← панель очереди в хедере
-	// карта юнитов по ID для быстрого доступа к ds.Unit при добавлении в очередь
-	unitsByID map[string]ds.Unit
+	unitCards        map[string]*widget.Container
+	unitPanelRef     *widget.Container
+	queuePanelRef    *widget.Container
+	headerRef        *widget.Container
+	footerRef        *widget.Container
+	queuePanelIn     bool
+	unitPanelIn      bool
+	boardCellWidgets [][]*widget.Container // [row][col]
 }
 
 func NewRoomScreen(newGamePayload json.RawMessage) *RoomScreen {
@@ -196,13 +198,9 @@ func NewRoomScreen(newGamePayload json.RawMessage) *RoomScreen {
 		statusLine:       "Place a unit",
 		unitsQueue:       []string{},
 		unitCards:        make(map[string]*widget.Container),
-		unitsByID:        make(map[string]ds.Unit),
 	}
 	if data.Player != nil {
 		s.myPlayer = *data.Player
-		for _, u := range data.Player.Units {
-			s.unitsByID[u.ID] = u
-		}
 	}
 
 	s.drawUI(data)
@@ -232,15 +230,11 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
 		s.statusLine = "Game over"
 
 	case "unit_queued":
-		// Пример: сервер присылает юнита, которого нужно добавить в очередь.
-		// Предполагаем payload: { "unit_id": "..." }
 		var payload struct {
 			UnitID string `json:"unit_id"`
 		}
 		if err := json.Unmarshal(msg.Data, &payload); err == nil {
-			if u, ok := s.unitsByID[payload.UnitID]; ok {
-				s.addUnitToQueue(u)
-			}
+			s.addUnitToQueue(payload.UnitID)
 		}
 
 	case "error":
@@ -258,39 +252,65 @@ func (s *RoomScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 }
 
-// ── addUnitToQueue ────────────────────────────────────────────────────────────
-// Добавляет юнита в очередь активации: обновляет список unitsQueue и рендерит
-// карточку в queuePanel. Вызывается как локально (после дропа), так и извне
-// (например, из handleMessage при получении серверного события).
+func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
+	for _, u := range s.myPlayer.Units {
+		if u.ID == id {
+			return u, true
+		}
+	}
+	return ds.Unit{}, false
+}
 
-func (s *RoomScreen) addUnitToQueue(u ds.Unit) {
-	// Не добавлять дубликаты
+func (s *RoomScreen) boardCellWidget(u ds.Unit) *widget.Container {
+	if u.Row < 0 || u.Col < 0 {
+		return nil
+	}
+	if u.Row >= len(s.boardCellWidgets) {
+		return nil
+	}
+	if u.Col >= len(s.boardCellWidgets[u.Row]) {
+		return nil
+	}
+	return s.boardCellWidgets[u.Row][u.Col]
+}
+
+func (s *RoomScreen) addUnitToQueue(unitID string) {
 	for _, id := range s.unitsQueue {
-		if id == u.ID {
+		if id == unitID {
 			return
 		}
 	}
-	s.unitsQueue = append(s.unitsQueue, u.ID)
-
+	s.unitsQueue = append(s.unitsQueue, unitID)
 	s.rebuildQueuePanel()
 }
 
-// rebuildQueuePanel полностью перерисовывает queuePanel из среза unitsQueue.
-// Первый элемент среза отображается первым слева.
-// EbitenUI не поддерживает InsertChildAt, поэтому пересоздаём содержимое целиком.
 func (s *RoomScreen) rebuildQueuePanel() {
-	if s.queuePanelRef == nil {
+	if s.queuePanelRef == nil || s.headerRef == nil {
 		return
 	}
 
 	s.queuePanelRef.RemoveChildren()
 
+	if len(s.unitsQueue) == 0 {
+		if s.queuePanelIn {
+			s.headerRef.RemoveChild(s.queuePanelRef)
+			s.queuePanelIn = false
+		}
+		return
+	}
+
+	if !s.queuePanelIn {
+		s.headerRef.AddChild(s.queuePanelRef)
+		s.queuePanelIn = true
+	}
+
 	for i := len(s.unitsQueue) - 1; i >= 0; i-- {
-		u, ok := s.unitsByID[s.unitsQueue[i]]
+		u, ok := s.unitByID(s.unitsQueue[i])
 		if !ok {
 			continue
 		}
 
+		unitID := u.ID
 		queueCard := widget.NewContainer(
 			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
 			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -306,6 +326,22 @@ func (s *RoomScreen) rebuildQueuePanel() {
 					HorizontalPosition: widget.AnchorLayoutPositionCenter,
 					VerticalPosition:   widget.AnchorLayoutPositionCenter,
 				}),
+				widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
+					queueCard.SetBackgroundImage(image.NewNineSliceColor(colornames.Gold))
+					if u, ok := s.unitByID(unitID); ok {
+						if bc := s.boardCellWidget(u); bc != nil {
+							bc.SetBackgroundImage(image.NewNineSliceColor(colornames.Gold))
+						}
+					}
+				}),
+				widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
+					queueCard.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+					if u, ok := s.unitByID(unitID); ok {
+						if bc := s.boardCellWidget(u); bc != nil {
+							bc.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+						}
+					}
+				}),
 			),
 		))
 
@@ -316,21 +352,6 @@ func (s *RoomScreen) rebuildQueuePanel() {
 // ── drawUI ────────────────────────────────────────────────────────────────────
 
 func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
-	face, err := ui.TextFace(28)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	newText := func(content string) *widget.Text {
-		return widget.NewText(
-			widget.TextOpts.Text(content, &face, colornames.White),
-			widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-			widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-		)
-	}
-
 	// ── root ──────────────────────────────────────────────────────────────
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
@@ -342,11 +363,7 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 	// ── header ────────────────────────────────────────────────────────────
 	header := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
-			widget.RowLayoutOpts.Spacing(12),
-		)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -357,9 +374,6 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 		),
 	)
 
-	header.AddChild(newText("GoPlease"))
-
-	// ── queue panel (в хедере) ────────────────────────────────────────────
 	queuePanel := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Midnightblue)),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -368,15 +382,15 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 			widget.RowLayoutOpts.Spacing(4),
 		)),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
-			widget.WidgetOpts.MinSize(54, 54),
 		),
 	)
 
 	s.queuePanelRef = queuePanel
-	header.AddChild(queuePanel)
+	s.headerRef = header
 
 	// ── footer ────────────────────────────────────────────────────────────
 	footer := widget.NewContainer(
@@ -432,14 +446,22 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 		),
 	)
 
-	for _, row := range data.Board {
-		for _, cellData := range row {
+	s.boardCellWidgets = make([][]*widget.Container, len(data.Board))
+	for i := range s.boardCellWidgets {
+		if len(data.Board[i]) > 0 {
+			s.boardCellWidgets[i] = make([]*widget.Container, len(data.Board[i]))
+		}
+	}
+
+	for rowIdx, row := range data.Board {
+		for colIdx, cellData := range row {
 			isDroppable := cellData != nil && cellData.IsSafeZone && cellData.Unit == nil
 
 			var cell *widget.Container
 			if isDroppable {
 				var c *widget.Container
 				occupied := false
+				dropRow, dropCol := rowIdx, colIdx
 
 				sc := &safeZoneCell{
 					container: c,
@@ -481,14 +503,22 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 								),
 							))
 
-							s.onUnitPlaced(droppedUnit)
+							for i, u := range s.myPlayer.Units {
+								if u.ID == droppedUnit.ID {
+									s.myPlayer.Units[i].Row = dropRow
+									s.myPlayer.Units[i].Col = dropCol
+									break
+								}
+							}
+
+							s.onUnitPlaced(droppedUnit.ID)
 						}),
 					),
 				)
 
 				sc.container = c
 				safeZoneCells = append(safeZoneCells, sc)
-
+				s.boardCellWidgets[rowIdx][colIdx] = c
 				cell = c
 			} else {
 				cell = widget.NewContainer(
@@ -529,6 +559,7 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 	)
 
 	s.unitPanelRef = unitPanel
+	s.footerRef = footer
 
 	for _, unit := range data.Player.Units {
 		u := unit
@@ -536,7 +567,10 @@ func (s *RoomScreen) drawUI(data ds.NewGamePayload) {
 		unitPanel.AddChild(unitCard)
 	}
 
-	footer.AddChild(unitPanel)
+	if len(data.Player.Units) > 0 {
+		footer.AddChild(unitPanel)
+		s.unitPanelIn = true
+	}
 
 	// ── assemble ──────────────────────────────────────────────────────────
 	root.AddChild(center)
@@ -594,15 +628,18 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit, safeZoneCells []*safeZoneCell) *wi
 	return unitCard
 }
 
-// onUnitPlaced вызывается после того, как игрок задропил юнита на доску.
-// Убирает карточку из unitPanel и добавляет юнита в очередь активации.
-func (s *RoomScreen) onUnitPlaced(u ds.Unit) {
-	if card, ok := s.unitCards[u.ID]; ok {
+func (s *RoomScreen) onUnitPlaced(unitID string) {
+	if card, ok := s.unitCards[unitID]; ok {
 		s.unitPanelRef.RemoveChild(card)
-		delete(s.unitCards, u.ID)
+		delete(s.unitCards, unitID)
 	}
 
-	s.addUnitToQueue(u)
+	if len(s.unitCards) == 0 && s.unitPanelRef != nil && s.footerRef != nil && s.unitPanelIn {
+		s.footerRef.RemoveChild(s.unitPanelRef)
+		s.unitPanelIn = false
+	}
+
+	s.addUnitToQueue(unitID)
 }
 
 func unitImage(templateID int) *ebiten.Image {
@@ -616,7 +653,7 @@ func unitImage(templateID int) *ebiten.Image {
 func imageToNineSlice(img *ebiten.Image) *image.NineSlice {
 	w, h := img.Bounds().Dx(), img.Bounds().Dy()
 	return image.NewNineSlice(img,
-		[3]int{0, w, 0}, // горизонталь: левый=0, центр=вся ширина, правый=0
-		[3]int{0, h, 0}, // вертикаль:   верх=0,  центр=вся высота, низ=0
+		[3]int{0, w, 0},
+		[3]int{0, h, 0},
 	)
 }
