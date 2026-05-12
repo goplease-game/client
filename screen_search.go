@@ -163,16 +163,19 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
-	if g.Server.Status == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
-		g.Server.NewGame()
+	if g.Server.Status() == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
+		g.Server.Send(ws.Message{
+			Action: ws.NewGameAction,
+			Data:   nil,
+		})
 		s.statusLbl.Label = SearchingOppLabel
 	}
-	if g.Server.Status == ws.StatusError {
+	if g.Server.Status() == ws.StatusError {
 		s.statusLbl.Label = ConnErrorLabel
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if g.Server.Status == ws.StatusConnected {
+		if g.Server.Status() == ws.StatusConnected {
 			g.Server.Send(map[string]any{"type": "cancel_match"})
 		}
 		return NewMainScreen(), nil
@@ -180,7 +183,7 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 
 	for {
 		select {
-		case msg := <-g.Server.Inbox:
+		case msg := <-g.Server.Inbox():
 			if next := s.handleMessage(msg); next != nil {
 				return next, nil
 			}

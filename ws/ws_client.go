@@ -11,32 +11,12 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
 )
 
-type Action string
-
-const (
-	ConnectedAction       Action = "connected"
-	NewGameAction         Action = "new_game"
-	SearchingOppAction    Action = "searching_opp"
-	PlaceUnitAction       Action = "place_unit"
-	UnitPlacedAction      Action = "unit_placed"
-	OppDisconnectedAction Action = "opp_disconnected"
-	CancelMatchAction     Action = "cancel_match"
-	MatchCancelledAction  Action = "match_canceled"
-	ErrorAction           Action = "error"
-)
-
-// Message mirrors the server's OutgoingMsg.
-type Message struct {
-	Action Action          `json:"action"`
-	Data   json.RawMessage `json:"data"`
-}
-
-// Client manages a single WebSocket connection.
+// WSClient manages a single WebSocket connection.
 // It is safe to call Send from any goroutine.
 // Incoming messages are delivered on the Inbox channel.
-type Client struct {
-	Inbox  chan Message // buffered; read by the game loop
-	Status ConnStatus   // read by screens; written only by wsClient goroutines
+type WSClient struct {
+	inbox  chan Message // buffered; read by the game loop
+	status ConnStatus   // read by screens; written only by wsClient goroutines
 
 	mu       sync.Mutex
 	conn     *websocket.Conn
@@ -47,25 +27,16 @@ type Client struct {
 	msgLogger *log.Logger
 }
 
-type ConnStatus int
-
-const (
-	StatusDisconnected ConnStatus = iota
-	StatusConnecting
-	StatusConnected
-	StatusError
-)
-
 func wsURL() string {
 	return "ws://" + config.Get().ServerAddr + "/goplease/"
 }
 
-func NewClient() *Client {
-	c := &Client{
-		Inbox:     make(chan Message, 128),
+func NewWSClient() *WSClient {
+	c := &WSClient{
+		inbox:     make(chan Message, 128),
 		outbox:    make(chan []byte, 128),
 		stop:      make(chan struct{}),
-		Status:    StatusDisconnected,
+		status:    StatusDisconnected,
 		msgLogger: nil,
 	}
 
@@ -79,19 +50,29 @@ func NewClient() *Client {
 
 // Connect dials the server in the background.
 // Safe to call multiple times — ignored if already connected.
-func (c *Client) Connect(playerID string) {
+func (c *WSClient) Connect(playerID string) {
 	c.mu.Lock()
-	if c.Status == StatusConnecting || c.Status == StatusConnected {
+	if c.status == StatusConnecting || c.status == StatusConnected {
 		c.mu.Unlock()
 		return
 	}
-	c.Status = StatusConnecting
+	c.status = StatusConnecting
 	c.mu.Unlock()
 
 	go c.dial(playerID)
 }
 
-func (c *Client) dial(playerID string) {
+func (c *WSClient) Inbox() <-chan Message {
+	return c.inbox
+}
+
+func (c *WSClient) Status() ConnStatus {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.status
+}
+
+func (c *WSClient) dial(playerID string) {
 	var conn *websocket.Conn
 	var err error
 
@@ -107,14 +88,14 @@ func (c *Client) dial(playerID string) {
 	if err != nil {
 		log.Printf("[ws] could not connect: %v", err)
 		c.mu.Lock()
-		c.Status = StatusError
+		c.status = StatusError
 		c.mu.Unlock()
 		return
 	}
 
 	c.mu.Lock()
 	c.conn = conn
-	c.Status = StatusConnected
+	c.status = StatusConnected
 	c.mu.Unlock()
 
 	log.Printf("[ws] connected as player %s", playerID)
@@ -123,7 +104,7 @@ func (c *Client) dial(playerID string) {
 	go c.writeLoop(conn)
 }
 
-func (c *Client) readLoop(conn *websocket.Conn) {
+func (c *WSClient) readLoop(conn *websocket.Conn) {
 	defer c.close()
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -142,14 +123,14 @@ func (c *Client) readLoop(conn *websocket.Conn) {
 			continue
 		}
 		select {
-		case c.Inbox <- msg:
+		case c.inbox <- msg:
 		default:
 			log.Println("[ws] inbox full, dropping message")
 		}
 	}
 }
 
-func (c *Client) writeLoop(conn *websocket.Conn) {
+func (c *WSClient) writeLoop(conn *websocket.Conn) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -176,7 +157,7 @@ func (c *Client) writeLoop(conn *websocket.Conn) {
 }
 
 // Send encodes v as JSON and enqueues it for sending.
-func (c *Client) Send(v any) {
+func (c *WSClient) Send(v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		log.Printf("[ws] marshal error: %v", err)
@@ -189,7 +170,7 @@ func (c *Client) Send(v any) {
 	}
 }
 
-func (c *Client) logMessage(msg []byte, out bool) {
+func (c *WSClient) logMessage(msg []byte, out bool) {
 	if c.msgLogger != nil {
 		key := "<-"
 		if out {
@@ -200,10 +181,10 @@ func (c *Client) logMessage(msg []byte, out bool) {
 	}
 }
 
-func (c *Client) close() {
+func (c *WSClient) close() {
 	c.stopOnce.Do(func() {
 		c.mu.Lock()
-		c.Status = StatusDisconnected
+		c.status = StatusDisconnected
 		if c.conn != nil {
 			_ = c.conn.Close()
 		}
@@ -213,11 +194,4 @@ func (c *Client) close() {
 }
 
 // Disconnect closes the connection gracefully.
-func (c *Client) Disconnect() { c.close() }
-
-func (c *Client) NewGame() {
-	c.Send(Message{
-		Action: NewGameAction,
-		Data:   nil,
-	})
-}
+func (c *WSClient) Disconnect() { c.close() }

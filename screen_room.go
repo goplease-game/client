@@ -183,7 +183,7 @@ func NewRoomScreen(payload json.RawMessage) *RoomScreen {
 func (s *RoomScreen) Update(g *Game) (Screen, error) {
 	for {
 		select {
-		case msg := <-g.Server.Inbox:
+		case msg := <-g.Server.Inbox():
 			s.handleMessage(g, msg)
 		default:
 			goto done

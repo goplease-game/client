@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -28,7 +27,7 @@ const assetsDir = "assets"
 // Update/Draw to the currently active Screen.
 type Game struct {
 	screen   Screen // active screen
-	Server   *ws.Client
+	Server   ws.Client
 	PlayerID string // stable UUID for this client session
 }
 
@@ -38,14 +37,7 @@ func NewGame() *Game {
 		Server:   ws.NewClient(),
 	}
 
-	config.Get().UseMockData = true
-	data, err := mock.GetActionPayload(ws.NewGameAction)
-	if err != nil {
-		panic(err)
-	}
-	g.screen = NewRoomScreen(data)
-
-	//g.screen = NewMainScreen()
+	g.screen = NewMainScreen()
 	return g
 }
 

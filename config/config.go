@@ -25,7 +25,7 @@ type ConfigT struct {
 
 	ServerAddr string `yaml:"server_addr"`
 
-	UseMockData bool `yaml:"use_mock_data"`
+	MockClient  bool `yaml:"mock_client"`
 	LogProtocol bool `yaml:"log_protocol"`
 }
 

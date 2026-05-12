@@ -1,5 +1,5 @@
 resolution: 1900x1000
 server_addr: localhost:8080
 
-use_mock_data: false
+mock_client: true
 log_protocol: true
