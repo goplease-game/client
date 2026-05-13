@@ -28,6 +28,7 @@ const (
 )
 
 type SearchScreen struct {
+	server          ws.Client
 	ui              *ebitenui.UI
 	statusLbl       *widget.Text
 	elapsedLbl      *widget.Text
@@ -35,8 +36,10 @@ type SearchScreen struct {
 	tick            int
 }
 
-func NewSearchScreen() *SearchScreen {
-	s := &SearchScreen{}
+func NewSearchScreen(server ws.Client) *SearchScreen {
+	s := &SearchScreen{
+		server: server,
+	}
 
 	runner := Asset("runner.png")
 
@@ -82,12 +85,9 @@ func NewSearchScreen() *SearchScreen {
 		),
 	)
 
-	statusFace, err := ui.TextFace(25)
-	if err != nil {
-		log.Fatal(err)
-	}
+	statusTF := ui.TextFace(25)
 	statusLbl := widget.NewText(
-		widget.TextOpts.Text(ConnectingLabel, &statusFace, colornames.Lightgray),
+		widget.TextOpts.Text(ConnectingLabel, &statusTF, colornames.Lightgray),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -97,12 +97,9 @@ func NewSearchScreen() *SearchScreen {
 		),
 	)
 
-	elapsedFace, err := ui.TextFace(15)
-	if err != nil {
-		log.Fatal(err)
-	}
+	elapsedTF := ui.TextFace(15)
 	elapsedLbl := widget.NewText(
-		widget.TextOpts.Text("elapsed: 0s", &elapsedFace, colornames.Gray),
+		widget.TextOpts.Text("elapsed: 0s", &elapsedTF, colornames.Gray),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -130,12 +127,9 @@ func NewSearchScreen() *SearchScreen {
 		),
 	)
 
-	hintFace, err := ui.TextFace(15)
-	if err != nil {
-		log.Fatal(err)
-	}
+	hintTF := ui.TextFace(15)
 	hintLbl := widget.NewText(
-		widget.TextOpts.Text("[Esc] cancel", &hintFace, colornames.Dimgray),
+		widget.TextOpts.Text("[Esc] cancel", &hintTF, colornames.Dimgray),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -164,9 +158,8 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
 	if g.Server.Status() == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
-		g.Server.Send(ws.Message{
+		g.Server.Send(ws.OutMessage{
 			Action: ws.NewGameAction,
-			Data:   nil,
 		})
 		s.statusLbl.Label = SearchingOppLabel
 	}
@@ -176,9 +169,12 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if g.Server.Status() == ws.StatusConnected {
-			g.Server.Send(map[string]any{"type": "cancel_match"})
+			g.Server.Send(ws.OutMessage{
+				Action: "cancel_match",
+				Data:   nil,
+			})
 		}
-		return NewMainScreen(), nil
+		return NewMainScreen(g.Server), nil
 	}
 
 	for {
@@ -193,12 +189,12 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 	}
 }
 
-func (s *SearchScreen) handleMessage(msg ws.Message) Screen {
+func (s *SearchScreen) handleMessage(msg ws.InMessage) Screen {
 	switch msg.Action {
 	case ws.SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
 	case ws.NewGameAction:
-		return NewRoomScreen(msg.Data)
+		return NewRoomScreen(msg.Data, s.server)
 	case ws.ErrorAction:
 		var e struct {
 			Message string `json:"message"`

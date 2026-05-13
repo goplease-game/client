@@ -13,10 +13,7 @@ import (
 )
 
 func Button(text string) (*widget.Button, error) {
-	face, err := TextFace(30)
-	if err != nil {
-		return nil, fmt.Errorf("create button: %w", err)
-	}
+	face := TextFace(30)
 
 	var button *widget.Button
 	// construct a button.
@@ -110,15 +107,14 @@ func buttonImage() *widget.ButtonImage {
 	}
 }
 
-func TextFace(size float64) (text.Face, error) {
+func TextFace(size float64) text.Face {
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
 	if err != nil {
-		log.Fatal(err)
-		return nil, fmt.Errorf("loading font: %w", err)
+		log.Fatal(fmt.Errorf("loading font: %w", err))
 	}
 
 	return &text.GoTextFace{
 		Source: s,
 		Size:   size,
-	}, nil
+	}
 }

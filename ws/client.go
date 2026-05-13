@@ -7,9 +7,9 @@ import (
 )
 
 type Client interface {
-	Inbox() <-chan Message
+	Inbox() <-chan InMessage
 	Status() ConnStatus
-	Send(v any)
+	Send(v OutMessage)
 	Connect(playerID string)
 	Disconnect()
 }
@@ -22,10 +22,14 @@ func NewClient() Client {
 	return NewWSClient()
 }
 
-// Message mirrors the server's OutgoingMsg.
-type Message struct {
+type InMessage struct {
 	Action Action          `json:"action"`
 	Data   json.RawMessage `json:"data"`
+}
+
+type OutMessage struct {
+	Action Action `json:"action"`
+	Data   any    `json:"data"`
 }
 
 type ConnStatus int
@@ -40,10 +44,17 @@ const (
 type Action string
 
 const (
-	ConnectedAction       Action = "connected"
-	NewGameAction         Action = "new_game"
-	SearchingOppAction    Action = "searching_opp"
-	PlaceUnitAction       Action = "place_unit"
+	ConnectedAction Action = "connected"
+	NewGameAction   Action = "new_game"
+
+	// Player done with unit placement
+	EndUnitPlacement Action = "end_unit_placement"
+	// Player done with unit action
+	EndUnitActing Action = "end_unit_action"
+
+	SearchingOppAction Action = "searching_opp"
+	PlaceUnitAction    Action = "place_unit"
+
 	UnitPlacedAction      Action = "unit_placed"
 	OppDisconnectedAction Action = "opp_disconnected"
 	CancelMatchAction     Action = "cancel_match"

@@ -15,8 +15,8 @@ import (
 // It is safe to call Send from any goroutine.
 // Incoming messages are delivered on the Inbox channel.
 type WSClient struct {
-	inbox  chan Message // buffered; read by the game loop
-	status ConnStatus   // read by screens; written only by wsClient goroutines
+	inbox  chan InMessage // buffered; read by the game loop
+	status ConnStatus     // read by screens; written only by wsClient goroutines
 
 	mu       sync.Mutex
 	conn     *websocket.Conn
@@ -33,7 +33,7 @@ func wsURL() string {
 
 func NewWSClient() *WSClient {
 	c := &WSClient{
-		inbox:     make(chan Message, 128),
+		inbox:     make(chan InMessage, 128),
 		outbox:    make(chan []byte, 128),
 		stop:      make(chan struct{}),
 		status:    StatusDisconnected,
@@ -62,7 +62,7 @@ func (c *WSClient) Connect(playerID string) {
 	go c.dial(playerID)
 }
 
-func (c *WSClient) Inbox() <-chan Message {
+func (c *WSClient) Inbox() <-chan InMessage {
 	return c.inbox
 }
 
@@ -117,7 +117,7 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 
 		c.logMessage(raw, false)
 
-		var msg Message
+		var msg InMessage
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			log.Printf("[ws] bad JSON: %v", err)
 			continue
@@ -157,7 +157,7 @@ func (c *WSClient) writeLoop(conn *websocket.Conn) {
 }
 
 // Send encodes v as JSON and enqueues it for sending.
-func (c *WSClient) Send(v any) {
+func (c *WSClient) Send(v OutMessage) {
 	b, err := json.Marshal(v)
 	if err != nil {
 		log.Printf("[ws] marshal error: %v", err)

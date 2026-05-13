@@ -1,7 +1,6 @@
 package game
 
 import (
-	"fmt"
 	"image/color"
 	"log"
 
@@ -10,17 +9,21 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
+	server     ws.Client
 	ui         *ebitenui.UI
 	nextScreen Screen
 }
 
-func NewMainScreen() *MainScreen {
-	s := &MainScreen{}
+func NewMainScreen(server ws.Client) *MainScreen {
+	s := &MainScreen{
+		server: server,
+	}
 
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
@@ -47,13 +50,9 @@ func NewMainScreen() *MainScreen {
 		),
 	)
 
-	versionFace, err := ui.TextFace(12)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	versionTF := ui.TextFace(12)
 	versionText := widget.NewText(
-		widget.TextOpts.Text("client v0.0.1\nserver v0.0.1", &versionFace, color.White),
+		widget.TextOpts.Text("client v0.0.1\nserver v0.0.1", &versionTF, color.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
 
@@ -116,13 +115,9 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
-	titleFace, err := ui.TextFace(40)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	titleTF := ui.TextFace(40)
 	titleText := widget.NewText(
-		widget.TextOpts.Text("go, please", &titleFace, colornames.Deepskyblue),
+		widget.TextOpts.Text("go, please", &titleTF, colornames.Deepskyblue),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -132,7 +127,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	)
 
 	playButton, err := mainMenuButton("PLAY", 30, func(args *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewSearchScreen()
+		s.nextScreen = NewSearchScreen(s.server)
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -171,11 +166,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 }
 
 func mainMenuButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) (*widget.Button, error) {
-	face, err := ui.TextFace(size)
-	if err != nil {
-		return nil, fmt.Errorf("create button: %w", err)
-	}
-
+	tf := ui.TextFace(size)
 	var button *widget.Button
 	button = widget.NewButton(
 		widget.ButtonOpts.WidgetOpts(
@@ -189,7 +180,7 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 			}),
 		),
 		widget.ButtonOpts.Image(mainMenuButtonImage()),
-		widget.ButtonOpts.Text(text, &face, &widget.ButtonTextColor{
+		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
 			Idle:    colornames.White,
 			Hover:   colornames.Black,
 			Pressed: colornames.Black,

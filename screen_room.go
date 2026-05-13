@@ -12,6 +12,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
@@ -113,9 +114,14 @@ type dndHandler struct {
 	*dndUnit
 	safeCells   []*SafeZoneCell
 	currentCell *SafeZoneCell
+	canDrag     func() bool
 }
 
 func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interface{}) {
+	if !d.canDrag() {
+		return nil, nil
+	}
+
 	for _, sc := range d.safeCells {
 		sc.SetHighlight(true)
 	}
@@ -147,33 +153,45 @@ func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
 // ── RoomScreen ───────────────────────────────────────────────────────────────
 
 type RoomScreen struct {
-	ui               *ebitenui.UI
-	roomID           string
-	myPlayer         ds.Player
+	server       ws.Client
+	ui           *ebitenui.UI
+	roomID       string
+	player       ds.Player
+	phase        ds.Phase
+	opponentName string
+	isMyTurn     bool
+
+	safeZoneCells    []*SafeZoneCell
 	boardCellWidgets [][]*widget.Container
 	unitCards        map[string]*widget.Container
-	safeZoneCells    []*SafeZoneCell
+	headerRef        *widget.Container
+	footerRef        *widget.Container
+	queuePanelRef    *widget.Container
+	unitPanelRef     *widget.Container
 
-	headerRef     *widget.Container
-	footerRef     *widget.Container
-	queuePanelRef *widget.Container
-	unitPanelRef  *widget.Container
-
-	unitsQueue  []string
-	queueIn     bool
-	unitPanelIn bool
+	unitsQueue         []string
+	activeUnitIndex    int
+	turnNumber         int
+	unitPlacedThisTurn bool
+	queueIn            bool
+	unitPanelIn        bool
 }
 
-func NewRoomScreen(payload json.RawMessage) *RoomScreen {
+func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
 	var data ds.NewGamePayload
 	if err := json.Unmarshal(payload, &data); err != nil {
 		log.Fatalf("failed to unmarshal: %v", err)
 	}
 
 	s := &RoomScreen{
-		roomID:    data.RoomID,
-		myPlayer:  *data.Player,
-		unitCards: make(map[string]*widget.Container),
+		server:       server,
+		roomID:       data.RoomID,
+		player:       *data.Player,
+		unitCards:    make(map[string]*widget.Container),
+		turnNumber:   1,
+		phase:        data.Phase,
+		opponentName: data.Opponent,
+		isMyTurn:     data.IsMyTurn,
 	}
 
 	s.setupUI(data)
@@ -245,7 +263,7 @@ func (s *RoomScreen) createHeader() *widget.Container {
 }
 
 func (s *RoomScreen) createFooter() *widget.Container {
-	return widget.NewContainer(
+	footer := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Steelblue)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
@@ -256,6 +274,16 @@ func (s *RoomScreen) createFooter() *widget.Container {
 			widget.WidgetOpts.MinSize(0, footerH),
 		),
 	)
+
+	btn := s.buildNextMoveButton()
+	btn.GetWidget().LayoutData = widget.AnchorLayoutData{
+		HorizontalPosition: widget.AnchorLayoutPositionEnd,
+		VerticalPosition:   widget.AnchorLayoutPositionCenter,
+		Padding:            &widget.Insets{Right: 12},
+	}
+	footer.AddChild(btn)
+
+	return footer
 }
 
 func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container {
@@ -319,7 +347,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 		opts = append(opts, widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
 				_, ok := args.Data.(ds.Unit)
-				return ok && !sc.occupied
+				return ok && !sc.occupied && !s.unitPlacedThisTurn
 			}),
 			widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
 				unit, ok := args.Data.(ds.Unit)
@@ -327,6 +355,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 					return
 				}
 				sc.occupied = true
+				s.unitPlacedThisTurn = true
 				sc.SetHighlight(false)
 				sc.container.AddChild(widget.NewGraphic(
 					widget.GraphicOpts.Image(unitImage(unit.TemplateID)),
@@ -352,14 +381,14 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 }
 
 func (s *RoomScreen) setupUnitPanel() {
-	if len(s.myPlayer.Units) == 0 {
+	if len(s.player.Units) == 0 {
 		return
 	}
 
 	s.unitPanelRef = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
 		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			widget.GridLayoutOpts.Columns(len(s.myPlayer.Units)),
+			widget.GridLayoutOpts.Columns(len(s.player.Units)),
 			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
 			widget.GridLayoutOpts.Spacing(4, 4),
 		)),
@@ -371,7 +400,7 @@ func (s *RoomScreen) setupUnitPanel() {
 		),
 	)
 
-	for _, u := range s.myPlayer.Units {
+	for _, u := range s.player.Units {
 		card := s.buildUnitCard(u)
 		s.unitPanelRef.AddChild(card)
 		s.unitCards[u.ID] = card
@@ -385,6 +414,7 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
 	dnd := &dndHandler{
 		dndUnit:   &dndUnit{unit: u},
 		safeCells: s.safeZoneCells,
+		canDrag:   func() bool { return !s.unitPlacedThisTurn },
 	}
 
 	card := widget.NewContainer(
@@ -429,14 +459,25 @@ func (s *RoomScreen) onUnitPlaced(unitID string, r, c int) {
 		s.unitPanelIn = false
 	}
 
-	for i := range s.myPlayer.Units {
-		if s.myPlayer.Units[i].ID == unitID {
-			s.myPlayer.Units[i].Row = r
-			s.myPlayer.Units[i].Col = c
+	for i := range s.player.Units {
+		if s.player.Units[i].ID == unitID {
+			s.player.Units[i].Row = r
+			s.player.Units[i].Col = c
 			break
 		}
 	}
 	s.addUnitToQueue(unitID)
+
+	type placePayload struct {
+		EntityID string `json:"entity_id"`
+		UnitID   string `json:"unit_id"`
+		Row      int    `json:"row"`
+		Col      int    `json:"col"`
+	}
+	s.server.Send(ws.OutMessage{
+		Action: "place_unit",
+		Data:   placePayload{UnitID: unitID, Row: r, Col: c},
+	})
 }
 
 func (s *RoomScreen) addUnitToQueue(unitID string) {
@@ -506,7 +547,7 @@ func (s *RoomScreen) rebuildQueuePanel() {
 	}
 }
 
-func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
+func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 	switch msg.Action {
 	case "unit_queued":
 		var payload struct {
@@ -519,7 +560,7 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.Message) {
 }
 
 func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
-	for _, u := range s.myPlayer.Units {
+	for _, u := range s.player.Units {
 		if u.ID == id {
 			return u, true
 		}
@@ -539,4 +580,49 @@ func unitImage(templateID int) *ebiten.Image {
 	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
 
 	return ImageAsset(up, ImageSize{W: 64, H: 64})
+}
+
+func (s *RoomScreen) buildNextMoveButton() *widget.Button {
+	size := 80
+
+	tf := ui.TextFace(32)
+
+	// TODO colornames
+	idle := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x22, 0x8B, 0x22, 0xff}), 0, size)
+	hover := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x32, 0xAB, 0x32, 0xff}), 0, size)
+	pressed := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x12, 0x6B, 0x12, 0xff}), 0, size)
+	disabled := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x88, 0x88, 0x88, 0xff}), 0, size)
+
+	btn := widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{
+			Idle:     idle,
+			Hover:    hover,
+			Pressed:  pressed,
+			Disabled: disabled,
+		}),
+		widget.ButtonOpts.Text("Next", &tf, &widget.ButtonTextColor{
+			// TODO colornames
+			Idle:     color.NRGBA{0xff, 0xff, 0xff, 0xff},
+			Disabled: color.NRGBA{0xaa, 0xaa, 0xaa, 0xff},
+		}),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(size, size),
+		),
+
+		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
+			action := ws.Action("invalid_end_action")
+			switch s.phase {
+			case ds.PhaseUnitPlacement:
+				action = ws.EndUnitPlacement
+			case ds.PhaseUnitActing:
+				action = ws.EndUnitActing
+			}
+
+			s.server.Send(ws.OutMessage{
+				Action: action,
+			})
+		}),
+	)
+
+	return btn
 }

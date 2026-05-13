@@ -37,7 +37,7 @@ func NewGame() *Game {
 		Server:   ws.NewClient(),
 	}
 
-	g.screen = NewMainScreen()
+	g.screen = NewMainScreen(g.Server)
 	return g
 }
 
