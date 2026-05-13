@@ -20,6 +20,7 @@ import (
 const (
 	cellSize = 64
 	headerH  = 80
+	statusH  = 32
 	footerH  = 90
 )
 
@@ -157,7 +158,6 @@ type RoomScreen struct {
 	ui           *ebitenui.UI
 	roomID       string
 	player       ds.Player
-	phase        ds.Phase
 	opponentName string
 	isMyTurn     bool
 
@@ -168,6 +168,8 @@ type RoomScreen struct {
 	footerRef        *widget.Container
 	queuePanelRef    *widget.Container
 	unitPanelRef     *widget.Container
+	nextActionBtn    *widget.Button // next & end turn
+	statusLabel      *widget.Text
 
 	unitsQueue         []string
 	activeUnitIndex    int
@@ -175,6 +177,13 @@ type RoomScreen struct {
 	unitPlacedThisTurn bool
 	queueIn            bool
 	unitPanelIn        bool
+
+	// ready is set to true when the server responds with phase unit_placement,
+	// meaning the match has started and the local player may interact.
+	ready bool
+	// firstDrawn tracks whether we have completed at least one Draw call so
+	// that we send ready_to_play exactly once after the UI is fully rendered.
+	firstDrawn bool
 }
 
 func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
@@ -189,9 +198,7 @@ func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
 		player:       *data.Player,
 		unitCards:    make(map[string]*widget.Container),
 		turnNumber:   1,
-		phase:        data.Phase,
 		opponentName: data.Opponent,
-		isMyTurn:     data.IsMyTurn,
 	}
 
 	s.setupUI(data)
@@ -214,6 +221,15 @@ done:
 
 func (s *RoomScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
+
+	// After the very first completed Draw the scene is fully rendered.
+	// Send ready_to_play once so the server knows we are displaying the board.
+	if !s.firstDrawn {
+		s.firstDrawn = true
+		s.server.Send(ws.OutMessage{
+			Action: ws.ReadyToPlay,
+		})
+	}
 }
 
 func (s *RoomScreen) setupUI(data ds.NewGamePayload) {
@@ -225,12 +241,13 @@ func (s *RoomScreen) setupUI(data ds.NewGamePayload) {
 	s.headerRef = s.createHeader()
 	s.footerRef = s.createFooter()
 	center := s.createBoardContainer(data.Board)
+	statusBar := s.createStatusBar()
 
 	root.AddChild(center)
 	root.AddChild(s.headerRef)
+	root.AddChild(statusBar)
 	root.AddChild(s.footerRef)
 
-	s.setupUnitPanel()
 	s.ui = &ebitenui.UI{Container: root}
 }
 
@@ -298,7 +315,7 @@ func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container 
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				StretchHorizontal: true,
 				StretchVertical:   true,
-				Padding:           &widget.Insets{Top: headerH, Bottom: footerH},
+				Padding:           &widget.Insets{Top: headerH, Bottom: footerH + statusH},
 			}),
 		),
 	)
@@ -331,6 +348,35 @@ func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container 
 	return container
 }
 
+func (s *RoomScreen) createStatusBar() *widget.Container {
+	bar := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x1e, 0x26, 0x30, 0xff})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				VerticalPosition:  widget.AnchorLayoutPositionEnd,
+				StretchHorizontal: true,
+				Padding:           &widget.Insets{Bottom: footerH},
+			}),
+			widget.WidgetOpts.MinSize(0, statusH),
+		),
+	)
+
+	tf := ui.TextFace(16)
+	s.statusLabel = widget.NewText(
+		widget.TextOpts.Text("Waiting for opponent...", &tf, colornames.Lightgray),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	bar.AddChild(s.statusLabel)
+	return bar
+}
+
 func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
 	sc := &SafeZoneCell{row: r, col: c}
@@ -347,7 +393,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 		opts = append(opts, widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
 				_, ok := args.Data.(ds.Unit)
-				return ok && !sc.occupied && !s.unitPlacedThisTurn
+				return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn
 			}),
 			widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
 				unit, ok := args.Data.(ds.Unit)
@@ -366,7 +412,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 						}),
 					),
 				))
-				s.onUnitPlaced(unit.ID, r, c)
+				s.onUnitPlaced(unit, r, c)
 			}),
 		))
 	}
@@ -414,7 +460,9 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
 	dnd := &dndHandler{
 		dndUnit:   &dndUnit{unit: u},
 		safeCells: s.safeZoneCells,
-		canDrag:   func() bool { return !s.unitPlacedThisTurn },
+		// Drag is only allowed once the server has confirmed placement phase
+		// AND no unit has been placed in the current turn yet.
+		canDrag: func() bool { return s.ready && !s.unitPlacedThisTurn },
 	}
 
 	card := widget.NewContainer(
@@ -448,10 +496,10 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
 	return card
 }
 
-func (s *RoomScreen) onUnitPlaced(unitID string, r, c int) {
-	if card, ok := s.unitCards[unitID]; ok {
+func (s *RoomScreen) onUnitPlaced(u ds.Unit, r, c int) {
+	if card, ok := s.unitCards[u.ID]; ok {
 		s.unitPanelRef.RemoveChild(card)
-		delete(s.unitCards, unitID)
+		delete(s.unitCards, u.ID)
 	}
 
 	if len(s.unitCards) == 0 && s.unitPanelIn {
@@ -460,23 +508,21 @@ func (s *RoomScreen) onUnitPlaced(unitID string, r, c int) {
 	}
 
 	for i := range s.player.Units {
-		if s.player.Units[i].ID == unitID {
+		if s.player.Units[i].ID == u.ID {
 			s.player.Units[i].Row = r
 			s.player.Units[i].Col = c
 			break
 		}
 	}
-	s.addUnitToQueue(unitID)
+	s.addUnitToQueue(u.ID)
 
-	type placePayload struct {
-		EntityID string `json:"entity_id"`
-		UnitID   string `json:"unit_id"`
-		Row      int    `json:"row"`
-		Col      int    `json:"col"`
-	}
 	s.server.Send(ws.OutMessage{
-		Action: "place_unit",
-		Data:   placePayload{UnitID: unitID, Row: r, Col: c},
+		Action: ws.UnitPlacedAction,
+		Data: ds.UnitPlacedPayload{
+			TemplateID: u.TemplateID,
+			Row:        r,
+			Col:        c,
+		},
 	})
 }
 
@@ -548,14 +594,57 @@ func (s *RoomScreen) rebuildQueuePanel() {
 }
 
 func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
+	fmt.Printf("received: %v\n", msg)
+
 	switch msg.Action {
-	case "unit_queued":
-		var payload struct {
-			UnitID string `json:"unit_id"`
+	case ws.PlaceUnitAction:
+		s.ready = true
+		s.setupUnitPanel()
+		s.setStatus("Place a unit on the board")
+
+	case ws.EndTurnAction:
+		s.nextActionBtn.Text().Label = "END\nTURN"
+		s.nextActionBtn.GetWidget().Disabled = false
+		s.setStatus("You can end your turn")
+
+	case ws.NextAction:
+		s.nextActionBtn.Text().Label = "Next"
+		s.nextActionBtn.GetWidget().Disabled = false
+
+	case ws.UnitPlacedAction:
+		var data ds.PlaceUnitPayload
+		err := json.Unmarshal(msg.Data, &data)
+		if err != nil {
+			log.Fatal(err)
 		}
-		if err := json.Unmarshal(msg.Data, &payload); err == nil {
-			s.addUnitToQueue(payload.UnitID)
+
+		// Place the opponent's unit graphic on the board at the given coordinates.
+		if data.Row >= 0 && data.Row < len(s.boardCellWidgets) &&
+			data.Col >= 0 && data.Col < len(s.boardCellWidgets[data.Row]) {
+
+			cell := s.boardCellWidgets[data.Row][data.Col]
+			cell.AddChild(widget.NewGraphic(
+				widget.GraphicOpts.Image(unitImage(data.Unit.TemplateID)),
+				widget.GraphicOpts.WidgetOpts(
+					widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+						HorizontalPosition: widget.AnchorLayoutPositionCenter,
+						VerticalPosition:   widget.AnchorLayoutPositionCenter,
+					}),
+				),
+			))
 		}
+
+		// Build a stable synthetic ID and register the unit so the queue
+		// panel can look it up via unitByID and render its icon correctly.
+		opponentUnitID := fmt.Sprintf("opp_%d_%d_%d", data.Unit.TemplateID, data.Row, data.Col)
+		s.player.Units = append(s.player.Units, ds.Unit{
+			ID:         opponentUnitID,
+			TemplateID: data.Unit.TemplateID,
+			Row:        data.Row,
+			Col:        data.Col,
+		})
+
+		s.addUnitToQueue(opponentUnitID)
 	}
 }
 
@@ -576,16 +665,16 @@ func (s *RoomScreen) boardCellWidget(u ds.Unit) *widget.Container {
 	return s.boardCellWidgets[u.Row][u.Col]
 }
 
-func unitImage(templateID int) *ebiten.Image {
-	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
-
-	return ImageAsset(up, ImageSize{W: 64, H: 64})
+func (s *RoomScreen) setStatus(text string) {
+	if s.statusLabel != nil {
+		s.statusLabel.Label = text
+	}
 }
 
 func (s *RoomScreen) buildNextMoveButton() *widget.Button {
 	size := 80
 
-	tf := ui.TextFace(32)
+	tf := ui.TextFace(18)
 
 	// TODO colornames
 	idle := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x22, 0x8B, 0x22, 0xff}), 0, size)
@@ -610,19 +699,24 @@ func (s *RoomScreen) buildNextMoveButton() *widget.Button {
 		),
 
 		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			action := ws.Action("invalid_end_action")
-			switch s.phase {
-			case ds.PhaseUnitPlacement:
-				action = ws.EndUnitPlacement
-			case ds.PhaseUnitActing:
-				action = ws.EndUnitActing
+			if !s.ready {
+				return
 			}
 
 			s.server.Send(ws.OutMessage{
-				Action: action,
+				Action: ws.EndTurnAction,
 			})
 		}),
 	)
 
+	btn.GetWidget().Disabled = true // disabled until server unlocks it
+	s.nextActionBtn = btn
+
 	return btn
+}
+
+func unitImage(templateID int) *ebiten.Image {
+	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
+
+	return ImageAsset(up, ImageSize{W: 64, H: 64})
 }

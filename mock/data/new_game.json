@@ -1,7 +1,5 @@
 {
   "room_id": "4c1b3919-c3bf-4f61-8799-3d41e9846c45",
-  "phase": "unit_placement",
-  "is_my_turn": true,
   "board": [
     [
       {

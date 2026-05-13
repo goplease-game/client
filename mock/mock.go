@@ -23,7 +23,6 @@ type GameState struct {
 
 	CurrentTurn  int
 	ActivePlayer int // 0 or 1 whose turn is
-	Phase        ds.Phase
 }
 
 func NewGameState(data ds.NewGamePayload) *GameState {
@@ -69,7 +68,6 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 		UnitsQueue:   []*ds.Unit{},
 		CurrentTurn:  1,
 		ActivePlayer: 0,
-		Phase:        data.Phase,
 	}
 
 	return gameState

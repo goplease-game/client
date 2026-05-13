@@ -44,16 +44,15 @@ const (
 type Action string
 
 const (
-	ConnectedAction Action = "connected"
-	NewGameAction   Action = "new_game"
-
-	// Player done with unit placement
-	EndUnitPlacement Action = "end_unit_placement"
-	// Player done with unit action
-	EndUnitActing Action = "end_unit_action"
-
+	ConnectedAction    Action = "connected"
 	SearchingOppAction Action = "searching_opp"
-	PlaceUnitAction    Action = "place_unit"
+	NewGameAction      Action = "new_game"
+	ReadyToPlay        Action = "ready_to_play"
+	WaitingForOpponent Action = "waiting_for_opponent"
+	EndTurnAction      Action = "end_turn"
+	NextAction         Action = "next_action"
+
+	PlaceUnitAction Action = "place_unit"
 
 	UnitPlacedAction      Action = "unit_placed"
 	OppDisconnectedAction Action = "opp_disconnected"
