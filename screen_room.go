@@ -12,6 +12,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -176,6 +177,9 @@ type RoomScreen struct {
 	unitPanelRef     *widget.Container
 	nextActionBtn    *widget.Button // next & end turn
 	statusLabel      *widget.Text
+
+	abilityPanelRef *widget.Container
+	abilityPanelIn  bool
 
 	pulseWidgets          []*widget.Container
 	pulseTick             float64
@@ -658,6 +662,7 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 	case ws.PlaceUnitAction:
 		s.ready = true
 		s.unitPlacedThisTurn = false
+		s.hideAbilityPanel()
 		s.setupUnitPanel()
 		s.setStatus("Place a unit on the board")
 
@@ -686,12 +691,19 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 			log.Fatal("unit not found: ", data.UnitID)
 		}
 
+		if s.unitPanelIn {
+			s.footerRef.RemoveChild(s.unitPanelRef)
+			s.unitPanelIn = false
+		}
+		s.showAbilityPanel(unit)
+
 		s.highlightActiveUnit(data.UnitID)
 		s.nextActionBtn.Text().Label = "SKIP\nTURN"
 		s.nextActionBtn.GetWidget().Disabled = false
 		s.setStatus(fmt.Sprintf("Play unit: %s", unit.Name))
 
 	case ws.WaitingForOpponent:
+		s.hideAbilityPanel()
 		s.setStatus("Waiting for opponent...")
 
 	case ws.UnitPlacedAction:
@@ -789,6 +801,119 @@ func (s *RoomScreen) highlightActiveUnit(unitID string) {
 	s.rebuildQueuePanel()
 }
 
+func (s *RoomScreen) showAbilityPanel(unit ds.Unit) {
+	s.hideAbilityPanel()
+
+	if len(unit.Abilities) == 0 {
+		return
+	}
+
+	s.abilityPanelRef = widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Slategray)),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(len(unit.Abilities)),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
+			widget.GridLayoutOpts.Spacing(4, 4),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	for _, abilityID := range unit.Abilities {
+		ab := ability.ByID(string(abilityID))
+		card := s.buildAbilityCard(ab)
+		s.abilityPanelRef.AddChild(card)
+	}
+
+	s.footerRef.AddChild(s.abilityPanelRef)
+	s.abilityPanelIn = true
+}
+
+func (s *RoomScreen) buildAbilityCard(ab ability.Ability) *widget.Container {
+	card := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Darkslateblue)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(cellSize, cellSize),
+		),
+	)
+
+	card.AddChild(widget.NewGraphic(
+		widget.GraphicOpts.Image(abilityImage(ab.ID)),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
+			}),
+			widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(colornames.Darkslateblue))
+			}),
+		),
+	))
+
+	if ab.Cooldown > 0 {
+		cdContainer := widget.NewContainer(
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+			widget.ContainerOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
+			),
+		)
+
+		cdContainer.AddChild(widget.NewGraphic(
+			widget.GraphicOpts.Image(
+				ImageAsset("turn.png", ImageSize{W: 64, H: 64}),
+			),
+			widget.GraphicOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
+			),
+		))
+
+		tf := ui.TextFace(40)
+
+		cdContainer.AddChild(widget.NewText(
+			widget.TextOpts.Text(
+				fmt.Sprintf("%d", ab.Cooldown),
+				&tf, color.NRGBA{0, 0, 0, 180},
+			),
+			widget.TextOpts.Position(
+				widget.TextPositionCenter,
+				widget.TextPositionCenter,
+			),
+			widget.TextOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
+			),
+		))
+
+		card.AddChild(cdContainer)
+	}
+
+	return card
+}
+
+func (s *RoomScreen) hideAbilityPanel() {
+	if s.abilityPanelIn && s.abilityPanelRef != nil {
+		s.footerRef.RemoveChild(s.abilityPanelRef)
+		s.abilityPanelRef = nil
+		s.abilityPanelIn = false
+	}
+}
+
 func (s *RoomScreen) buildNextMoveButton() *widget.Button {
 	size := 80
 
@@ -872,4 +997,9 @@ func lerpColor(a, b color.RGBA, t float64) color.NRGBA {
 		B: lerp(a.B, b.B, t),
 		A: lerp(a.A, b.A, t),
 	}
+}
+
+func abilityImage(abilityID string) *ebiten.Image {
+	up := path.Join("abilities", abilityID+".png")
+	return ImageAsset(up, ImageSize{W: 64, H: 64})
 }
