@@ -50,11 +50,11 @@ const (
 	ReadyToPlay        Action = "ready_to_play"
 	WaitingForOpponent Action = "waiting_for_opponent"
 	EndTurnAction      Action = "end_turn"
-	NextAction         Action = "next_action"
+	EndRoundAction     Action = "end_round"
+	PlaceUnitAction    Action = "place_unit"
+	UnitPlacedAction   Action = "unit_placed"
+	PlayUnitAction     Action = "play_unit"
 
-	PlaceUnitAction Action = "place_unit"
-
-	UnitPlacedAction      Action = "unit_placed"
 	OppDisconnectedAction Action = "opp_disconnected"
 	CancelMatchAction     Action = "cancel_match"
 	MatchCancelledAction  Action = "match_canceled"

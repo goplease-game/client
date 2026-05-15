@@ -2,11 +2,17 @@ package mock
 
 import (
 	"embed"
+	"log"
 	"math/rand"
 	"path"
 
 	"github.com/google/uuid"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+)
+
+const (
+	MockedPlayerID = "p2"
+	NoActiveUnit   = -1
 )
 
 //go:embed *
@@ -17,11 +23,11 @@ var gameState *GameState
 type GameState struct {
 	RoomID     string
 	Board      ds.Board
-	Player1    *ds.Player
-	Player2    *ds.Player
+	Players    [2]*ds.Player
 	UnitsQueue []*ds.Unit
+	ActiveUnit int // counting from 1
 
-	CurrentTurn  int
+	CurrentRound int
 	ActivePlayer int // 0 or 1 whose turn is
 }
 
@@ -43,7 +49,7 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 	for i, unit := range p1.Units {
 		newUnit := unit
 		newUnit.ID = uuid.NewString()
-		newUnit.OwnerID = "p2"
+		newUnit.OwnerID = MockedPlayerID
 
 		if unit.Abilities != nil {
 			newUnit.Abilities = make([]ds.AbilityID, len(unit.Abilities))
@@ -63,11 +69,11 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 	gameState = &GameState{
 		RoomID:       data.RoomID,
 		Board:        data.Board,
-		Player1:      p1,
-		Player2:      p2,
+		Players:      [2]*ds.Player{p1, p2},
 		UnitsQueue:   []*ds.Unit{},
-		CurrentTurn:  1,
+		CurrentRound: 1,
 		ActivePlayer: 0,
+		ActiveUnit:   NoActiveUnit, // when out of bound - start new round
 	}
 
 	return gameState
@@ -83,23 +89,35 @@ func LoadData(filename string) ([]byte, error) {
 	return data.ReadFile(filename)
 }
 
-func GetRandomSafeZoneCell(rows int, cols int) (row, col int) {
-	lastCol := cols - 1
-	preLastCol := cols - 2
+func GetRandomUnoccupiedSafeZoneCell() (row, col int) {
+	rows := len(gameState.Board)
+	cols := len(gameState.Board[0])
 
-	selectedCol := preLastCol
-	if rand.Intn(2) == 1 {
-		selectedCol = lastCol
+	var emptyCells []struct{ r, c int }
+
+	for c := cols - 2; c < cols; c++ {
+		for r := range rows {
+			if gameState.Board[r][c].Unit == nil {
+				emptyCells = append(emptyCells, struct{ r, c int }{r, c})
+			}
+		}
 	}
 
-	selectedRow := rand.Intn(rows)
+	if len(emptyCells) == 0 {
+		log.Fatal("[mock] GetRandomUnoccupiedSafeZoneCell: no empty cells in safe zone")
+	}
 
-	return selectedRow, selectedCol
+	cell := emptyCells[rand.Intn(len(emptyCells))]
+	return cell.r, cell.c
 }
 
-func PickRandomUnit() *ds.Unit {
-	units := gameState.Player2.Units
-	count := len(gameState.Player2.Units)
+func PlaceUnitAt(u *ds.Unit, row, col int) {
+	gameState.Board[row][col].Unit = u
+}
+
+func PickRandomUnitOfFromHandP2() *ds.Unit {
+	units := gameState.Players[1].Units
+	count := len(units)
 	if count == 0 {
 		return nil
 	}
@@ -107,10 +125,39 @@ func PickRandomUnit() *ds.Unit {
 	idx := rand.Intn(count)
 	pickedUnit := units[idx]
 
+	units[idx] = units[count-1]
+	units = units[:count-1]
+
+	gameState.Players[1].Units = units
+
+	return &pickedUnit
+}
+
+func PickUnitFromHandByTemplateP1(templateID int) *ds.Unit {
+	units := gameState.Players[0].Units
+	var pickedUnit *ds.Unit
+	var idx int
+
+	for i, u := range units {
+		if u.TemplateID == templateID {
+			pickedUnit = &u
+			idx = i
+			break
+		}
+	}
+
+	if pickedUnit == nil {
+		log.Fatalf("[mock] PickUnitFromHandByTemplateP1: no unit in hand with templateID: %d", templateID)
+	}
+
 	units[idx] = units[len(units)-1]
 	units = units[:len(units)-1]
 
-	gameState.Player2.Units = units
+	gameState.Players[0].Units = units
+	return pickedUnit
+}
 
-	return &pickedUnit
+func AddUnitToQueue(u *ds.Unit) {
+	gameState.UnitsQueue = append(gameState.UnitsQueue, u)
+	gameState.ActiveUnit = len(gameState.UnitsQueue) + 1
 }

@@ -19,12 +19,18 @@ type Unit struct {
 
 	Abilities []AbilityID       `json:"abilities"`
 	Cooldowns map[AbilityID]int `json:"cooldowns"`
+
+	IsOpponent bool
 }
 
 type PlaceUnitPayload struct {
 	Row  int   `json:"row"`
 	Col  int   `json:"col"`
 	Unit *Unit `json:"unit"`
+}
+
+type PlayUnitPayload struct {
+	UnitID string `json:"unit_id"`
 }
 
 type UnitPlacedPayload struct {

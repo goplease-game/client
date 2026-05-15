@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math"
 	"path"
 
 	"github.com/ebitenui/ebitenui"
@@ -29,6 +30,10 @@ var (
 	dropZoneColor      = colornames.Limegreen
 	dropZoneHoverColor = colornames.Palegreen
 	highlightColor     = colornames.Gold
+	opponentCellColor  = colornames.Orangered
+	opponentQueueColor = colornames.Crimson
+	unitPulseColor1    = colornames.Limegreen
+	unitPulseColor2    = colornames.White
 )
 
 // ── SafeZoneCell ─────────────────────────────────────────────────────────────
@@ -156,6 +161,7 @@ func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
 type RoomScreen struct {
 	server       ws.Client
 	ui           *ebitenui.UI
+	board        ds.Board
 	roomID       string
 	player       ds.Player
 	opponentName string
@@ -171,7 +177,12 @@ type RoomScreen struct {
 	nextActionBtn    *widget.Button // next & end turn
 	statusLabel      *widget.Text
 
+	pulseWidgets          []*widget.Container
+	pulseTick             float64
+	endTurnBtnPulseActive bool
+
 	unitsQueue         []string
+	activeUnitID       string
 	activeUnitIndex    int
 	turnNumber         int
 	unitPlacedThisTurn bool
@@ -194,6 +205,7 @@ func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
 
 	s := &RoomScreen{
 		server:       server,
+		board:        data.Board,
 		roomID:       data.RoomID,
 		player:       *data.Player,
 		unitCards:    make(map[string]*widget.Container),
@@ -215,6 +227,33 @@ func (s *RoomScreen) Update(g *Game) (Screen, error) {
 		}
 	}
 done:
+
+	if len(s.pulseWidgets) > 0 || s.endTurnBtnPulseActive {
+		s.pulseTick += 0.05
+	}
+
+	t := (math.Sin(s.pulseTick) + 1) / 2
+
+	if len(s.pulseWidgets) > 0 {
+		c := lerpColor(unitPulseColor1, unitPulseColor2, t)
+		for _, w := range s.pulseWidgets {
+			w.SetBackgroundImage(image.NewNineSliceColor(c))
+		}
+	}
+
+	if s.endTurnBtnPulseActive && s.nextActionBtn != nil {
+		borderColor := lerpColor(
+			color.RGBA{0x11, 0x55, 0x11, 0xff},
+			color.RGBA{0x88, 0xFF, 0x88, 0xff},
+			t,
+		)
+		s.nextActionBtn.Image().Idle = image.NewBorderedNineSliceColor(
+			color.NRGBA{0x22, 0x8B, 0x22, 0xff},
+			borderColor,
+			3,
+		)
+	}
+
 	s.ui.Update()
 	return s, nil
 }
@@ -427,7 +466,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 }
 
 func (s *RoomScreen) setupUnitPanel() {
-	if len(s.player.Units) == 0 {
+	if s.unitPanelIn || len(s.player.Units) == 0 {
 		return
 	}
 
@@ -507,13 +546,18 @@ func (s *RoomScreen) onUnitPlaced(u ds.Unit, r, c int) {
 		s.unitPanelIn = false
 	}
 
-	for i := range s.player.Units {
-		if s.player.Units[i].ID == u.ID {
-			s.player.Units[i].Row = r
-			s.player.Units[i].Col = c
+	for i, pu := range s.player.Units {
+		if pu.ID == u.ID {
+			s.player.Units = append(s.player.Units[:i], s.player.Units[i+1:]...)
 			break
 		}
 	}
+
+	u.Row = r
+	u.Col = c
+	u.IsOpponent = false
+	s.board[r][c].Unit = &u
+
 	s.addUnitToQueue(u.ID)
 
 	s.server.Send(ws.OutMessage{
@@ -562,11 +606,24 @@ func (s *RoomScreen) rebuildQueuePanel() {
 			continue
 		}
 
+		bgColor := boardCellColor
+		restoreBoardColor := boardCellColor
+		if u.IsOpponent {
+			bgColor = opponentQueueColor
+			restoreBoardColor = opponentCellColor
+		}
+
+		isActive := uID == s.activeUnitID
+
 		card := widget.NewContainer(
-			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellColor)),
+			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
 			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 			widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(54, 54)),
 		)
+
+		if isActive {
+			s.pulseWidgets = append(s.pulseWidgets, card)
+		}
 
 		card.AddChild(widget.NewGraphic(
 			widget.GraphicOpts.Image(unitImage(u.TemplateID)),
@@ -582,13 +639,14 @@ func (s *RoomScreen) rebuildQueuePanel() {
 					}
 				}),
 				widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
-					card.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+					card.SetBackgroundImage(image.NewNineSliceColor(restoreBoardColor))
 					if bc := s.boardCellWidget(u); bc != nil {
-						bc.SetBackgroundImage(image.NewNineSliceColor(boardCellColor))
+						bc.SetBackgroundImage(image.NewNineSliceColor(restoreBoardColor))
 					}
 				}),
 			),
 		))
+
 		s.queuePanelRef.AddChild(card)
 	}
 }
@@ -599,17 +657,42 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 	switch msg.Action {
 	case ws.PlaceUnitAction:
 		s.ready = true
+		s.unitPlacedThisTurn = false
 		s.setupUnitPanel()
 		s.setStatus("Place a unit on the board")
+
+	case ws.EndRoundAction:
+		s.nextActionBtn.Text().Label = "END\nROUND"
+		s.nextActionBtn.GetWidget().Disabled = false
+		s.endTurnBtnPulseActive = true
+		s.setStatus("You can end your turn")
+		s.highlightActiveUnit("")
 
 	case ws.EndTurnAction:
 		s.nextActionBtn.Text().Label = "END\nTURN"
 		s.nextActionBtn.GetWidget().Disabled = false
-		s.setStatus("You can end your turn")
+		s.endTurnBtnPulseActive = true
+		s.highlightActiveUnit("")
 
-	case ws.NextAction:
-		s.nextActionBtn.Text().Label = "Next"
+	case ws.PlayUnitAction:
+		var data ds.PlayUnitPayload
+		err := json.Unmarshal(msg.Data, &data)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		unit, ok := s.unitByID(data.UnitID)
+		if !ok {
+			log.Fatal("unit not found: ", data.UnitID)
+		}
+
+		s.highlightActiveUnit(data.UnitID)
+		s.nextActionBtn.Text().Label = "SKIP\nTURN"
 		s.nextActionBtn.GetWidget().Disabled = false
+		s.setStatus(fmt.Sprintf("Play unit: %s", unit.Name))
+
+	case ws.WaitingForOpponent:
+		s.setStatus("Waiting for opponent...")
 
 	case ws.UnitPlacedAction:
 		var data ds.PlaceUnitPayload
@@ -618,11 +701,11 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 			log.Fatal(err)
 		}
 
-		// Place the opponent's unit graphic on the board at the given coordinates.
 		if data.Row >= 0 && data.Row < len(s.boardCellWidgets) &&
 			data.Col >= 0 && data.Col < len(s.boardCellWidgets[data.Row]) {
 
 			cell := s.boardCellWidgets[data.Row][data.Col]
+			cell.SetBackgroundImage(image.NewNineSliceColor(opponentCellColor))
 			cell.AddChild(widget.NewGraphic(
 				widget.GraphicOpts.Image(unitImage(data.Unit.TemplateID)),
 				widget.GraphicOpts.WidgetOpts(
@@ -634,24 +717,29 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 			))
 		}
 
-		// Build a stable synthetic ID and register the unit so the queue
-		// panel can look it up via unitByID and render its icon correctly.
 		opponentUnitID := fmt.Sprintf("opp_%d_%d_%d", data.Unit.TemplateID, data.Row, data.Col)
-		s.player.Units = append(s.player.Units, ds.Unit{
+		s.board[data.Row][data.Col].Unit = &ds.Unit{
 			ID:         opponentUnitID,
 			TemplateID: data.Unit.TemplateID,
 			Row:        data.Row,
 			Col:        data.Col,
-		})
+			IsOpponent: true,
+		}
 
 		s.addUnitToQueue(opponentUnitID)
 	}
 }
 
 func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
-	for _, u := range s.player.Units {
-		if u.ID == id {
-			return u, true
+	for _, row := range s.board {
+		for _, cell := range row {
+			if cell == nil || cell.Unit == nil {
+				continue
+			}
+
+			if cell.Unit.ID == id {
+				return *cell.Unit, true
+			}
 		}
 	}
 
@@ -671,16 +759,62 @@ func (s *RoomScreen) setStatus(text string) {
 	}
 }
 
+func (s *RoomScreen) highlightActiveUnit(unitID string) {
+	if s.activeUnitID != "" {
+		if prev, ok := s.unitByID(s.activeUnitID); ok {
+			restoreColor := boardCellColor
+			if prev.IsOpponent {
+				restoreColor = opponentCellColor
+			}
+			if bc := s.boardCellWidget(prev); bc != nil {
+				bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+			}
+		}
+	}
+	s.pulseWidgets = nil
+	s.pulseTick = 0
+	s.activeUnitID = unitID
+
+	if unitID == "" {
+		s.rebuildQueuePanel()
+		return
+	}
+
+	if u, ok := s.unitByID(unitID); ok {
+		if bc := s.boardCellWidget(u); bc != nil {
+			s.pulseWidgets = append(s.pulseWidgets, bc)
+		}
+	}
+
+	s.rebuildQueuePanel()
+}
+
 func (s *RoomScreen) buildNextMoveButton() *widget.Button {
 	size := 80
 
 	tf := ui.TextFace(18)
 
 	// TODO colornames
-	idle := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x22, 0x8B, 0x22, 0xff}), 0, size)
-	hover := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x32, 0xAB, 0x32, 0xff}), 0, size)
-	pressed := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x12, 0x6B, 0x12, 0xff}), 0, size)
-	disabled := image.NewNineSliceSimple(ui.CreateCircleImage(size, color.NRGBA{0x88, 0x88, 0x88, 0xff}), 0, size)
+	idle := image.NewBorderedNineSliceColor(
+		color.NRGBA{0x22, 0x8B, 0x22, 0xff},
+		color.NRGBA{0x11, 0x55, 0x11, 0xff},
+		3,
+	)
+	hover := image.NewBorderedNineSliceColor(
+		color.NRGBA{0x32, 0xAB, 0x32, 0xff},
+		color.NRGBA{0x11, 0x55, 0x11, 0xff},
+		3,
+	)
+	pressed := image.NewBorderedNineSliceColor(
+		color.NRGBA{0x12, 0x6B, 0x12, 0xff},
+		color.NRGBA{0x11, 0x55, 0x11, 0xff},
+		3,
+	)
+	disabled := image.NewBorderedNineSliceColor(
+		color.NRGBA{0x88, 0x88, 0x88, 0xff},
+		color.NRGBA{0x55, 0x55, 0x55, 0xff},
+		3,
+	)
 
 	btn := widget.NewButton(
 		widget.ButtonOpts.Image(&widget.ButtonImage{
@@ -703,6 +837,13 @@ func (s *RoomScreen) buildNextMoveButton() *widget.Button {
 				return
 			}
 
+			s.endTurnBtnPulseActive = false
+			s.nextActionBtn.Image().Idle = image.NewBorderedNineSliceColor(
+				color.NRGBA{0x22, 0x8B, 0x22, 0xff},
+				color.NRGBA{0x11, 0x55, 0x11, 0xff},
+				3,
+			)
+
 			s.server.Send(ws.OutMessage{
 				Action: ws.EndTurnAction,
 			})
@@ -719,4 +860,16 @@ func unitImage(templateID int) *ebiten.Image {
 	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
 
 	return ImageAsset(up, ImageSize{W: 64, H: 64})
+}
+
+func lerpColor(a, b color.RGBA, t float64) color.NRGBA {
+	lerp := func(x, y uint8, t float64) uint8 {
+		return uint8(float64(x) + (float64(y)-float64(x))*t)
+	}
+	return color.NRGBA{
+		R: lerp(a.R, b.R, t),
+		G: lerp(a.G, b.G, t),
+		B: lerp(a.B, b.B, t),
+		A: lerp(a.A, b.A, t),
+	}
 }
