@@ -73,6 +73,7 @@ type MainScreen struct {
 	server     ws.Client
 	ui         *ebitenui.UI
 	nextScreen Screen
+	exit       bool
 }
 
 func NewMainScreen(server ws.Client) *MainScreen {
@@ -120,6 +121,10 @@ func NewMainScreen(server ws.Client) *MainScreen {
 }
 
 func (s *MainScreen) Update(g *Game) (Screen, error) {
+	if s.exit {
+		return nil, ebiten.Termination
+	}
+
 	s.ui.Update()
 
 	if s.nextScreen != nil {
@@ -207,11 +212,19 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		log.Fatal(err)
 	}
 
+	exitButton, err := mainMenuButton("Exit", 14, func(args *widget.ButtonClickedEventArgs) {
+		s.exit = true
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	menuC.AddChild(titleText)
 	menuC.AddChild(playButton)
 	menuC.AddChild(tutButton)
 	menuC.AddChild(settButton)
 	menuC.AddChild(aboutButton)
+	menuC.AddChild(exitButton)
 
 	c.AddChild(menuC)
 
