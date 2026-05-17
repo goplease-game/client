@@ -3,6 +3,8 @@ package game
 import (
 	"image/color"
 	"log"
+	"strconv"
+	"strings"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
@@ -12,6 +14,59 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
+
+var (
+	nameColor                = rgbFromHex("#00a8e8")
+	menuButtonBgColor        = rgbFromHex("#73A5CA")
+	menuButtonHoverBgColor   = lightenRGB(menuButtonBgColor, 35)
+	menuButtonTextColor      = rgbFromHex("FFF8DE")
+	menuButtonHoverTextColor = darkenRGB(menuButtonBgColor, 45)
+)
+
+func rgbFromHex(hex string) color.Color {
+	hex = strings.TrimPrefix(hex, "#")
+
+	if len(hex) != 6 {
+		log.Fatalf("rgbFromHex: invalid hex length %d", len(hex))
+	}
+
+	value, err := strconv.ParseUint(hex, 16, 32)
+	if err != nil {
+		log.Fatalf("rgbFromHex: parse hex: %s: %s", len(hex), err)
+	}
+
+	return color.NRGBA{
+		R: uint8(value >> 16),
+		G: uint8(value >> 8),
+		B: uint8(value),
+		A: 0xff,
+	}
+}
+
+func lightenRGB(c color.Color, amount int) color.Color {
+	rgba := color.NRGBAModel.Convert(c).(color.NRGBA)
+
+	change := func(val uint8) uint8 {
+		res := int(val) + amount
+		if res > 255 {
+			return 255
+		}
+		if res < 0 {
+			return 0
+		}
+		return uint8(res)
+	}
+
+	rgba.R = change(rgba.R)
+	rgba.G = change(rgba.G)
+	rgba.B = change(rgba.B)
+
+	return rgba
+}
+
+func darkenRGB(c color.Color, amount int) color.Color {
+	return lightenRGB(c, -amount)
+}
 
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
@@ -27,9 +82,7 @@ func NewMainScreen(server ws.Client) *MainScreen {
 
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
-		//widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(50)),
-		)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
 	footer := widget.NewContainer(
@@ -117,7 +170,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	titleTF := ui.TextFace(40)
 	titleText := widget.NewText(
-		widget.TextOpts.Text("go, please", &titleTF, colornames.Deepskyblue),
+		widget.TextOpts.Text("go, please", &titleTF, nameColor),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -167,6 +220,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 func mainMenuButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) (*widget.Button, error) {
 	tf := ui.TextFace(size)
+	tfHover := ui.TextFace(size + 5)
 	var button *widget.Button
 	button = widget.NewButton(
 		widget.ButtonOpts.WidgetOpts(
@@ -181,9 +235,9 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 		),
 		widget.ButtonOpts.Image(mainMenuButtonImage()),
 		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    colornames.White,
-			Hover:   colornames.Black,
-			Pressed: colornames.Black,
+			Idle:    menuButtonTextColor,
+			Hover:   menuButtonHoverTextColor,
+			Pressed: menuButtonTextColor,
 		}),
 		widget.ButtonOpts.TextPadding(&widget.Insets{
 			Left:   45,
@@ -201,9 +255,13 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 		}),
 		widget.ButtonOpts.ClickedHandler(clickHandler),
 		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			if button.GetWidget().CustomData == true {
-				button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			}
+			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
+			button.Text().SetFace(&tfHover)
+			button.GetWidget().Render(nil)
+		}),
+		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
+			button.Text().SetPadding(&widget.Insets{})
+			button.Text().SetFace(&tf)
 		}),
 	)
 
@@ -211,11 +269,9 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 }
 
 func mainMenuButtonImage() *widget.ButtonImage {
-	idle := image.NewNineSliceColor(colornames.Steelblue)
-
-	hover := image.NewBorderedNineSliceColor(colornames.White, color.NRGBA{70, 70, 70, 255}, 1)
-
-	pressed := image.NewAdvancedNineSliceColor(colornames.Gold, image.NewBorder(3, 2, 2, 2, color.NRGBA{70, 70, 70, 255}))
+	idle := image.NewNineSliceColor(menuButtonBgColor)
+	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
+	pressed := image.NewNineSliceColor(colornames.Gold)
 
 	return &widget.ButtonImage{
 		Idle:    idle,

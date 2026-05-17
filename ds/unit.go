@@ -1,12 +1,15 @@
 package ds
 
 type Unit struct {
-	ID         string `json:"id"`
-	TemplateID int    `json:"template_id"`
-	OwnerID    string `json:"owner_id"`
-	Name       string `json:"name"`
+	ID          string `json:"id"`
+	TemplateID  int    `json:"template_id"`
+	OwnerID     string `json:"owner_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 
-	MaxHP         int `json:"max_hp"`
+	BaseAtk       int `json:"base_atk"`
+	CurrentAtk    int `json:"current_atk"`
+	BaseHP        int `json:"base_hp"`
 	CurrentHP     int `json:"current_hp"`
 	CurrentShield int `json:"current_shield"`
 

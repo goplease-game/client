@@ -12,35 +12,35 @@ const (
 	BasicRangeAttack = "basic_range_attack"
 	BasicMagicAttack = "basic_magic_attack"
 
-	ShieldWall = "shield_wall"
-	Provoke    = "provoke"
-	ShieldBash = "shield_bash"
-	LastStand  = "last_stand"
+	Phalanx     = "phalanx"
+	Provoke     = "provoke"
+	ShieldBash  = "shield_bash"
+	UndyingWill = "undying_will"
 
 	BattleCry = "battle_cry"
 	Cleave    = "cleave"
-	Slam      = "slam"
+	PowerPush = "power_push"
 	Frenzy    = "frenzy"
 
-	PiercingShot = "piercing_shot"
-	Prey         = "prey"
-	Disengage    = "disengage"
-	CoverFire    = "cover_file"
+	PiercingShot  = "piercing_shot"
+	HuntersMark   = "hunters_mark"
+	HamstringShot = "hamstring_shot"
+	CoverFire     = "cover_fire"
 
 	ShadowStep  = "shadow_step"
-	Backstab    = "backstab"
+	GangUp      = "gang_up"
 	Eliminate   = "eliminate"
 	Opportunity = "opportunity"
 
 	Translocation = "translocation"
 	TimeWarp      = "time_warp"
-	Enfeeble      = "enfeeble"
-	Meditation    = "meditation"
+	Purge         = "purge"
+	ArcaneChaos   = "arcane_chaos"
 
-	Heal        = "heal"
-	BalanceLife = "balance_life"
-	Cleanse     = "cleanse"
-	Renewal     = "renewal"
+	Heal           = "heal"
+	Equalize       = "equalize"
+	Purify         = "purify"
+	BottomlessVial = "bottomless_vial"
 )
 
 type Ability struct {
@@ -53,6 +53,7 @@ type Ability struct {
 	Cooldown    int    `json:"cooldown"`
 }
 
+// TODO game client should download this from game server
 var Abilities = map[string]Ability{
 	BasicMeleeAttack: {
 		Name:        "Strike",
@@ -73,55 +74,55 @@ var Abilities = map[string]Ability{
 		Cooldown:    0,
 	},
 
-	ShieldWall: {
+	Phalanx: {
 		Type:        Skill,
-		Name:        "Shield Wall",
-		Description: "You and adjacent allies gain +3 Shield.",
+		Name:        "Phalanx",
+		Description: "You and adjacent allies gain +3 Shield. Shield decays by 1 at the start of each turn.",
 		Range:       1, Cooldown: 3,
 	},
 	Provoke: {
 		Type:        Skill,
 		Name:        "Provoke",
-		Description: "Forces target enemies to attack you on their next turn.",
+		Description: "Forces target enemies to attack you on their turn.",
 		Range:       3, Cooldown: 3,
 	},
 	ShieldBash: {
 		Type:        Skill,
 		Name:        "Shield Bash",
 		Description: "Stuns the target for 1 turn.",
-		Range:       2, Cooldown: 3,
+		Range:       1, Cooldown: 3,
 	},
-	LastStand: {
+	UndyingWill: {
 		Type:        Skill,
 		IsPassive:   true,
-		Name:        "Last Stand",
-		Description: "If HP falls below 1, gain +3 Shield instead of dying.",
+		Name:        "Undying Will",
+		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 3 Shield.",
 		Range:       0, Cooldown: 5,
 	},
 
 	BattleCry: {
 		Type:        Skill,
 		Name:        "Battle Cry",
-		Description: "Grant +2 Attack to adjacent allies.",
+		Description: "Grants +3 Attack to adjacent allies. Bonus decays by 1 at the start of each turn.",
 		Range:       1, Cooldown: 3,
 	},
 	Cleave: {
 		Type:        Skill,
 		Name:        "Cleave",
-		Description: "Attack all enemies in front of you.",
+		Description: "Attacks all enemies in front of you for base damage.",
 		Range:       1, Cooldown: 3,
 	},
-	Slam: {
+	PowerPush: {
 		Type:        Skill,
-		Name:        "Slam",
-		Description: "Removes all shields from the target.",
+		Name:        "Power Push",
+		Description: "Deals 3 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 5 damage instead.",
 		Range:       1, Cooldown: 3,
 	},
 	Frenzy: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Frenzy",
-		Description: "+2 Attack if current HP is below 4.",
+		Description: "Gains +2 Attack if there are 2 or more enemies within 2 cells.",
 		Range:       0, Cooldown: 0,
 	},
 
@@ -131,102 +132,102 @@ var Abilities = map[string]Ability{
 		Description: "Fires a shot that passes through all enemies in a line.",
 		Range:       3, Cooldown: 3,
 	},
-	Prey: {
+	HuntersMark: {
 		Type:        Skill,
-		Name:        "Prey",
-		Description: "Deals 2 damage and marks target for 3 turns. Allies deal +2 damage to marked target.",
+		Name:        "Hunter's Mark",
+		Description: "Marks target for 3 turns. Allies deal +1 damage to marked target.",
 		Range:       3, Cooldown: 4,
 	},
-	Disengage: {
+	HamstringShot: {
 		Type:        Skill,
-		Name:        "Disengage",
-		Description: "Retreat 2 cells back, breaking engagement.",
-		Range:       0, Cooldown: 3,
+		Name:        "Hamstring Shot",
+		Description: "Deals 2 damage and reduces target's Move Range to 1 for next turn.",
+		Range:       3, Cooldown: 3,
 	},
 	CoverFire: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Cover Fire",
-		Description: "Counter-attacks enemies that strike allies within your range.",
+		Description: "Once per turn, counter-attacks the first enemy that strikes an ally within your range, dealing 3 flat damage.",
 		Range:       3, Cooldown: 0,
 	},
 
 	ShadowStep: {
 		Type:        Spell,
 		Name:        "Shadow Step",
-		Description: "Teleport to target cell and gain +2 Attack for 1 turn.",
+		Description: "Teleport to target cell and gain +2 Attack for next attack.",
 		Range:       3, Cooldown: 3,
 	},
-	Backstab: {
+	GangUp: {
 		Type:        Skill,
-		Name:        "Backstab",
-		Description: "Deals 2x damage if an ally is on the opposite side of the target.",
+		Name:        "Gang Up",
+		Description: "Executes a melee attack. Deals +2 bonus damage if an ally is directly on the opposite side of the target.",
 		Range:       1, Cooldown: 3,
 	},
 	Eliminate: {
 		Type:        Skill,
 		Name:        "Eliminate",
-		Description: "Deals 3 damage. If target dies, gain 1 AP.",
+		Description: "Deals 3 damage. If the damage is fatal, gain 1 AP.",
 		Range:       1, Cooldown: 5,
 	},
 	Opportunity: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Opportunity",
-		Description: "Strikes an enemy if an ally attacks them from melee range.",
+		Description: "Once per turn, automatically strikes an adjacent enemy when an ally attacks them in melee.",
 		Range:       1, Cooldown: 0,
 	},
 
 	Translocation: {
 		Type:        Spell,
 		Name:        "Translocation",
-		Description: "Swap places with any unit on the board.",
+		Description: "Swap places with any ally or enemy within range.",
 		Range:       3, Cooldown: 4,
 	},
 	TimeWarp: {
 		Type:        Spell,
 		Name:        "Time Warp",
-		Description: "Target ally or self gains +1 AP on their next turn.",
+		Description: "Target ally or self gains +1 AP. At the end of their turn, their HP, Shield, and position are reverted to their state at the start of the turn.",
 		Range:       3, Cooldown: 5,
 	},
-	Enfeeble: {
+	Purge: {
 		Type:        Spell,
-		Name:        "Enfeeble",
-		Description: "Reduces target's Attack by 50% for 1 turn.",
+		Name:        "Purge",
+		Description: "Removes all positive effects from target enemy.",
 		Range:       3, Cooldown: 3,
 	},
-	Meditation: {
+	ArcaneChaos: {
 		Type:        Spell,
 		IsPassive:   true,
-		Name:        "Meditation",
-		Description: "If no AP spent, no movement made, and no damage taken this turn: heal 1 HP, gain +1 AP and +1 Movement on next turn.",
+		Name:        "Arcane Chaos",
+		Description: "End of turn triggers: 1. No movement: +1 Move Range next turn. 2. No enemies in radius 3: +1 Attack Range next turn. 3. No damage taken: heal 1 HP next turn. 4. Damage taken: gain 1 Shield. If 3 of 4 triggers are met, also gain +1 ATK for the next turn.",
 		Range:       0, Cooldown: 0,
 	},
 
 	Heal: {
 		Type:        Spell,
 		Name:        "Heal",
-		Description: "Restores 2 HP to target ally.",
-		Range:       3, Cooldown: 2,
+		Description: "Restores 4 HP to target ally.",
+		Range:       3, Cooldown: 1,
 	},
-	BalanceLife: {
+	Equalize: {
 		Type:        Spell,
-		Name:        "Balance Life",
+		Name:        "Equalize",
 		Description: "Averages HP of all allies within 2 cells.",
-		Range:       2, Cooldown: 5,
+		Range:       2, Cooldown: 4,
 	},
-	Cleanse: {
+	Purify: {
 		Type:        Spell,
-		Name:        "Cleanse",
-		Description: "Removes all negative status effects from target ally.",
-		Range:       3, Cooldown: 2,
+		Name:        "Purify",
+		Description: "Removes all negative status effects from an ally, heals them for 2 HP, and grants immunity to new debuffs for 1 turn.",
+		Range:       3, Cooldown: 3,
 	},
-	Renewal: {
+	BottomlessVial: {
 		Type:        Spell,
 		IsPassive:   true,
-		Name:        "Aura of Renewal",
-		Description: "If no damage taken this turn, heal self and all adjacent allies for 1 HP at the start of your next turn.",
-		Range:       1, Cooldown: 0,
+		Name:        "Bottomless Vial",
+		Description: "Once per turn, when July takes damage, her Max HP permanently increases by 1.",
+		Range:       0, Cooldown: 0,
 	},
 }
 
@@ -237,4 +238,13 @@ func ByID(id string) Ability {
 	}
 
 	return s
+}
+
+func (a Ability) IsBasicAttack() bool {
+	switch a.ID {
+	case BasicMeleeAttack, BasicRangeAttack, BasicMagicAttack:
+		return true
+	}
+
+	return false
 }

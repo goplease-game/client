@@ -1,5 +1,7 @@
 {
-  "room_id": "4c1b3919-c3bf-4f61-8799-3d41e9846c45",
+  "room_id": "1d35cf5d-8056-4c85-89b4-e78eb548ece4",
+  "phase": "unit_placement",
+  "is_my_turn": true,
   "board": [
     [
       {
@@ -531,16 +533,19 @@
     ]
   ],
   "player": {
-    "id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+    "id": "019e31d1-20c5-7d22-a342-b079a7965273",
     "name": "Player 1",
     "is_bot": false,
     "units": [
       {
-        "id": "019e0d5c-4076-738e-a5ed-9f45e55c6967",
+        "id": "019e31d1-2c36-777c-a7b2-2467d58bf4b1",
         "template_id": 1,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "Bas",
-        "max_hp": 12,
+        "description": "An immovable wall who protects allies by absorbing damage, locking down enemies, and holding the front line at all costs.",
+        "base_atk": 2,
+        "current_atk": 2,
+        "base_hp": 12,
         "current_hp": 12,
         "current_shield": 0,
         "ap": 1,
@@ -549,19 +554,22 @@
         "col": -1,
         "abilities": [
           "basic_melee_attack",
-          "shield_wall",
+          "phalanx",
           "provoke",
           "shield_bash",
-          "last_stand"
+          "undying_will"
         ],
         "cooldowns": {}
       },
       {
-        "id": "019e0d5c-4076-738f-9a7a-c839a49d8e44",
+        "id": "019e31d1-2c36-777d-8742-b97aa95fe795",
         "template_id": 2,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "Grit",
-        "max_hp": 6,
+        "description": "A fierce frontline brawler who thrives in the thick of battle, dealing heavy area damage and breaking enemy formations.",
+        "base_atk": 4,
+        "current_atk": 4,
+        "base_hp": 6,
         "current_hp": 6,
         "current_shield": 0,
         "ap": 1,
@@ -572,17 +580,20 @@
           "basic_melee_attack",
           "battle_cry",
           "cleave",
-          "slam",
+          "power_push",
           "frenzy"
         ],
         "cooldowns": {}
       },
       {
-        "id": "019e0d5c-4076-7390-9356-918349ee76d0",
+        "id": "019e31d1-2c36-777e-83de-caf08cf845a7",
         "template_id": 3,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "Fletch",
-        "max_hp": 6,
+        "description": "A long-range damage dealer specializing in picking off high-priority targets and providing suppressing cover fire from safety.",
+        "base_atk": 4,
+        "current_atk": 4,
+        "base_hp": 6,
         "current_hp": 6,
         "current_shield": 0,
         "ap": 1,
@@ -592,18 +603,21 @@
         "abilities": [
           "basic_range_attack",
           "piercing_shot",
-          "prey",
-          "disengage",
-          "cover_file"
+          "hunters_mark",
+          "hamstring_shot",
+          "cover_fire"
         ],
         "cooldowns": {}
       },
       {
-        "id": "019e0d5c-4076-7391-8720-f32d5a82c2e2",
+        "id": "019e31d1-2c36-777f-a1cf-8fa520485a06",
         "template_id": 4,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "Silver",
-        "max_hp": 6,
+        "description": "A highly mobile assassin designed to slip behind enemy lines and eliminate vulnerable targets with devastating backstabs.",
+        "base_atk": 3,
+        "current_atk": 3,
+        "base_hp": 6,
         "current_hp": 6,
         "current_shield": 0,
         "ap": 1,
@@ -613,18 +627,21 @@
         "abilities": [
           "basic_melee_attack",
           "shadow_step",
-          "backstab",
+          "gang_up",
           "eliminate",
           "opportunity"
         ],
         "cooldowns": {}
       },
       {
-        "id": "019e0d5c-4076-7392-b309-49097e2aedbe",
+        "id": "019e31d1-2c36-7780-98e3-8600ec6d3356",
         "template_id": 5,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "Mist",
-        "max_hp": 9,
+        "description": "A tactical spellcaster who manipulates time and space to control the battlefield, weaken enemies, and reposition units.",
+        "base_atk": 3,
+        "current_atk": 3,
+        "base_hp": 9,
         "current_hp": 9,
         "current_shield": 0,
         "ap": 1,
@@ -635,17 +652,20 @@
           "basic_magic_attack",
           "translocation",
           "time_warp",
-          "enfeeble",
-          "meditation"
+          "purge",
+          "arcane_chaos"
         ],
         "cooldowns": {}
       },
       {
-        "id": "019e0d5c-4076-7393-a8c7-af8c26403df1",
+        "id": "019e31d1-2c36-7781-8117-bafae63859d5",
         "template_id": 6,
-        "owner_id": "019e0d5c-3a1f-7afa-a90d-f95bbb2052bc",
+        "owner_id": "019e31d1-20c5-7d22-a342-b079a7965273",
         "name": "July",
-        "max_hp": 9,
+        "description": "A support and healer focused on keeping the team alive, removing negative effects, and sustaining allies through long battles.",
+        "base_atk": 2,
+        "current_atk": 2,
+        "base_hp": 9,
         "current_hp": 9,
         "current_shield": 0,
         "ap": 1,
@@ -655,9 +675,9 @@
         "abilities": [
           "basic_magic_attack",
           "heal",
-          "balance_life",
-          "cleanse",
-          "renewal"
+          "equalize",
+          "purify",
+          "bottomless_vial"
         ],
         "cooldowns": {}
       }

@@ -14,6 +14,8 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
+// colornames.Steelblue
+
 //go:embed assets
 var assets embed.FS
 
