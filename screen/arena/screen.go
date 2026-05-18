@@ -1,4 +1,4 @@
-package game
+package arena
 
 import (
 	"encoding/json"
@@ -14,11 +14,12 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
-	"github.com/setanarut/anim"
 	"golang.org/x/image/colornames"
 )
 
@@ -29,195 +30,7 @@ const (
 	footerH  = 90
 )
 
-var animDropArrow *anim.AnimationPlayer
-
-// ---- COLORS ----
-var (
-	// LAYOUT
-	footerBgColor    = rgbFromHex("5682B1")
-	headerBgColor    = rgbFromHex("5682B1")
-	statusBarBgColor = darkenRGB(footerBgColor, 5)
-
-	// UNITS
-	unitPanelBgColor     = darkenRGB(footerBgColor, 5)
-	unitCardBgColor      = darkenRGB(unitPanelBgColor, 20)
-	unitCardHoverBgColor = darkenRGB(unitCardBgColor, 15)
-	unitCardHoverFgColor = rgbFromHex("f5df4d")
-	unitDragBgColor      = rgbFromHex("78B3CE")
-	unitFriendlyBgColor  = rgbFromHex("B0DB9C")
-	unitEnemyBgColor     = rgbFromHex("EA7B7B")
-
-	// TOOLTIPS
-	ttBgColor     = rgbFromHex("42668d")
-	ttBorderColor = lightenRGB(ttBgColor, 50)
-	ttTitleColor  = rgbFromHex("f5df4d")
-	ttTextColor   = colornames.Ghostwhite
-
-	// HUD
-	hpColor  = colornames.Tomato
-	atkColor = colornames.Orange
-	mpColor  = colornames.Skyblue
-
-	// BOARD
-	boardBgColor           = rgbFromHex("607B8F")
-	boardCellBgColor       = darkenRGB(boardBgColor, 10)
-	unitDropZoneColor      = rgbFromHex("A7E399")
-	unitDropZoneHoverColor = darkenRGB(unitDropZoneColor, 50)
-
-	// ABILITIES
-	abilitiesPanelBgColor = darkenRGB(footerBgColor, 5)
-	basicAttackBgColor    = rgbFromHex("E97F4A")
-	abilityBgColor        = rgbFromHex("8CA9FF")
-	passiveAbilityBgColor = rgbFromHex("9B8EC7")
-)
-
-var (
-	toolTipTitleTF = ui.TextFace(28)
-	toolTipTextTF  = ui.TextFace(18)
-)
-
-var (
-	highlightColor  = colornames.Gold
-	unitPulseColor1 = rgbFromHex("FFC700")
-	unitPulseColor2 = darkenRGB(unitPulseColor1, 80)
-)
-
-// ── SafeZoneCell ─────────────────────────────────────────────────────────────
-
-func initDropPointAnim() {
-	img := ImageAsset("drop_point_a.png", ImageSize{W: 192, H: 64})
-	sheet := anim.Atlas{
-		Name:  "Default",
-		Image: img,
-	}
-	animDropArrow = anim.NewAnimationPlayer(sheet)
-	animDropArrow.NewAnim("idle", 0, 0, 64, 64, 3, true, false, 6)
-	animDropArrow.SetAnim("idle")
-}
-
-type SafeZoneCell struct {
-	container     *widget.Container
-	activeGraphic *widget.Graphic
-	occupied      bool
-	row, col      int
-	baseColor     color.Color
-}
-
-func (sc *SafeZoneCell) SetHighlight(active bool) {
-	if !active {
-		if sc.activeGraphic != nil {
-			sc.container.RemoveChild(sc.activeGraphic)
-			sc.activeGraphic = nil
-		}
-		if sc.occupied {
-			sc.container.SetBackgroundImage(image.NewNineSliceColor(sc.baseColor))
-		} else {
-			sc.container.SetBackgroundImage(image.NewNineSliceColor(boardCellBgColor))
-		}
-		return
-	}
-
-	if sc.occupied {
-		return
-	}
-
-	sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneColor))
-	if sc.activeGraphic == nil {
-		sc.activeGraphic = widget.NewGraphic(
-			widget.GraphicOpts.Image(animDropArrow.CurrentFrame),
-			widget.GraphicOpts.WidgetOpts(
-				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-					HorizontalPosition: widget.AnchorLayoutPositionCenter,
-					VerticalPosition:   widget.AnchorLayoutPositionCenter,
-				}),
-			),
-		)
-		sc.container.AddChild(sc.activeGraphic)
-	}
-}
-
-func (sc *SafeZoneCell) SetHover(hover bool) {
-	if sc.occupied {
-		return
-	}
-	if hover {
-		sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneHoverColor))
-	} else {
-		sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneColor))
-	}
-}
-
-// ── Drag-and-Drop Logic ──────────────────────────────────────────────────────
-
-type dndUnit struct {
-	unit       ds.Unit
-	dragWidget *widget.Container
-}
-
-func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
-	if d.dragWidget == nil {
-		unitImg := unitImage(d.unit.TemplateID)
-		d.dragWidget = widget.NewContainer(
-			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-			widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(unitDragBgColor)),
-		)
-		d.dragWidget.AddChild(widget.NewGraphic(
-			widget.GraphicOpts.Image(unitImg),
-			widget.GraphicOpts.WidgetOpts(
-				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-					HorizontalPosition: widget.AnchorLayoutPositionCenter,
-					VerticalPosition:   widget.AnchorLayoutPositionCenter,
-				}),
-			),
-		))
-	}
-
-	return d.dragWidget, d.unit
-}
-
-type dndHandler struct {
-	*dndUnit
-	safeCells   []*SafeZoneCell
-	currentCell *SafeZoneCell
-	canDrag     func() bool
-}
-
-func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interface{}) {
-	if !d.canDrag() {
-		return nil, nil
-	}
-
-	for _, sc := range d.safeCells {
-		sc.SetHighlight(true)
-	}
-	return d.dndUnit.Create(parent)
-}
-
-func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ interface{}) {
-	if d.currentCell != nil {
-		d.currentCell.SetHover(false)
-		d.currentCell = nil
-	}
-	if canDrop && target != nil {
-		for _, sc := range d.safeCells {
-			if sc.container == target {
-				sc.SetHover(true)
-				d.currentCell = sc
-				break
-			}
-		}
-	}
-}
-
-func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
-	for _, sc := range d.safeCells {
-		sc.SetHighlight(false)
-	}
-}
-
-// ── RoomScreen ───────────────────────────────────────────────────────────────
-
-type RoomScreen struct {
+type Screen struct {
 	server       ws.Client
 	ui           *ebitenui.UI
 	board        ds.Board
@@ -226,7 +39,7 @@ type RoomScreen struct {
 	opponentName string
 	isMyTurn     bool
 
-	safeZoneCells    []*SafeZoneCell
+	safeZoneCells    []*DropZoneCell
 	boardCellWidgets [][]*widget.Container
 	unitCards        map[string]*widget.Container
 	headerRef        *widget.Container
@@ -259,13 +72,13 @@ type RoomScreen struct {
 	firstDrawn bool
 }
 
-func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
+func NewScreen(payload json.RawMessage, server ws.Client) game.Screen {
 	var data ds.NewGamePayload
 	if err := json.Unmarshal(payload, &data); err != nil {
 		log.Fatalf("failed to unmarshal: %v", err)
 	}
 
-	s := &RoomScreen{
+	s := &Screen{
 		server:       server,
 		board:        data.Board,
 		roomID:       data.RoomID,
@@ -281,11 +94,11 @@ func NewRoomScreen(payload json.RawMessage, server ws.Client) *RoomScreen {
 	return s
 }
 
-func (s *RoomScreen) Update(g *Game) (Screen, error) {
+func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	for {
 		select {
 		case msg := <-g.Server.Inbox():
-			s.handleMessage(g, msg)
+			s.handleMessage(msg)
 		default:
 			goto done
 		}
@@ -299,14 +112,14 @@ done:
 	t := (math.Sin(s.pulseTick) + 1) / 2
 
 	if len(s.pulseWidgets) > 0 {
-		c := lerpColor(unitPulseColor1, unitPulseColor2, t)
+		c := ui.LerpColor(unitPulseColor1, unitPulseColor2, t)
 		for _, w := range s.pulseWidgets {
 			w.SetBackgroundImage(image.NewNineSliceColor(c))
 		}
 	}
 
 	if s.endTurnBtnPulseActive && s.nextActionBtn != nil {
-		borderColor := lerpColor(
+		borderColor := ui.LerpColor(
 			color.RGBA{0x11, 0x55, 0x11, 0xff},
 			color.RGBA{0x88, 0xFF, 0x88, 0xff},
 			t,
@@ -329,7 +142,7 @@ done:
 	return s, nil
 }
 
-func (s *RoomScreen) Draw(screen *ebiten.Image) {
+func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 
 	// After the very first completed Draw the scene is fully rendered.
@@ -342,7 +155,7 @@ func (s *RoomScreen) Draw(screen *ebiten.Image) {
 	}
 }
 
-func (s *RoomScreen) setupUI(data ds.NewGamePayload) {
+func (s *Screen) setupUI(data ds.NewGamePayload) {
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -361,7 +174,7 @@ func (s *RoomScreen) setupUI(data ds.NewGamePayload) {
 	s.ui = &ebitenui.UI{Container: root}
 }
 
-func (s *RoomScreen) createHeader() *widget.Container {
+func (s *Screen) createHeader() *widget.Container {
 	h := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(headerBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -389,7 +202,7 @@ func (s *RoomScreen) createHeader() *widget.Container {
 	return h
 }
 
-func (s *RoomScreen) createFooter() *widget.Container {
+func (s *Screen) createFooter() *widget.Container {
 	footer := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(footerBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -413,7 +226,7 @@ func (s *RoomScreen) createFooter() *widget.Container {
 	return footer
 }
 
-func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container {
+func (s *Screen) createBoardContainer(boardData ds.Board) *widget.Container {
 	cols := 0
 	if len(boardData) > 0 {
 		cols = len(boardData[0])
@@ -458,7 +271,7 @@ func (s *RoomScreen) createBoardContainer(boardData ds.Board) *widget.Container 
 	return container
 }
 
-func (s *RoomScreen) createStatusBar() *widget.Container {
+func (s *Screen) createStatusBar() *widget.Container {
 	bar := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(statusBarBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -487,9 +300,9 @@ func (s *RoomScreen) createStatusBar() *widget.Container {
 	return bar
 }
 
-func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
+func (s *Screen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
-	sc := &SafeZoneCell{row: r, col: c}
+	sc := &DropZoneCell{row: r, col: c}
 
 	opts := []widget.ContainerOpt{
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellBgColor)),
@@ -543,7 +356,7 @@ func (s *RoomScreen) createCell(r, c int, data *ds.BoardCell) *widget.Container 
 	return cell
 }
 
-func (s *RoomScreen) setupUnitPanel() {
+func (s *Screen) setupUnitPanel() {
 	if s.unitPanelIn || len(s.player.Units) == 0 {
 		return
 	}
@@ -573,7 +386,7 @@ func (s *RoomScreen) setupUnitPanel() {
 	s.unitPanelIn = true
 }
 
-func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
+func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 	dnd := &dndHandler{
 		dndUnit:   &dndUnit{unit: u},
 		safeCells: s.safeZoneCells,
@@ -609,7 +422,7 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
 	)
 
 	normalIcon := unitImage(u.TemplateID)
-	hoverIcon := tintedImage(normalIcon, unitCardHoverFgColor)
+	hoverIcon := ui.TintImage(normalIcon, unitCardHoverFgColor)
 
 	var graphic *widget.Graphic
 	graphic = widget.NewGraphic(
@@ -634,7 +447,7 @@ func (s *RoomScreen) buildUnitCard(u ds.Unit) *widget.Container {
 	return card
 }
 
-func (s *RoomScreen) onUnitPlaced(u ds.Unit, r, c int) {
+func (s *Screen) onUnitPlaced(u ds.Unit, r, c int) {
 	if card, ok := s.unitCards[u.ID]; ok {
 		s.unitPanelRef.RemoveChild(card)
 		delete(s.unitCards, u.ID)
@@ -669,7 +482,7 @@ func (s *RoomScreen) onUnitPlaced(u ds.Unit, r, c int) {
 	})
 }
 
-func (s *RoomScreen) addUnitToQueue(unitID string) {
+func (s *Screen) addUnitToQueue(unitID string) {
 	for _, id := range s.unitsQueue {
 		if id == unitID {
 			return
@@ -679,7 +492,7 @@ func (s *RoomScreen) addUnitToQueue(unitID string) {
 	s.rebuildQueuePanel()
 }
 
-func (s *RoomScreen) rebuildQueuePanel() {
+func (s *Screen) rebuildQueuePanel() {
 	if s.queuePanelRef == nil || s.headerRef == nil {
 		return
 	}
@@ -732,9 +545,9 @@ func (s *RoomScreen) rebuildQueuePanel() {
 					VerticalPosition:   widget.AnchorLayoutPositionCenter,
 				}),
 				widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
-					card.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
+					card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
 					if bc := s.boardCellWidget(u); bc != nil {
-						bc.SetBackgroundImage(image.NewNineSliceColor(highlightColor))
+						bc.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
 					}
 				}),
 				widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
@@ -750,7 +563,7 @@ func (s *RoomScreen) rebuildQueuePanel() {
 	}
 }
 
-func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
+func (s *Screen) handleMessage(msg ws.InMessage) {
 	fmt.Printf("received: %v\n", msg)
 
 	switch msg.Action {
@@ -837,7 +650,7 @@ func (s *RoomScreen) handleMessage(g *Game, msg ws.InMessage) {
 	}
 }
 
-func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
+func (s *Screen) unitByID(id string) (ds.Unit, bool) {
 	for _, row := range s.board {
 		for _, cell := range row {
 			if cell == nil || cell.Unit == nil {
@@ -853,20 +666,20 @@ func (s *RoomScreen) unitByID(id string) (ds.Unit, bool) {
 	return ds.Unit{}, false
 }
 
-func (s *RoomScreen) boardCellWidget(u ds.Unit) *widget.Container {
+func (s *Screen) boardCellWidget(u ds.Unit) *widget.Container {
 	if u.Row < 0 || u.Row >= len(s.boardCellWidgets) || u.Col < 0 || u.Col >= len(s.boardCellWidgets[u.Row]) {
 		return nil
 	}
 	return s.boardCellWidgets[u.Row][u.Col]
 }
 
-func (s *RoomScreen) setStatus(text string) {
+func (s *Screen) setStatus(text string) {
 	if s.statusLabel != nil {
 		s.statusLabel.Label = text
 	}
 }
 
-func (s *RoomScreen) highlightActiveUnit(unitID string) {
+func (s *Screen) highlightActiveUnit(unitID string) {
 	if s.activeUnitID != "" {
 		if prev, ok := s.unitByID(s.activeUnitID); ok {
 			restoreColor := unitFriendlyBgColor
@@ -896,7 +709,7 @@ func (s *RoomScreen) highlightActiveUnit(unitID string) {
 	s.rebuildQueuePanel()
 }
 
-func (s *RoomScreen) showAbilityPanel(unit ds.Unit) {
+func (s *Screen) showAbilityPanel(unit ds.Unit) {
 	s.hideAbilityPanel()
 
 	if len(unit.Abilities) == 0 {
@@ -928,7 +741,7 @@ func (s *RoomScreen) showAbilityPanel(unit ds.Unit) {
 	s.abilityPanelIn = true
 }
 
-func (s *RoomScreen) buildAbilityCard(ab ability.Ability) *widget.Container {
+func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	var card *widget.Container
 
 	bgColor := abilityBgColor
@@ -956,7 +769,7 @@ func (s *RoomScreen) buildAbilityCard(ab ability.Ability) *widget.Container {
 				),
 			),
 			widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(darkenRGB(bgColor, 30)))
+				card.SetBackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(bgColor, 30)))
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
 				card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
@@ -989,7 +802,7 @@ func (s *RoomScreen) buildAbilityCard(ab ability.Ability) *widget.Container {
 			),
 		)
 		cdContainer.AddChild(widget.NewGraphic(
-			widget.GraphicOpts.Image(ImageAsset("turn.png", ImageSize{W: 12, H: 12})),
+			widget.GraphicOpts.Image(asset.Image("turn.png", 12)),
 		))
 		tf := ui.TextFace(11)
 		cdContainer.AddChild(widget.NewText(
@@ -1001,7 +814,7 @@ func (s *RoomScreen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	return card
 }
 
-func (s *RoomScreen) hideAbilityPanel() {
+func (s *Screen) hideAbilityPanel() {
 	if s.abilityPanelIn && s.abilityPanelRef != nil {
 		s.footerRef.RemoveChild(s.abilityPanelRef)
 		s.abilityPanelRef = nil
@@ -1009,7 +822,7 @@ func (s *RoomScreen) hideAbilityPanel() {
 	}
 }
 
-func (s *RoomScreen) buildNextMoveButton() *widget.Button {
+func (s *Screen) buildNextMoveButton() *widget.Button {
 	size := 80
 
 	tf := ui.TextFace(18)
@@ -1084,23 +897,7 @@ func unitImage(templateID int, sizeOpt ...int) *ebiten.Image {
 
 	up := path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
 
-	return ImageAsset(up, ImageSize{W: sizeDefault, H: sizeDefault})
-}
-
-func lerpColor(a, b color.Color, t float64) color.NRGBA {
-	c1 := color.NRGBAModel.Convert(a).(color.NRGBA)
-	c2 := color.NRGBAModel.Convert(b).(color.NRGBA)
-
-	lerp := func(x, y uint8, t float64) uint8 {
-		return uint8(float64(x) + (float64(y)-float64(x))*t)
-	}
-
-	return color.NRGBA{
-		R: lerp(c1.R, c2.R, t),
-		G: lerp(c1.G, c2.G, t),
-		B: lerp(c1.B, c2.B, t),
-		A: lerp(c1.A, c2.A, t),
-	}
+	return asset.Image(up, sizeDefault)
 }
 
 func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
@@ -1109,10 +906,10 @@ func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
 		size = sizeOpt[0]
 	}
 
-	return ImageAsset(path.Join("abilities", abilityID+".png"), ImageSize{W: size, H: size})
+	return asset.Image(path.Join("abilities", abilityID+".png"), size)
 }
 
-func (s *RoomScreen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
+func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 	c := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewBorderedNineSliceColor(ttBgColor, ttBorderColor, 2)),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -1184,7 +981,7 @@ func (s *RoomScreen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 	return c
 }
 
-func (s *RoomScreen) buildUnitToolTip(u ds.Unit) *widget.Container {
+func (s *Screen) buildUnitToolTip(u ds.Unit) *widget.Container {
 	c := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewBorderedNineSliceColor(ttBgColor, ttBorderColor, 2)),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -1244,7 +1041,7 @@ func tooltipStatRow(iconPath string, label string, tf *text.Face, c color.Color)
 		)),
 	)
 	row.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(ImageAsset(iconPath, ImageSize{W: 18, H: 18})),
+		widget.GraphicOpts.Image(asset.Image(iconPath, 18)),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Position: widget.RowLayoutPositionCenter,
@@ -1260,32 +1057,4 @@ func tooltipStatRow(iconPath string, label string, tf *text.Face, c color.Color)
 		),
 	))
 	return row
-}
-
-func tintedImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
-	bounds := src.Bounds()
-	w, h := bounds.Dx(), bounds.Dy()
-	result := ebiten.NewImage(w, h)
-
-	tr, tg, tb, _ := iconColor.RGBA()
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			cr, cg, cb, ca := src.At(x, y).RGBA()
-			if ca == 0 {
-				continue
-			}
-
-			brightness := (float32(cr) + float32(cg) + float32(cb)) / (3 * float32(ca))
-
-			result.Set(x, y, color.NRGBA{
-				R: uint8(float32(tr>>8) * brightness),
-				G: uint8(float32(tg>>8) * brightness),
-				B: uint8(float32(tb>>8) * brightness),
-				A: uint8(ca >> 8),
-			})
-		}
-	}
-
-	return result
 }

@@ -1,4 +1,4 @@
-package game
+package screen
 
 import (
 	"bytes"
@@ -13,6 +13,9 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	game "github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/asset"
+	"github.com/ognev-dev/goplease-ebitengine-client/screen/arena"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"github.com/setanarut/anim"
@@ -41,7 +44,7 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 		server: server,
 	}
 
-	runner := Asset("runner.png")
+	runner := asset.Load("runner.png")
 
 	img, _, err := stdImage.Decode(bytes.NewReader(runner))
 	if err != nil {
@@ -150,7 +153,7 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
-func (s *SearchScreen) Update(g *Game) (Screen, error) {
+func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
 	animPlayer.Update()
@@ -189,12 +192,12 @@ func (s *SearchScreen) Update(g *Game) (Screen, error) {
 	}
 }
 
-func (s *SearchScreen) handleMessage(msg ws.InMessage) Screen {
+func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	switch msg.Action {
 	case ws.SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
 	case ws.NewGameAction:
-		return NewRoomScreen(msg.Data, s.server)
+		return arena.NewScreen(msg.Data, s.server)
 	case ws.ErrorAction:
 		var e struct {
 			Message string `json:"message"`

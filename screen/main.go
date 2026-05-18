@@ -1,78 +1,32 @@
-package game
+package screen
 
 import (
 	"image/color"
 	"log"
-	"strconv"
-	"strings"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
 var (
-	nameColor                = rgbFromHex("#00a8e8")
-	menuButtonBgColor        = rgbFromHex("#73A5CA")
-	menuButtonHoverBgColor   = lightenRGB(menuButtonBgColor, 35)
-	menuButtonTextColor      = rgbFromHex("FFF8DE")
-	menuButtonHoverTextColor = darkenRGB(menuButtonBgColor, 45)
+	nameColor                = ui.RGBFromHex("#00a8e8")
+	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
+	menuButtonHoverBgColor   = ui.LightenRGB(menuButtonBgColor, 35)
+	menuButtonTextColor      = ui.RGBFromHex("FFF8DE")
+	menuButtonHoverTextColor = ui.DarkenRGB(menuButtonBgColor, 45)
 )
-
-func rgbFromHex(hex string) color.Color {
-	hex = strings.TrimPrefix(hex, "#")
-
-	if len(hex) != 6 {
-		log.Fatalf("rgbFromHex: invalid hex length %d", len(hex))
-	}
-
-	value, err := strconv.ParseUint(hex, 16, 32)
-	if err != nil {
-		log.Fatalf("rgbFromHex: parse hex: %s: %s", len(hex), err)
-	}
-
-	return color.NRGBA{
-		R: uint8(value >> 16),
-		G: uint8(value >> 8),
-		B: uint8(value),
-		A: 0xff,
-	}
-}
-
-func lightenRGB(c color.Color, amount int) color.Color {
-	rgba := color.NRGBAModel.Convert(c).(color.NRGBA)
-
-	change := func(val uint8) uint8 {
-		res := int(val) + amount
-		if res > 255 {
-			return 255
-		}
-		if res < 0 {
-			return 0
-		}
-		return uint8(res)
-	}
-
-	rgba.R = change(rgba.R)
-	rgba.G = change(rgba.G)
-	rgba.B = change(rgba.B)
-
-	return rgba
-}
-
-func darkenRGB(c color.Color, amount int) color.Color {
-	return lightenRGB(c, -amount)
-}
 
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
 	server     ws.Client
 	ui         *ebitenui.UI
-	nextScreen Screen
+	nextScreen game.Screen
 	exit       bool
 }
 
@@ -120,7 +74,7 @@ func NewMainScreen(server ws.Client) *MainScreen {
 	return s
 }
 
-func (s *MainScreen) Update(g *Game) (Screen, error) {
+func (s *MainScreen) Update(g *game.Game) (game.Screen, error) {
 	if s.exit {
 		return nil, ebiten.Termination
 	}
