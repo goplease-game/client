@@ -56,6 +56,12 @@ type Screen struct {
 	queueIn            bool
 	unitPanelIn        bool
 
+	// Movement / selection state.
+	selectedUnitID  string    // unit currently selected for movement (empty = none)
+	reachableCells  [][2]int  // precomputed reachable positions for selectedUnit
+	activeUnitMoved bool      // true once the active unit has moved this turn
+	activeMoveAnim  *moveAnim // non-nil while a movement animation is playing
+
 	// ready is set to true when the server responds with phase unit_placement,
 	// meaning the match has started and the local player may interact.
 	ready bool
@@ -98,6 +104,7 @@ done:
 
 	s.updatePulse()
 	s.updateDropZoneAnim()
+	s.activeMoveAnim.update()
 
 	s.ui.Update()
 	return s, nil
@@ -105,6 +112,14 @@ done:
 
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
+
+	// Draw the moving unit icon as an overlay on top of everything.
+	if s.activeMoveAnim.active() {
+		x, y := s.activeMoveAnim.currentPos()
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(x, y)
+		screen.DrawImage(s.activeMoveAnim.img, op)
+	}
 
 	if !s.firstDrawn {
 		s.firstDrawn = true

@@ -103,9 +103,19 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 				return
 			}
 
-			// for mock player simulate play
-			// TODO simulate action
-			m.inbox <- InMessage{Action: "unit_moved"}
+			row, col := mock.RandomReachableCell(*unit)
+			data, err := json.Marshal(ds.UnitMovedPayload{
+				ToRow:  row,
+				ToCol:  col,
+				UnitID: unit.ID,
+			})
+			if err != nil {
+				log.Fatal(err)
+			}
+			m.inbox <- InMessage{
+				Action: MoveUnitAction,
+				Data:   data,
+			}
 			goto endTurn
 			return
 		}
@@ -129,6 +139,7 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 
 			row, col := mock.GetRandomUnoccupiedSafeZoneCell()
 			mock.PlaceUnitAt(unit, row, col)
+			mock.AddUnitToQueue(unit)
 
 			upl := ds.PlaceUnitPayload{
 				Row:  row,
@@ -177,6 +188,15 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 		m.inbox <- InMessage{
 			Action: EndRoundAction,
 		}
+
+	case UnitMovedAction:
+		// just update unit pos in internal state
+		data := msg.Data.(ds.UnitMovedPayload)
+		unit := mock.GetUnitByID(data.UnitID)
+		unit.Row = data.ToRow
+		unit.Col = data.ToCol
+
+		mock.PlaceUnitAt(unit, data.ToRow, data.ToCol)
 
 	case CancelMatchAction:
 		m.inbox <- InMessage{Action: MatchCancelledAction}

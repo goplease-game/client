@@ -3,7 +3,7 @@ package mock
 import (
 	"embed"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 	"path"
 
 	"github.com/google/uuid"
@@ -107,12 +107,29 @@ func GetRandomUnoccupiedSafeZoneCell() (row, col int) {
 		log.Fatal("[mock] GetRandomUnoccupiedSafeZoneCell: no empty cells in safe zone")
 	}
 
-	cell := emptyCells[rand.Intn(len(emptyCells))]
+	cell := emptyCells[rand.IntN(len(emptyCells))]
 	return cell.r, cell.c
 }
 
 func PlaceUnitAt(u *ds.Unit, row, col int) {
 	gameState.Board[row][col].Unit = u
+}
+
+func GetUnitByID(id string) *ds.Unit {
+	for _, u := range gameState.UnitsQueue {
+		if u.ID == id {
+			return u
+		}
+	}
+
+	return nil
+}
+
+func RandomReachableCell(u ds.Unit) (row, col int) {
+	cells := u.ReachableCells(gameState.Board)
+
+	cell := cells[rand.IntN(len(cells))]
+	return cell[0], cell[1]
 }
 
 func PickRandomUnitOfFromHandP2() *ds.Unit {
@@ -122,7 +139,7 @@ func PickRandomUnitOfFromHandP2() *ds.Unit {
 		return nil
 	}
 
-	idx := rand.Intn(count)
+	idx := rand.IntN(count)
 	pickedUnit := units[idx]
 
 	units[idx] = units[count-1]

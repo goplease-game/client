@@ -73,6 +73,9 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 		s.unitPanelIn = false
 	}
 
+	s.activeUnitMoved = false
+	s.deselectUnit()
+
 	s.showAbilityPanel(unit)
 	s.highlightActiveUnit(payload.UnitID)
 	s.setNextActionLabel("SKIP\nTURN")

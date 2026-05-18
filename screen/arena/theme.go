@@ -16,16 +16,18 @@ var (
 	statusBarBgColor = ui.DarkenRGB(footerBgColor, 5)
 
 	// UNITS
-	unitPanelBgColor       = ui.DarkenRGB(footerBgColor, 5)
-	unitCardBgColor        = ui.DarkenRGB(unitPanelBgColor, 20)
-	unitCardHoverBgColor   = ui.DarkenRGB(unitCardBgColor, 15)
-	unitCardHoverFgColor   = ui.RGBFromHex("f5df4d")
-	unitCardHighlightColor = colornames.Gold
-	unitDragBgColor        = ui.RGBFromHex("78B3CE")
-	unitFriendlyBgColor    = ui.RGBFromHex("B0DB9C")
-	unitEnemyBgColor       = ui.RGBFromHex("EA7B7B")
-	unitPulseColor1        = ui.RGBFromHex("FFC700")
-	unitPulseColor2        = ui.DarkenRGB(unitPulseColor1, 80)
+	unitPanelBgColor        = ui.DarkenRGB(footerBgColor, 5)
+	unitCardBgColor         = ui.DarkenRGB(unitPanelBgColor, 20)
+	unitCardHoverBgColor    = ui.DarkenRGB(unitCardBgColor, 15)
+	unitCardHoverFgColor    = ui.RGBFromHex("f5df4d")
+	unitCardHighlightColor  = colornames.Gold
+	unitDragBgColor         = ui.RGBFromHex("78B3CE")
+	unitFriendlyBgColor     = ui.RGBFromHex("B0DB9C")
+	unitEnemyBgColor        = ui.RGBFromHex("EA7B7B")
+	selectedUnitBorderColor = colornames.Red
+	unitMoveToCellColor     = ui.RGBFromHex("4d6b81") //  B8CFCE ?
+	unitPulseColor1         = ui.RGBFromHex("FFC700")
+	unitPulseColor2         = ui.DarkenRGB(unitPulseColor1, 80)
 
 	// TOOLTIPS
 	ttBgColor     = ui.RGBFromHex("42668d")

@@ -3,6 +3,7 @@ package arena
 import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
@@ -55,11 +56,19 @@ func (s *Screen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
 	sc := &DropZoneCell{row: r, col: c}
 
+	// Capture r, c for the click closure.
+	row, col := r, c
+
 	opts := []widget.ContainerOpt{
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(cellSize, cellSize),
+			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
+				if args.Button == ebiten.MouseButtonLeft && args.Inside {
+					s.onCellClicked(row, col)
+				}
+			}),
 		),
 	}
 
@@ -126,4 +135,40 @@ func (s *Screen) boardCellWidget(u ds.Unit) *widget.Container {
 		return nil
 	}
 	return s.boardCellWidgets[u.Row][u.Col]
+}
+
+// onCellClicked is the single click handler attached to every board cell.
+// It dispatches to the right action depending on current selection state.
+func (s *Screen) onCellClicked(r, c int) {
+	// If this cell holds the active friendly unit — select it for movement.
+	cell := s.board[r][c]
+	if cell != nil && cell.Unit != nil &&
+		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
+		s.selectUnit(*cell.Unit)
+		return
+	}
+
+	// If a unit is selected and this is a reachable cell — move there.
+	if s.selectedUnitID != "" && isReachable(s.reachableCells, r, c) {
+		s.onReachableCellClicked(r, c)
+		return
+	}
+
+	// Any other click clears the selection.
+	if s.selectedUnitID != "" {
+		s.deselectUnit()
+	}
+}
+
+// centeredGraphic returns a graphic widget centred inside an anchor layout.
+func centeredGraphic(img *ebiten.Image) *widget.Graphic {
+	return widget.NewGraphic(
+		widget.GraphicOpts.Image(img),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
 }
