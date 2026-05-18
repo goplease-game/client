@@ -137,15 +137,13 @@ func (m *MockClient) onEndTurn() {
 func (m *MockClient) advanceGameLoop() {
 	gs := mock.GetGameState()
 
-	// --- Step 1: is there a unit left to play in the current queue? ---
-	nextUnit := m.nextUnitToPlay(gs)
-	if nextUnit != nil {
-		m.playUnit(gs, nextUnit)
-		return
-	}
+	switch gs.Phase {
+	case mock.PlayPhase:
+		m.advancePlayPhase(gs)
 
-	// --- Step 2: queue exhausted — start placement phase for this round. ---
-	m.runPlacementPhase(gs)
+	case mock.PlacementPhase:
+		m.runPlacementPhase(gs)
+	}
 }
 
 // nextUnitToPlay returns the next unit in the queue that hasn't acted yet,
@@ -216,20 +214,32 @@ func (m *MockClient) runPlacementPhase(gs *mock.GameState) {
 		return
 	}
 
-	// Mock player places first (silently), then the real player is prompted.
+	// Real player always places first.
+	if !gs.Players[0].HasPlacedUnitThisRound && p1HasUnits {
+		m.send(PlaceUnitAction)
+		return
+	}
+
+	// Then mock places.
 	if !gs.Players[1].HasPlacedUnitThisRound && p2HasUnits {
 		m.mockPlaceUnit(gs)
 		time.Sleep(mockDelay)
 	}
 
-	if !gs.Players[0].HasPlacedUnitThisRound && p1HasUnits {
-		// Ask the real player to place their unit.
-		m.send(PlaceUnitAction)
+	// Both placed (or one side had no units) — begin next round.
+	m.startNewRound(gs)
+}
+
+func (m *MockClient) advancePlayPhase(gs *mock.GameState) {
+	nextUnit := m.nextUnitToPlay(gs)
+
+	if nextUnit == nil {
+		gs.Phase = mock.PlacementPhase
+		m.runPlacementPhase(gs)
 		return
 	}
 
-	// Both placed (or one side had no units) — begin next round.
-	m.startNewRound(gs)
+	m.playUnit(gs, nextUnit)
 }
 
 // mockPlaceUnit picks a random unit from the mock player's hand and places it.
@@ -258,14 +268,13 @@ func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
 func (m *MockClient) startNewRound(gs *mock.GameState) {
 	gs.CurrentRound++
 	gs.ActiveUnit = 0
+	gs.Phase = mock.PlayPhase
+
 	gs.Players[0].HasPlacedUnitThisRound = false
 	gs.Players[1].HasPlacedUnitThisRound = false
 
-	log.Printf("[mock] starting round %d, queue length: %d", gs.CurrentRound, len(gs.UnitsQueue))
-
 	m.advanceGameLoop()
 }
-
 func (m *MockClient) send(action Action) {
 	m.inbox <- InMessage{Action: action}
 }

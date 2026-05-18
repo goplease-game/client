@@ -15,6 +15,13 @@ const (
 	NoActiveUnit   = -1
 )
 
+type RoundPhase int
+
+const (
+	PlayPhase RoundPhase = iota
+	PlacementPhase
+)
+
 //go:embed *
 var data embed.FS
 
@@ -29,6 +36,8 @@ type GameState struct {
 
 	CurrentRound int
 	ActivePlayer int // 0 or 1 whose turn is
+
+	Phase RoundPhase
 }
 
 func NewGameState(data ds.NewGamePayload) *GameState {
