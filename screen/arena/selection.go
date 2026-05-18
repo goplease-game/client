@@ -111,7 +111,11 @@ func (s *Screen) onReachableCellClicked(toR, toC int) {
 // It commits board state and updates cell visuals.
 func (s *Screen) finishMove(u ds.Unit, fromR, fromC, toR, toC int) {
 	s.moveUnit(u, toR, toC)
-	s.activeUnitMoved = true
+
+	if s.selectedUnitID == u.ID || !u.IsOpponent {
+		s.activeUnitMoved = true
+	}
+
 	s.activeMoveAnim = nil
 
 	s.removePulseWidget(s.boardCellWidgets[fromR][fromC])
@@ -121,15 +125,22 @@ func (s *Screen) finishMove(u ds.Unit, fromR, fromC, toR, toC int) {
 		w.SetBackgroundImage(image.NewNineSliceColor(boardCellBgColor))
 		w.RemoveChildren()
 	}
+
 	if w := s.boardCellWidgets[toR][toC]; w != nil {
-		w.SetBackgroundImage(image.NewNineSliceColor(unitFriendlyBgColor))
+		targetBg := unitFriendlyBgColor
+		if u.IsOpponent {
+			targetBg = unitEnemyBgColor
+		}
+
+		w.SetBackgroundImage(image.NewNineSliceColor(targetBg))
 		w.RemoveChildren()
 		w.AddChild(centeredGraphic(unitImage(u.TemplateID)))
 	}
 
-	// Pulse follows the unit to its new cell.
-	if w := s.boardCellWidgets[toR][toC]; w != nil {
-		s.pulseWidgets = append(s.pulseWidgets, w)
+	if !u.IsOpponent {
+		if w := s.boardCellWidgets[toR][toC]; w != nil {
+			s.pulseWidgets = append(s.pulseWidgets, w)
+		}
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Screen) handleServerMessage(msg ws.InMessage) {
-	fmt.Printf("received: %v\n", msg)
+	fmt.Printf("received: %v\n", msg.Action)
 
 	switch msg.Action {
 	case ws.PlaceUnitAction:
@@ -27,6 +27,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleWaitingForOpponent()
 	case ws.UnitPlacedAction:
 		s.handleOpponentUnitPlaced(msg.Data)
+	case ws.UnitMovedAction:
+		s.handleUnitMoved(msg.Data)
 	}
 }
 
@@ -113,7 +115,7 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 		),
 	))
 
-	opponentUnitID := fmt.Sprintf("opp_%d_%d_%d", payload.Unit.TemplateID, payload.Row, payload.Col)
+	opponentUnitID := payload.Unit.ID
 	s.board[payload.Row][payload.Col].Unit = &ds.Unit{
 		ID:         opponentUnitID,
 		TemplateID: payload.Unit.TemplateID,
@@ -123,4 +125,35 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	}
 
 	s.addUnitToQueue(opponentUnitID)
+}
+
+func (s *Screen) handleUnitMoved(data json.RawMessage) {
+	var payload ds.UnitMovedPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		log.Fatal("handleUnitMoved unmarshal:", err)
+	}
+
+	u, ok := s.unitByID(payload.UnitID)
+	if !ok {
+		log.Printf("[warn] handleUnitMoved: unit %s not found", payload.UnitID)
+		return
+	}
+
+	fromR, fromC := u.Row, u.Col
+	toR, toC := payload.ToRow, payload.ToCol
+
+	if s.selectedUnitID == u.ID {
+		s.deselectUnit()
+	}
+
+	if w := s.boardCellWidgets[fromR][fromC]; w != nil {
+		w.RemoveChildren()
+	}
+
+	s.activeMoveAnim = newMoveAnim(
+		unitImage(u.TemplateID),
+		s.cellCentrePx(fromR, fromC),
+		s.cellCentrePx(toR, toC),
+		func() { s.finishMove(u, fromR, fromC, toR, toC) }, // Коллбек завершения
+	)
 }

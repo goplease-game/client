@@ -1,4 +1,4 @@
-resolution: 1900x1000
+resolution: 1100x800
 server_addr: localhost:8080
 
 mock_client: true

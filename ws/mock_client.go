@@ -9,6 +9,8 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 )
 
+const mockDelay = 800 * time.Millisecond
+
 type MockClient struct {
 	inbox  chan InMessage
 	status ConnStatus
@@ -21,18 +23,12 @@ func NewMockClient() *MockClient {
 	}
 }
 
-func (m *MockClient) Inbox() <-chan InMessage {
-	return m.inbox
-}
-
-func (m *MockClient) Status() ConnStatus {
-	return m.status
-}
+func (m *MockClient) Inbox() <-chan InMessage { return m.inbox }
+func (m *MockClient) Status() ConnStatus      { return m.status }
 
 func (m *MockClient) Connect(playerID string) {
 	m.status = StatusConnected
 	log.Printf("[mock] connected as %s", playerID)
-
 	m.inbox <- InMessage{Action: ConnectedAction}
 }
 
@@ -42,163 +38,242 @@ func (m *MockClient) Disconnect() {
 
 func (m *MockClient) Send(msg OutMessage) {
 	log.Printf("[mock] client sent: %s", msg.Action)
-
 	go m.handleLogic(msg)
 }
 
 func (m *MockClient) handleLogic(msg OutMessage) {
 	switch msg.Action {
 	case NewGameAction:
-		data, err := mock.LoadData("new_game.json")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		var newGameData ds.NewGamePayload
-		err = json.Unmarshal(data, &newGameData)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		mock.NewGameState(newGameData)
-
-		m.inbox <- InMessage{
-			Action: NewGameAction,
-			Data:   data,
-		}
+		m.onNewGame()
 
 	case ReadyToPlay:
-		m.inbox <- InMessage{
-			Action: WaitingForOpponent,
-		}
-
-		time.Sleep(1 * time.Second)
-
-		m.inbox <- InMessage{
-			Action: PlaceUnitAction,
-		}
-
-	case EndTurnAction:
-		// when player click "End Turn" | "End round", we try to determine next action
-	endTurn:
-		m.inbox <- InMessage{Action: WaitingForOpponent}
-		time.Sleep(1 * time.Second)
-
-		gs := mock.GetGameState()
-
-		// if not all units played, play next
-		if gs.ActiveUnit <= len(gs.UnitsQueue) && len(gs.UnitsQueue) > 0 {
-			unit := gs.UnitsQueue[gs.ActiveUnit-1]
-			gs.ActiveUnit++
-
-			// for real player, just let it play
-			if unit.OwnerID != mock.MockedPlayerID {
-				data, err := json.Marshal(ds.PlayUnitPayload{
-					UnitID: unit.ID,
-				})
-				if err != nil {
-					log.Fatal(err)
-				}
-				m.inbox <- InMessage{Action: PlayUnitAction, Data: data}
-				return
-			}
-
-			row, col := mock.RandomReachableCell(*unit)
-			data, err := json.Marshal(ds.UnitMovedPayload{
-				ToRow:  row,
-				ToCol:  col,
-				UnitID: unit.ID,
-			})
-			if err != nil {
-				log.Fatal(err)
-			}
-			m.inbox <- InMessage{
-				Action: MoveUnitAction,
-				Data:   data,
-			}
-			goto endTurn
-			return
-		}
-
-		// check if unit can be placed on board
-		if !gs.Players[0].HasPlacedUnitThisRound {
-			m.inbox <- InMessage{
-				Action: PlaceUnitAction,
-			}
-
-			return
-		}
-
-		if !gs.Players[1].HasPlacedUnitThisRound {
-			// place random unit
-			unit := mock.PickRandomUnitOfFromHandP2()
-			if unit == nil {
-				log.Println("[mock] place_unit: no units at hand")
-				return
-			}
-
-			row, col := mock.GetRandomUnoccupiedSafeZoneCell()
-			mock.PlaceUnitAt(unit, row, col)
-			mock.AddUnitToQueue(unit)
-
-			upl := ds.PlaceUnitPayload{
-				Row:  row,
-				Col:  col,
-				Unit: unit,
-			}
-
-			data, err := json.Marshal(upl)
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			gs.Players[1].HasPlacedUnitThisRound = true
-			m.inbox <- InMessage{
-				Action: UnitPlacedAction,
-				Data:   data,
-			}
-
-			goto endTurn
-		}
-
-		// all units played if we get here, so start new round
-		gs.ActiveUnit = 1
-		if len(gs.Players[0].Units) > 0 {
-			gs.Players[0].HasPlacedUnitThisRound = false
-		}
-		if len(gs.Players[1].Units) > 0 {
-			gs.Players[1].HasPlacedUnitThisRound = false
-		}
-
-		goto endTurn
+		m.onReadyToPlay()
 
 	case UnitPlacedAction:
-		gs := mock.GetGameState()
-		gs.Players[0].HasPlacedUnitThisRound = true
-
-		data := msg.Data.(ds.UnitPlacedPayload)
-
-		unit := mock.PickUnitFromHandByTemplateP1(data.TemplateID)
-		unit.Row = data.Row
-		unit.Col = data.Col
-
-		mock.AddUnitToQueue(unit)
-
-		// after unit placed there is nothing to do, let user end turn
-		m.inbox <- InMessage{
-			Action: EndRoundAction,
-		}
+		m.onUnitPlaced(msg.Data.(ds.UnitPlacedPayload))
 
 	case UnitMovedAction:
-		// just update unit pos in internal state
-		data := msg.Data.(ds.UnitMovedPayload)
-		unit := mock.GetUnitByID(data.UnitID)
-		unit.Row = data.ToRow
-		unit.Col = data.ToCol
+		m.onUnitMoved(msg.Data.(ds.UnitMovedPayload))
 
-		mock.PlaceUnitAt(unit, data.ToRow, data.ToCol)
+	case EndTurnAction:
+		m.onEndTurn()
 
 	case CancelMatchAction:
 		m.inbox <- InMessage{Action: MatchCancelledAction}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
+
+func (m *MockClient) onNewGame() {
+	data, err := mock.LoadData("new_game.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var payload ds.NewGamePayload
+	if err = json.Unmarshal(data, &payload); err != nil {
+		log.Fatal(err)
+	}
+
+	mock.NewGameState(payload)
+	m.inbox <- InMessage{Action: NewGameAction, Data: data}
+}
+
+func (m *MockClient) onReadyToPlay() {
+	m.send(WaitingForOpponent)
+	time.Sleep(mockDelay)
+	// Round 1 always starts with placement since the board is empty.
+	m.send(PlaceUnitAction)
+}
+
+// onUnitPlaced is called after the real player drops a unit onto the board.
+// The server records placement and tells the player they can end their turn.
+func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
+	gs := mock.GetGameState()
+
+	unit := mock.PickUnitFromHandByTemplateP1(data.TemplateID)
+	unit.Row = data.Row
+	unit.Col = data.Col
+	mock.PlaceUnitAt(unit, data.Row, data.Col)
+	mock.AddUnitToQueue(unit)
+
+	gs.Players[0].HasPlacedUnitThisRound = true
+
+	// Player has placed — they can now end their turn.
+	m.send(EndRoundAction)
+}
+
+// onUnitMoved updates the board state when the real player moves a unit.
+// No response needed — the player ends their turn explicitly.
+func (m *MockClient) onUnitMoved(data ds.UnitMovedPayload) {
+	unit := mock.GetUnitByID(data.UnitID)
+	if unit == nil {
+		log.Printf("[mock] onUnitMoved: unit %s not found", data.UnitID)
+		return
+	}
+	mock.PlaceUnitAt(unit, data.ToRow, data.ToCol)
+	unit.Row = data.ToRow
+	unit.Col = data.ToCol
+}
+
+// onEndTurn is the core game-loop driver.
+// Called whenever the real player clicks "End Turn" / "End Round".
+func (m *MockClient) onEndTurn() {
+	m.send(WaitingForOpponent)
+	time.Sleep(mockDelay)
+
+	m.advanceGameLoop()
+}
+
+// ---------------------------------------------------------------------------
+// Game loop
+// ---------------------------------------------------------------------------
+
+// advanceGameLoop determines what happens next and drives mock AI turns
+// until it's the real player's turn again.
+func (m *MockClient) advanceGameLoop() {
+	gs := mock.GetGameState()
+
+	// --- Step 1: is there a unit left to play in the current queue? ---
+	nextUnit := m.nextUnitToPlay(gs)
+	if nextUnit != nil {
+		m.playUnit(gs, nextUnit)
+		return
+	}
+
+	// --- Step 2: queue exhausted — start placement phase for this round. ---
+	m.runPlacementPhase(gs)
+}
+
+// nextUnitToPlay returns the next unit in the queue that hasn't acted yet,
+// or nil if all units in the queue have played this round.
+func (m *MockClient) nextUnitToPlay(gs *mock.GameState) *ds.Unit {
+	if gs.ActiveUnit < 0 || gs.ActiveUnit >= len(gs.UnitsQueue) {
+		return nil
+	}
+	return gs.UnitsQueue[gs.ActiveUnit]
+}
+
+// playUnit handles a single unit's turn.
+// If the unit belongs to the real player, send play_unit and return (wait for player input).
+// If it belongs to the mock, simulate the move and continue the loop.
+func (m *MockClient) playUnit(gs *mock.GameState, unit *ds.Unit) {
+	gs.ActiveUnit++
+
+	if unit.OwnerID != mock.MockedPlayerID {
+		// Real player's unit — hand control back to the client.
+		m.sendPlayUnit(unit.ID)
+		return
+	}
+
+	// Mock unit: simulate movement if possible.
+	m.simulateMockUnitTurn(unit)
+
+	// Continue the loop after a short pause.
+	time.Sleep(mockDelay)
+	m.advanceGameLoop()
+}
+
+// simulateMockUnitTurn moves the mock unit to a random reachable cell.
+func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
+	cells := unit.ReachableCells(mock.GetGameState().Board)
+	if len(cells) == 0 {
+		log.Printf("[mock] unit %s has no reachable cells, skipping", unit.ID)
+		return
+	}
+
+	row, col := mock.RandomReachableCell(*unit)
+	mock.PlaceUnitAt(unit, row, col)
+	unit.Row = row
+	unit.Col = col
+
+	data, err := json.Marshal(ds.UnitMovedPayload{
+		UnitID: unit.ID,
+		ToRow:  row,
+		ToCol:  col,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.inbox <- InMessage{Action: UnitMovedAction, Data: data}
+}
+
+// runPlacementPhase handles the end-of-queue placement step:
+//  1. If the real player hasn't placed yet → ask them to place.
+//  2. If the mock player hasn't placed yet (and has units) → place for them,
+//     then ask the real player to place (if they also haven't).
+//  3. If both have placed (or have no units left) → start a new round.
+func (m *MockClient) runPlacementPhase(gs *mock.GameState) {
+	p1HasUnits := len(gs.Players[0].Units) > 0
+	p2HasUnits := len(gs.Players[1].Units) > 0
+
+	// If neither player has units left, skip straight to the next round.
+	if !p1HasUnits && !p2HasUnits {
+		m.startNewRound(gs)
+		return
+	}
+
+	// Mock player places first (silently), then the real player is prompted.
+	if !gs.Players[1].HasPlacedUnitThisRound && p2HasUnits {
+		m.mockPlaceUnit(gs)
+		time.Sleep(mockDelay)
+	}
+
+	if !gs.Players[0].HasPlacedUnitThisRound && p1HasUnits {
+		// Ask the real player to place their unit.
+		m.send(PlaceUnitAction)
+		return
+	}
+
+	// Both placed (or one side had no units) — begin next round.
+	m.startNewRound(gs)
+}
+
+// mockPlaceUnit picks a random unit from the mock player's hand and places it.
+func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
+	unit := mock.PickRandomUnitOfFromHandP2()
+	if unit == nil {
+		log.Println("[mock] mockPlaceUnit: no units in hand")
+		return
+	}
+
+	row, col := mock.GetRandomUnoccupiedSafeZoneCell()
+	unit.Row = row
+	unit.Col = col
+	mock.PlaceUnitAt(unit, row, col)
+	mock.AddUnitToQueue(unit)
+	gs.Players[1].HasPlacedUnitThisRound = true
+
+	data, err := json.Marshal(ds.PlaceUnitPayload{Row: row, Col: col, Unit: unit})
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.inbox <- InMessage{Action: UnitPlacedAction, Data: data}
+}
+
+// startNewRound resets per-round state and begins the next round's play phase.
+func (m *MockClient) startNewRound(gs *mock.GameState) {
+	gs.CurrentRound++
+	gs.ActiveUnit = 0
+	gs.Players[0].HasPlacedUnitThisRound = false
+	gs.Players[1].HasPlacedUnitThisRound = false
+
+	log.Printf("[mock] starting round %d, queue length: %d", gs.CurrentRound, len(gs.UnitsQueue))
+
+	m.advanceGameLoop()
+}
+
+func (m *MockClient) send(action Action) {
+	m.inbox <- InMessage{Action: action}
+}
+
+func (m *MockClient) sendPlayUnit(unitID string) {
+	data, err := json.Marshal(ds.PlayUnitPayload{UnitID: unitID})
+	if err != nil {
+		log.Fatal(err)
+	}
+	m.inbox <- InMessage{Action: PlayUnitAction, Data: data}
 }

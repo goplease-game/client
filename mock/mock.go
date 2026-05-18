@@ -176,5 +176,4 @@ func PickUnitFromHandByTemplateP1(templateID int) *ds.Unit {
 
 func AddUnitToQueue(u *ds.Unit) {
 	gameState.UnitsQueue = append(gameState.UnitsQueue, u)
-	gameState.ActiveUnit = len(gameState.UnitsQueue) + 1
 }
