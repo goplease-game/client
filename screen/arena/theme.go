@@ -1,6 +1,8 @@
 package arena
 
 import (
+	"image/color"
+
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
@@ -8,6 +10,7 @@ import (
 // ---- COLORS ----
 var (
 	// LAYOUT
+	bodyBgColor      = color.NRGBA{0x13, 0x1a, 0x22, 0xff}
 	footerBgColor    = ui.RGBFromHex("5682B1")
 	headerBgColor    = ui.RGBFromHex("5682B1")
 	statusBarBgColor = ui.DarkenRGB(footerBgColor, 5)
