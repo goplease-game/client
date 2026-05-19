@@ -9,8 +9,26 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
 )
+
+var (
+	regularSource *text.GoTextFaceSource
+	boldSource    *text.GoTextFaceSource
+)
+
+func init() {
+	var err error
+	regularSource, err = text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
+	if err != nil {
+		log.Fatal(err)
+	}
+	boldSource, err = text.NewGoTextFaceSource(bytes.NewReader(gobold.TTF))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
 
 func Button(text string) (*widget.Button, error) {
 	face := TextFace(30)
@@ -108,13 +126,9 @@ func buttonImage() *widget.ButtonImage {
 }
 
 func TextFace(size float64) text.Face {
-	s, err := text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
-	if err != nil {
-		log.Fatal(fmt.Errorf("loading font: %w", err))
-	}
+	return &text.GoTextFace{Source: regularSource, Size: size}
+}
 
-	return &text.GoTextFace{
-		Source: s,
-		Size:   size,
-	}
+func TextFaceBold(size float64) text.Face {
+	return &text.GoTextFace{Source: boldSource, Size: size}
 }

@@ -117,7 +117,6 @@ func (s *Screen) finishMove(u ds.Unit, fromR, fromC, toR, toC int) {
 	}
 
 	s.activeMoveAnim = nil
-
 	s.removePulseWidget(s.boardCellWidgets[fromR][fromC])
 
 	if w := s.boardCellWidgets[fromR][fromC]; w != nil {
@@ -134,7 +133,7 @@ func (s *Screen) finishMove(u ds.Unit, fromR, fromC, toR, toC int) {
 
 		w.SetBackgroundImage(image.NewNineSliceColor(targetBg))
 		w.RemoveChildren()
-		w.AddChild(centeredGraphic(unitImage(u.TemplateID)))
+		buildBoardCard(w, u, false)
 	}
 
 	if !u.IsOpponent {

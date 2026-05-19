@@ -90,7 +90,6 @@ func (m *MockClient) onReadyToPlay() {
 }
 
 // onUnitPlaced is called after the real player drops a unit onto the board.
-// The server records placement and tells the player they can end their turn.
 func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
 	gs := mock.GetGameState()
 
@@ -100,10 +99,9 @@ func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
 	mock.PlaceUnitAt(unit, data.Row, data.Col)
 	mock.AddUnitToQueue(unit)
 
-	gs.Players[0].HasPlacedUnitThisRound = true
+	gs.Players[0].UnitsPlacedThisRound++
 
-	// Player has placed — they can now end their turn.
-	m.send(EndRoundAction)
+	m.runPlacementPhase()
 }
 
 // onUnitMoved updates the board state when the real player moves a unit.
@@ -139,16 +137,17 @@ func (m *MockClient) advanceGameLoop() {
 
 	switch gs.Phase {
 	case mock.PlayPhase:
-		m.advancePlayPhase(gs)
+		m.advancePlayPhase()
 
 	case mock.PlacementPhase:
-		m.runPlacementPhase(gs)
+		m.runPlacementPhase()
 	}
 }
 
 // nextUnitToPlay returns the next unit in the queue that hasn't acted yet,
 // or nil if all units in the queue have played this round.
-func (m *MockClient) nextUnitToPlay(gs *mock.GameState) *ds.Unit {
+func (m *MockClient) nextUnitToPlay() *ds.Unit {
+	gs := mock.GetGameState()
 	if gs.ActiveUnit < 0 || gs.ActiveUnit >= len(gs.UnitsQueue) {
 		return nil
 	}
@@ -158,7 +157,8 @@ func (m *MockClient) nextUnitToPlay(gs *mock.GameState) *ds.Unit {
 // playUnit handles a single unit's turn.
 // If the unit belongs to the real player, send play_unit and return (wait for player input).
 // If it belongs to the mock, simulate the move and continue the loop.
-func (m *MockClient) playUnit(gs *mock.GameState, unit *ds.Unit) {
+func (m *MockClient) playUnit(unit *ds.Unit) {
+	gs := mock.GetGameState()
 	gs.ActiveUnit++
 
 	if unit.OwnerID != mock.MockedPlayerID {
@@ -204,42 +204,47 @@ func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 //  2. If the mock player hasn't placed yet (and has units) → place for them,
 //     then ask the real player to place (if they also haven't).
 //  3. If both have placed (or have no units left) → start a new round.
-func (m *MockClient) runPlacementPhase(gs *mock.GameState) {
-	p1HasUnits := len(gs.Players[0].Units) > 0
-	p2HasUnits := len(gs.Players[1].Units) > 0
+func (m *MockClient) runPlacementPhase() {
+	gs := mock.GetGameState()
 
-	// If neither player has units left, skip straight to the next round.
-	if !p1HasUnits && !p2HasUnits {
-		m.startNewRound(gs)
+	p1Done := gs.Players[0].UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase
+	p2Done := gs.Players[1].UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase
+
+	if p1Done && p2Done {
+		m.startNewRound()
 		return
 	}
 
-	// Real player always places first.
-	if !gs.Players[0].HasPlacedUnitThisRound && p1HasUnits {
-		m.send(PlaceUnitAction)
-		return
+	actor := m.getPlacementActor()
+
+	if actor == 0 {
+		if !p1Done {
+			m.send(PlaceUnitAction)
+			return
+		}
+	} else {
+		if !p2Done {
+			m.mockPlaceUnit(gs)
+			time.Sleep(mockDelay)
+			m.advanceGameLoop()
+			return
+		}
 	}
 
-	// Then mock places.
-	if !gs.Players[1].HasPlacedUnitThisRound && p2HasUnits {
-		m.mockPlaceUnit(gs)
-		time.Sleep(mockDelay)
-	}
-
-	// Both placed (or one side had no units) — begin next round.
-	m.startNewRound(gs)
+	m.advanceGameLoop()
 }
 
-func (m *MockClient) advancePlayPhase(gs *mock.GameState) {
-	nextUnit := m.nextUnitToPlay(gs)
+func (m *MockClient) advancePlayPhase() {
+	gs := mock.GetGameState()
+	nextUnit := m.nextUnitToPlay()
 
 	if nextUnit == nil {
 		gs.Phase = mock.PlacementPhase
-		m.runPlacementPhase(gs)
+		m.runPlacementPhase()
 		return
 	}
 
-	m.playUnit(gs, nextUnit)
+	m.playUnit(nextUnit)
 }
 
 // mockPlaceUnit picks a random unit from the mock player's hand and places it.
@@ -255,7 +260,7 @@ func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
 	unit.Col = col
 	mock.PlaceUnitAt(unit, row, col)
 	mock.AddUnitToQueue(unit)
-	gs.Players[1].HasPlacedUnitThisRound = true
+	gs.Players[1].UnitsPlacedThisRound++
 
 	data, err := json.Marshal(ds.PlaceUnitPayload{Row: row, Col: col, Unit: unit})
 	if err != nil {
@@ -265,13 +270,15 @@ func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
 }
 
 // startNewRound resets per-round state and begins the next round's play phase.
-func (m *MockClient) startNewRound(gs *mock.GameState) {
+func (m *MockClient) startNewRound() {
+	gs := mock.GetGameState()
 	gs.CurrentRound++
 	gs.ActiveUnit = 0
 	gs.Phase = mock.PlayPhase
 
-	gs.Players[0].HasPlacedUnitThisRound = false
-	gs.Players[1].HasPlacedUnitThisRound = false
+	mock.UnitsPerPlacementPhase--
+	gs.Players[0].UnitsPlacedThisRound = 0
+	gs.Players[1].UnitsPlacedThisRound = 0
 
 	m.advanceGameLoop()
 }
@@ -285,4 +292,19 @@ func (m *MockClient) sendPlayUnit(unitID string) {
 		log.Fatal(err)
 	}
 	m.inbox <- InMessage{Action: PlayUnitAction, Data: data}
+}
+
+func (m *MockClient) getPlacementActor() int {
+	gs := mock.GetGameState()
+	p1 := gs.Players[0].UnitsPlacedThisRound
+	p2 := gs.Players[1].UnitsPlacedThisRound
+
+	if p1 < p2 {
+		return 0 // P1
+	}
+	if p2 < p1 {
+		return 1 // P2
+	}
+
+	return 0 // tie-breaker: P1 starts
 }

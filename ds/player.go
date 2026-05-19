@@ -6,6 +6,6 @@ type Player struct {
 	IsBot       bool   `json:"is_bot"`
 	PlayerIndex int    `json:"-"`     // 0 or 1
 	Units       []Unit `json:"units"` // units at hand
-	
-	HasPlacedUnitThisRound bool
+
+	UnitsPlacedThisRound int
 }

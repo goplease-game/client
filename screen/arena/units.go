@@ -12,7 +12,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -57,11 +56,22 @@ func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 		canDrag:   func() bool { return s.ready && !s.unitPlacedThisTurn },
 	}
 
-	card := widget.NewContainer(
+	var refs UnitCardRefs
+	var card *widget.Container
+
+	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(unitCardBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(cellSize, cellSize),
+			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHoverBgColor))
+				refs.Icon.Image = refs.HoverIcon
+			}),
+			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(unitCardBgColor))
+				refs.Icon.Image = refs.NormIcon
+			}),
 			widget.WidgetOpts.EnableDragAndDrop(widget.NewDragAndDrop(
 				widget.DragAndDropOpts.ContentsCreater(dnd),
 				widget.DragAndDropOpts.MinDragStartDistance(10),
@@ -83,29 +93,7 @@ func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 		),
 	)
 
-	normalIcon := unitImage(u.TemplateID)
-	hoverIcon := ui.TintImage(normalIcon, unitCardHoverFgColor)
-
-	var graphic *widget.Graphic
-	graphic = widget.NewGraphic(
-		widget.GraphicOpts.Image(normalIcon),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.CursorEnterHandler(func(args *widget.WidgetCursorEnterEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHoverBgColor))
-				graphic.Image = hoverIcon
-			}),
-			widget.WidgetOpts.CursorExitHandler(func(args *widget.WidgetCursorExitEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(unitCardBgColor))
-				graphic.Image = normalIcon
-			}),
-		),
-	)
-	card.AddChild(graphic)
-
+	refs = buildHandCard(card, u)
 	return card
 }
 
@@ -203,40 +191,38 @@ func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 	if u.IsOpponent {
 		bgColor = unitEnemyBgColor
 	}
-	restoreColor := bgColor // capture for closures
 
-	card := widget.NewContainer(
+	restoreColor := bgColor // capture for closures
+	var card *widget.Container
+	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.MinSize(54, 54)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(54, 54),
+			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
+				if current, ok := s.unitByID(u.ID); ok {
+					if bc := s.boardCellWidget(current); bc != nil {
+						bc.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
+					}
+				}
+			}),
+			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
+				card.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+				if current, ok := s.unitByID(u.ID); ok {
+					if bc := s.boardCellWidget(current); bc != nil {
+						bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+					}
+				}
+			}),
+		),
 	)
 
 	if isActive {
 		s.pulseWidgets = append(s.pulseWidgets, card)
 	}
 
-	card.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(u.TemplateID)),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
-				if bc := s.boardCellWidget(u); bc != nil {
-					bc.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
-				}
-			}),
-			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
-				if bc := s.boardCellWidget(u); bc != nil {
-					bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
-				}
-			}),
-		),
-	))
-
+	buildBoardCard(card, u, false)
 	return card
 }
 
@@ -253,6 +239,8 @@ func (s *Screen) highlightActiveUnit(unitID string) {
 			}
 			if bc := s.boardCellWidget(prev); bc != nil {
 				bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+				bc.RemoveChildren()
+				buildBoardCard(bc, prev, false)
 			}
 		}
 	}
@@ -264,6 +252,8 @@ func (s *Screen) highlightActiveUnit(unitID string) {
 		if u, ok := s.unitByID(unitID); ok {
 			if bc := s.boardCellWidget(u); bc != nil {
 				s.setPulseTargets([]*widget.Container{bc})
+				bc.RemoveChildren()
+				buildBoardCard(bc, u, !s.activeUnitMoved)
 			}
 		}
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
-	"golang.org/x/image/colornames"
 )
 
 // ---------------------------------------------------------------------------
@@ -88,9 +87,9 @@ func (s *Screen) createStatusBar() *widget.Container {
 		),
 	)
 
-	tf := ui.TextFace(16)
+	tf := ui.TextFace(18)
 	s.statusLabel = widget.NewText(
-		widget.TextOpts.Text("Waiting for opponent...", &tf, colornames.Lightgray),
+		widget.TextOpts.Text("Waiting for opponent...", &tf, statusBarTextColor),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,

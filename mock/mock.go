@@ -10,6 +10,8 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
+var UnitsPerPlacementPhase = 3
+
 const (
 	MockedPlayerID = "p2"
 	NoActiveUnit   = -1

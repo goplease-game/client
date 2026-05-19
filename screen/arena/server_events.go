@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"github.com/ebitenui/ebitenui/image"
-	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -36,9 +35,15 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 func (s *Screen) handlePlaceUnit() {
 	s.ready = true
 	s.unitPlacedThisTurn = false
+	s.highlightActiveUnit("")
 	s.hideAbilityPanel()
 	s.setupUnitPanel()
-	s.setStatus("Place a unit on the board")
+
+	if len(s.player.Units) == 1 {
+		s.setStatus(fmt.Sprintf("%s is ready to be deployed", s.player.Units[0].Name))
+	} else {
+		s.setStatus("Deploy a unit to the board")
+	}
 }
 
 // handleEndRound is called when the current round ends and the player may end their turn.
@@ -105,24 +110,15 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 
 	cell := s.boardCellWidgets[payload.Row][payload.Col]
 	cell.SetBackgroundImage(image.NewNineSliceColor(unitEnemyBgColor))
-	cell.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(payload.Unit.TemplateID)),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
+
+	buildBoardCard(cell, *payload.Unit, false)
 
 	opponentUnitID := payload.Unit.ID
-	s.board[payload.Row][payload.Col].Unit = &ds.Unit{
-		ID:         opponentUnitID,
-		TemplateID: payload.Unit.TemplateID,
-		Row:        payload.Row,
-		Col:        payload.Col,
-		IsOpponent: true,
-	}
+	u := *payload.Unit
+	u.Row = payload.Row
+	u.Col = payload.Col
+	u.IsOpponent = true
+	s.board[payload.Row][payload.Col].Unit = &u
 
 	s.addUnitToQueue(opponentUnitID)
 }

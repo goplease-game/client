@@ -25,7 +25,7 @@ var (
 	unitFriendlyBgColor     = ui.RGBFromHex("B0DB9C")
 	unitEnemyBgColor        = ui.RGBFromHex("EA7B7B")
 	selectedUnitBorderColor = colornames.Red
-	unitMoveToCellColor     = ui.RGBFromHex("4d6b81") //  B8CFCE ?
+	unitMoveToCellColor     = ui.RGBFromHex("49687e")
 	unitPulseColor1         = ui.RGBFromHex("FFC700")
 	unitPulseColor2         = ui.DarkenRGB(unitPulseColor1, 80)
 
@@ -36,9 +36,11 @@ var (
 	ttTextColor   = colornames.Ghostwhite
 
 	// HUD
-	hpColor  = colornames.Tomato
-	atkColor = colornames.Orange
-	mpColor  = colornames.Skyblue
+	hpColor            = colornames.Tomato
+	atkColor           = colornames.Orange
+	mpColor            = colornames.Skyblue
+	shieldColor        = colornames.Gold
+	statusBarTextColor = colornames.Gold
 
 	// BOARD
 	boardBgColor           = ui.RGBFromHex("607B8F")

@@ -116,15 +116,7 @@ func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, r, c int) {
 	}
 
 	sc.container.SetBackgroundImage(image.NewNineSliceColor(unitFriendlyBgColor))
-	sc.container.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(unit.TemplateID)),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
+	buildBoardCard(sc.container, unit, false)
 
 	s.onUnitPlaced(unit, r, c)
 }

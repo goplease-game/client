@@ -89,6 +89,7 @@ func resizeImage(src *ebiten.Image, w, h int) *ebiten.Image {
 	sx := float64(w) / float64(src.Bounds().Dx())
 	sy := float64(h) / float64(src.Bounds().Dy())
 	opts.GeoM.Scale(sx, sy)
+	opts.Filter = ebiten.FilterLinear
 	dst.DrawImage(src, opts)
 	return dst
 }
