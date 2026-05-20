@@ -1,8 +1,6 @@
 package arena
 
 import (
-	"encoding/json"
-	"log"
 	"math"
 
 	"github.com/ebitenui/ebitenui"
@@ -23,13 +21,22 @@ const (
 )
 
 type Screen struct {
-	server       ws.Client
-	ui           *ebitenui.UI
-	board        ds.Board
-	roomID       string
-	player       ds.Player
-	opponentName string
-	isMyTurn     bool
+	server ws.Client
+	ui     *ebitenui.UI
+
+	// game data
+	board              ds.Board
+	roomID             string
+	player             ds.Player
+	opponentName       string
+	isMyTurn           bool
+	unitsQueue         []string
+	activeUnitID       string
+	activeUnitIndex    int
+	roundNumber        int
+	unitPlacedThisTurn bool
+	queueIn            bool
+	unitPanelIn        bool
 
 	safeZoneCells    []*DropZoneCell
 	boardCellWidgets [][]*widget.Container
@@ -48,13 +55,11 @@ type Screen struct {
 	pulseTick             float64
 	endTurnBtnPulseActive bool
 
-	unitsQueue         []string
-	activeUnitID       string
-	activeUnitIndex    int
-	turnNumber         int
-	unitPlacedThisTurn bool
-	queueIn            bool
-	unitPanelIn        bool
+	// Dev panel (only active when DevMode.Enabled).
+	devPanelRef       *widget.Container
+	devPanelBody      *widget.Container
+	devLoadList       *widget.Container
+	devPanelMinimized bool
 
 	// Movement / selection state.
 	selectedUnitID  string    // unit currently selected for movement (empty = none)
@@ -68,29 +73,33 @@ type Screen struct {
 	// firstDrawn tracks whether we have completed at least one Draw call so
 	// that we send ready_to_play exactly once after the UI is fully rendered.
 	firstDrawn bool
+
+	// for state reloading
+	pendingScreen game.Screen
 }
 
-func NewScreen(payload json.RawMessage, server ws.Client) game.Screen {
-	var data ds.NewGamePayload
-	if err := json.Unmarshal(payload, &data); err != nil {
-		log.Fatalf("failed to unmarshal: %v", err)
-	}
-
+func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
 	s := &Screen{
 		server:       server,
-		board:        data.Board,
-		roomID:       data.RoomID,
-		player:       *data.Player,
+		board:        snap.Board,
+		roomID:       snap.RoomID,
+		player:       snap.Player,
+		opponentName: snap.OpponentName,
+		unitsQueue:   snap.UnitsQueue,
+		activeUnitID: snap.ActiveUnitID,
+		roundNumber:  snap.Round,
 		unitCards:    make(map[string]*widget.Container),
-		turnNumber:   1,
-		opponentName: data.Opponent,
 	}
 
 	initDropPointAnim()
-	s.setupUI(data)
+	s.setupUI()
+	s.restoreBoardVisuals()
+
+	// Restore queue panel from snapshot.
+	s.rebuildQueuePanel()
+
 	return s
 }
-
 func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	for {
 		select {
@@ -107,6 +116,10 @@ done:
 	s.activeMoveAnim.update()
 
 	s.ui.Update()
+
+	if s.pendingScreen != nil {
+		return s.pendingScreen, nil
+	}
 	return s, nil
 }
 
@@ -157,7 +170,7 @@ func (s *Screen) updateDropZoneAnim() {
 	}
 }
 
-func (s *Screen) setupUI(data ds.NewGamePayload) {
+func (s *Screen) setupUI() {
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -165,13 +178,14 @@ func (s *Screen) setupUI(data ds.NewGamePayload) {
 
 	s.headerRef = s.createHeader()
 	s.footerRef = s.createFooter()
-	board := s.createBoardContainer(data.Board)
+	board := s.createBoardContainer()
 	statusBar := s.createStatusBar()
 
 	root.AddChild(board)
 	root.AddChild(s.headerRef)
 	root.AddChild(statusBar)
 	root.AddChild(s.footerRef)
+	s.setupDevPanel(root)
 
 	s.ui = &ebitenui.UI{Container: root}
 }
@@ -179,5 +193,42 @@ func (s *Screen) setupUI(data ds.NewGamePayload) {
 func (s *Screen) setStatus(text string) {
 	if s.statusLabel != nil {
 		s.statusLabel.Label = text
+	}
+}
+
+func (s *Screen) takeSnapshot() ds.GameSnapshot {
+	return ds.GameSnapshot{
+		RoomID:       s.roomID,
+		Board:        s.board,
+		Player:       s.player,
+		OpponentName: s.opponentName,
+		UnitsQueue:   s.unitsQueue,
+		ActiveUnitID: s.activeUnitID,
+		Round:        s.roundNumber,
+	}
+}
+
+func (s *Screen) restoreSnapshot(snap ds.GameSnapshot) game.Screen {
+	return NewScreen(snap, s.server)
+}
+
+func (s *Screen) restoreBoardVisuals() {
+	for r, row := range s.board {
+		for c, cell := range row {
+			if cell == nil || cell.Unit == nil {
+				continue
+			}
+			u := *cell.Unit
+			w := s.boardCellWidgets[r][c]
+			if w == nil {
+				continue
+			}
+			bg := unitFriendlyBgColor
+			if u.IsOpponent {
+				bg = unitEnemyBgColor
+			}
+			w.SetBackgroundImage(image.NewNineSliceColor(bg))
+			buildBoardCard(w, u, false)
+		}
 	}
 }

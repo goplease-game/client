@@ -25,8 +25,11 @@ type ConfigT struct {
 
 	ServerAddr string `yaml:"server_addr"`
 
-	MockClient  bool `yaml:"mock_client"`
-	LogProtocol bool `yaml:"log_protocol"`
+	DevMode struct {
+		Enabled     bool `yaml:"enabled"`
+		MockClient  bool `yaml:"mock_client"`
+		LogProtocol bool `yaml:"log_protocol"`
+	} `yaml:"dev_mode"`
 }
 
 var loadConfigOnce sync.Once

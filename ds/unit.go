@@ -112,7 +112,6 @@ func (u Unit) ReachableCells(board Board) [][2]int {
 			adr := abs(dr)
 			adc := abs(dc)
 
-			// Формула D&D / Альтернативного ромба: max + min/2
 			cost := max(adr, adc) + (min(adr, adc) / 2)
 			if cost > u.MP {
 				continue

@@ -2,6 +2,8 @@ package mock
 
 import (
 	"embed"
+	"encoding/json"
+	"fmt"
 	"log"
 	"math/rand/v2"
 	"path"
@@ -13,8 +15,9 @@ import (
 var UnitsPerPlacementPhase = 3
 
 const (
-	MockedPlayerID = "p2"
-	NoActiveUnit   = -1
+	totalUnitsPerPlayer = 6
+	MockedPlayerID      = "p2"
+	NoActiveUnit        = -1
 )
 
 type RoundPhase int
@@ -34,7 +37,7 @@ type GameState struct {
 	Board      ds.Board
 	Players    [2]*ds.Player
 	UnitsQueue []*ds.Unit
-	ActiveUnit int // counting from 1
+	ActiveUnit int
 
 	CurrentRound int
 	ActivePlayer int // 0 or 1 whose turn is
@@ -88,6 +91,115 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 	}
 
 	return gameState
+}
+
+func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
+	// Collect opponent units already on the board.
+	var onBoard []*ds.Unit
+	for _, row := range snap.Board {
+		for _, cell := range row {
+			if cell != nil && cell.Unit != nil && cell.Unit.IsOpponent {
+				onBoard = append(onBoard, cell.Unit)
+			}
+		}
+	}
+
+	// Load the full initial unit list to figure out what's still in hand.
+	var inHand []ds.Unit
+	if len(onBoard) < totalUnitsPerPlayer {
+		initialUnits := loadInitialUnits()
+		inHand = unitsNotOnBoard(initialUnits, onBoard)
+	}
+
+	p2 := &ds.Player{
+		ID:          uuid.NewString(),
+		Name:        snap.OpponentName,
+		IsBot:       false,
+		PlayerIndex: 1,
+		Units:       inHand,
+	}
+
+	activeUnitIdx := NoActiveUnit
+	for i, unitID := range snap.UnitsQueue {
+		if unitID == snap.ActiveUnitID {
+			activeUnitIdx = i
+			break
+		}
+	}
+
+	p1 := snap.Player
+	p1Units := make([]ds.Unit, len(snap.Player.Units))
+	copy(p1Units, snap.Player.Units)
+	p1.Units = p1Units
+
+	gameState = &GameState{
+		RoomID:       snap.RoomID,
+		Board:        snap.Board,
+		Players:      [2]*ds.Player{&p1, p2},
+		UnitsQueue:   unitsQueueFromIDs(snap.UnitsQueue, snap.Board),
+		CurrentRound: snap.Round,
+		ActiveUnit:   activeUnitIdx,
+		ActivePlayer: 0,
+	}
+
+	fmt.Printf("[mock] new game state loaded from %s\n", name)
+	return gameState
+}
+
+// loadInitialUnits reads new_game.json and returns the full unit list
+// that each player starts with.
+func loadInitialUnits() []ds.Unit {
+	raw, err := LoadData("new_game.json")
+	if err != nil {
+		log.Fatal("RestoreGameState: failed to load new_game.json:", err)
+	}
+	var payload ds.NewGamePayload
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		log.Fatal("RestoreGameState: failed to parse new_game.json:", err)
+	}
+	return payload.Player.Units
+}
+
+// unitsNotOnBoard returns units from the initial list whose TemplateID
+// is not represented among the opponent's on-board units.
+func unitsNotOnBoard(initial []ds.Unit, onBoard []*ds.Unit) []ds.Unit {
+	onBoardTemplates := make(map[int]bool, len(onBoard))
+	for _, u := range onBoard {
+		onBoardTemplates[u.TemplateID] = true
+	}
+
+	var result []ds.Unit
+	for _, u := range initial {
+		if !onBoardTemplates[u.TemplateID] {
+			newUnit := u
+			newUnit.ID = uuid.NewString()
+			newUnit.OwnerID = MockedPlayerID
+			result = append(result, newUnit)
+		}
+	}
+
+	return result
+}
+
+// unitsQueueFromIDs rebuilds the queue as []*ds.Unit from the stored IDs,
+// looking up each unit on the board.
+func unitsQueueFromIDs(ids []string, board ds.Board) []*ds.Unit {
+	index := make(map[string]*ds.Unit)
+	for _, row := range board {
+		for _, cell := range row {
+			if cell != nil && cell.Unit != nil {
+				index[cell.Unit.ID] = cell.Unit
+			}
+		}
+	}
+
+	var queue []*ds.Unit
+	for _, id := range ids {
+		if u, ok := index[id]; ok {
+			queue = append(queue, u)
+		}
+	}
+	return queue
 }
 
 func GetGameState() *GameState {

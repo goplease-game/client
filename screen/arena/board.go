@@ -7,10 +7,11 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-func (s *Screen) createBoardContainer(boardData ds.Board) *widget.Container {
+func (s *Screen) createBoardContainer() *widget.Container {
+	board := s.board
 	cols := 0
-	if len(boardData) > 0 {
-		cols = len(boardData[0])
+	if len(board) > 0 {
+		cols = len(board[0])
 	}
 
 	container := widget.NewContainer(
@@ -39,8 +40,8 @@ func (s *Screen) createBoardContainer(boardData ds.Board) *widget.Container {
 		),
 	)
 
-	s.boardCellWidgets = make([][]*widget.Container, len(boardData))
-	for r, row := range boardData {
+	s.boardCellWidgets = make([][]*widget.Container, len(board))
+	for r, row := range board {
 		s.boardCellWidgets[r] = make([]*widget.Container, len(row))
 		for c, cellData := range row {
 			s.boardCellWidgets[r][c] = s.createCell(r, c, cellData)

@@ -150,6 +150,6 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		unitImage(u.TemplateID),
 		s.cellCentrePx(fromR, fromC),
 		s.cellCentrePx(toR, toC),
-		func() { s.finishMove(u, fromR, fromC, toR, toC) }, // Коллбек завершения
+		func() { s.finishMove(u, fromR, fromC, toR, toC) },
 	)
 }

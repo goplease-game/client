@@ -15,7 +15,8 @@ type Client interface {
 }
 
 func NewClient() Client {
-	if config.Get().MockClient {
+	dev := config.Get().DevMode
+	if dev.Enabled && dev.MockClient {
 		return NewMockClient()
 	}
 

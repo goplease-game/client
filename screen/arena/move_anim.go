@@ -25,7 +25,6 @@ type moveAnim struct {
 //   - horizontal (same row): lift applied.
 //   - vertical/diagonal (different rows): no lift (simple ease-in-out).
 func newMoveAnim(img *ebiten.Image, from, to image.Point, onDone func()) *moveAnim {
-	// Изменено: lift применяется ТОЛЬКО если Y-координаты совпадают (одна строка)
 	useLift := to.Y == from.Y
 	return &moveAnim{
 		img:     img,

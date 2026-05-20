@@ -40,7 +40,8 @@ func NewWSClient() *WSClient {
 		msgLogger: nil,
 	}
 
-	if config.Get().LogProtocol {
+	dev := config.Get().DevMode
+	if dev.Enabled && dev.LogProtocol {
 		f, _ := os.OpenFile("protocol_log.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 		c.msgLogger = log.New(f, "", log.Ltime|log.Lmicroseconds)
 	}

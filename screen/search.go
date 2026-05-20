@@ -15,6 +15,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
+	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/screen/arena"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -197,7 +198,18 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	case ws.SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
 	case ws.NewGameAction:
-		return arena.NewScreen(msg.Data, s.server)
+		var data ds.NewGamePayload
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			log.Fatalf("new game: failed to unmarshal: %v", err)
+		}
+		snap := ds.GameSnapshot{
+			RoomID:       data.RoomID,
+			Board:        data.Board,
+			Player:       *data.Player,
+			OpponentName: data.Opponent,
+			Round:        1,
+		}
+		return arena.NewScreen(snap, s.server)
 	case ws.ErrorAction:
 		var e struct {
 			Message string `json:"message"`
