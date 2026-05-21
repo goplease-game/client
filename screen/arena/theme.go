@@ -49,10 +49,12 @@ var (
 	unitDropZoneHoverColor = ui.DarkenRGB(unitDropZoneColor, 50)
 
 	// ABILITIES
-	abilitiesPanelBgColor = ui.DarkenRGB(footerBgColor, 5)
-	basicAttackBgColor    = ui.RGBFromHex("E97F4A")
-	abilityBgColor        = ui.RGBFromHex("8CA9FF")
-	passiveAbilityBgColor = ui.RGBFromHex("9B8EC7")
+	abilitiesPanelBgColor  = ui.DarkenRGB(footerBgColor, 5)
+	basicAttackBgColor     = ui.RGBFromHex("E97F4A")
+	abilityBgColor         = ui.RGBFromHex("8CA9FF")
+	passiveAbilityBgColor  = ui.RGBFromHex("9B8EC7")
+	abilityTargetCellColor = ui.RGBFromHex("D70654")
+	abilityRangeCellColor  = ui.RGBFromHex("7c9493")
 )
 
 // FONTS

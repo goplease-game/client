@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/google/uuid"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
@@ -66,12 +67,12 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 		newUnit.OwnerID = MockedPlayerID
 
 		if unit.Abilities != nil {
-			newUnit.Abilities = make([]ds.AbilityID, len(unit.Abilities))
+			newUnit.Abilities = make([]ability.ID, len(unit.Abilities))
 			copy(newUnit.Abilities, unit.Abilities)
 		}
 
 		if unit.Cooldowns != nil {
-			newUnit.Cooldowns = make(map[ds.AbilityID]int)
+			newUnit.Cooldowns = make(map[ability.ID]int)
 			for k, v := range unit.Cooldowns {
 				newUnit.Cooldowns[k] = v
 			}

@@ -85,7 +85,17 @@ func (m *MockClient) onNewGame() {
 func (m *MockClient) onReadyToPlay() {
 	m.send(WaitingForOpponent)
 	time.Sleep(mockDelay)
-	// Round 1 always starts with placement since the board is empty.
+
+	gs := mock.GetGameState()
+	p1HasUnits := len(gs.Players[0].Units) > 0
+	p2HasUnits := len(gs.Players[1].Units) > 0
+
+	if !p1HasUnits && !p2HasUnits {
+		// All units already on the board — skip placement, go straight to play.
+		m.advanceGameLoop()
+		return
+	}
+
 	m.send(PlaceUnitAction)
 }
 

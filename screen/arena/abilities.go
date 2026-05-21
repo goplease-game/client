@@ -43,7 +43,7 @@ func (s *Screen) showAbilityPanel(unit ds.Unit) {
 	)
 
 	for _, abilityID := range unit.Abilities {
-		ab := ability.ByID(string(abilityID))
+		ab := ability.ByID(abilityID)
 		s.abilityPanelRef.AddChild(s.buildAbilityCard(ab))
 	}
 
@@ -86,15 +86,17 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 			),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
 				card.SetBackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(bgColor, 30)))
+				s.highlightAbilityRange(ab)
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
 				card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
+				s.clearAbilityHighlight()
 			}),
 		),
 	)
 
 	card.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(abilityImage(ab.ID)),
+		widget.GraphicOpts.Image(abilityImage(string(ab.ID))),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -165,7 +167,7 @@ func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
 // ---------------------------------------------------------------------------
 
 func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
-	c := buildToolTipBase(abilityImage(ab.ID, 28), ab.Name)
+	c := buildToolTipBase(abilityImage(string(ab.ID), 28), ab.Name)
 
 	c.AddChild(widget.NewText(
 		widget.TextOpts.Text(ab.Description, &toolTipTextTF, ttTextColor),

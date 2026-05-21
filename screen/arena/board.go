@@ -165,3 +165,58 @@ func centeredGraphic(img *ebiten.Image) *widget.Graphic {
 		),
 	)
 }
+
+// cellsInRange returns all board positions within rangeN of `from`,
+// using the same D&D diagonal rule as ReachableCells
+// (1st diagonal costs 1, 2nd costs 2, etc.).
+// Unlike ReachableCells, it does NOT skip occupied cells —
+// it returns every cell in range regardless of contents.
+func cellsInRange(from [2]int, rangeN int, board ds.Board) [][2]int {
+	rows := len(board)
+	if rows == 0 {
+		return nil
+	}
+	cols := len(board[0])
+
+	abs := func(x int) int {
+		if x < 0 {
+			return -x
+		}
+		return x
+	}
+
+	var result [][2]int
+	for dr := -rangeN; dr <= rangeN; dr++ {
+		for dc := -rangeN; dc <= rangeN; dc++ {
+			if dr == 0 && dc == 0 {
+				continue
+			}
+			adr, adc := abs(dr), abs(dc)
+			diag := min(adr, adc)
+			cost := max(adr, adc) + diag/2
+			if cost > rangeN {
+				continue
+			}
+			r, c := from[0]+dr, from[1]+dc
+			if r < 0 || r >= rows || c < 0 || c >= cols {
+				continue
+			}
+			result = append(result, [2]int{r, c})
+		}
+	}
+	return result
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

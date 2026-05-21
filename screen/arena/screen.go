@@ -48,8 +48,9 @@ type Screen struct {
 	nextActionBtn    *widget.Button
 	statusLabel      *widget.Text
 
-	abilityPanelRef *widget.Container
-	abilityPanelIn  bool
+	abilityPanelRef       *widget.Container
+	abilityPanelIn        bool
+	abilityHighlightCells [][2]int
 
 	pulseWidgets          []*widget.Container
 	pulseTick             float64

@@ -1,5 +1,7 @@
 package ds
 
+import "github.com/ognev-dev/goplease-ebitengine-client/ability"
+
 type Unit struct {
 	ID          string `json:"id"`
 	TemplateID  int    `json:"template_id"`
@@ -20,8 +22,8 @@ type Unit struct {
 	Row int `json:"row"`
 	Col int `json:"col"`
 
-	Abilities []AbilityID       `json:"abilities"`
-	Cooldowns map[AbilityID]int `json:"cooldowns"`
+	Abilities []ability.ID       `json:"abilities"`
+	Cooldowns map[ability.ID]int `json:"cooldowns"`
 
 	IsOpponent bool
 }
