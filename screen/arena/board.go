@@ -1,37 +1,36 @@
 package arena
 
 import (
-	"github.com/ebitenui/ebitenui/image"
+	"sort"
+
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 func (s *Screen) createBoardContainer() *widget.Container {
-	board := s.board
-	cols := 0
-	if len(board) > 0 {
-		cols = len(board[0])
-	}
-
 	container := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				StretchHorizontal: true,
 				StretchVertical:   true,
-				Padding:           &widget.Insets{Top: headerH, Bottom: footerH + statusH},
+				Padding: &widget.Insets{
+					Top:    headerH,
+					Bottom: footerH + statusH,
+				},
 			}),
 		),
 	)
 
 	boardWidget := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardBgColor)),
-		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			widget.GridLayoutOpts.Columns(cols),
-			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(25)),
-			widget.GridLayoutOpts.Spacing(2, 2),
-		)),
+		//widget.ContainerOpts.BackgroundImage(
+		//	image.NewNineSliceColor(boardBgColor),
+		//),
+		widget.ContainerOpts.Layout(&ui.HexLayout{
+			HexSize: ui.HexRadius,
+		}),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -40,110 +39,116 @@ func (s *Screen) createBoardContainer() *widget.Container {
 		),
 	)
 
-	s.boardCellWidgets = make([][]*widget.Container, len(board))
-	for r, row := range board {
-		s.boardCellWidgets[r] = make([]*widget.Container, len(row))
-		for c, cellData := range row {
-			s.boardCellWidgets[r][c] = s.createCell(r, c, cellData)
-			boardWidget.AddChild(s.boardCellWidgets[r][c])
-		}
+	s.boardCellWidgets = make(map[ds.HexCoord]*ui.HexCellWidget)
+
+	for coord, cellData := range s.board.Cells {
+		cell := s.createCell(coord, cellData)
+		s.boardCellWidgets[coord] = cell
+		boardWidget.AddChild(cell)
 	}
 
+	s.sortedCells = make([]*ui.HexCellWidget, 0, len(s.boardCellWidgets))
+	for _, cell := range s.boardCellWidgets {
+		s.sortedCells = append(s.sortedCells, cell)
+	}
+	sort.Slice(s.sortedCells, func(i, j int) bool {
+		if s.sortedCells[i].Coord.R != s.sortedCells[j].Coord.R {
+			return s.sortedCells[i].Coord.R < s.sortedCells[j].Coord.R
+		}
+		return s.sortedCells[i].Coord.Q < s.sortedCells[j].Coord.Q
+	})
+
 	container.AddChild(boardWidget)
+
 	return container
 }
 
-func (s *Screen) createCell(r, c int, data *ds.BoardCell) *widget.Container {
+func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWidget {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
-	sc := &DropZoneCell{row: r, col: c}
 
-	// Capture r, c for the click closure.
-	row, col := r, c
+	sc := &DropZoneCell{coord: coord}
 
-	opts := []widget.ContainerOpt{
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(boardCellBgColor)),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(cellSize, cellSize),
-			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
+	widgetOpts := []widget.WidgetOpt{
+		widget.WidgetOpts.MinSize(ui.HexRadius, ui.HexRadius),
+		widget.WidgetOpts.MouseButtonReleasedHandler(
+			func(args *widget.WidgetMouseButtonReleasedEventArgs) {
 				if args.Button == ebiten.MouseButtonLeft && args.Inside {
-					s.onCellClicked(row, col)
+					s.onCellClicked(coord)
 				}
-			}),
+			},
 		),
 	}
 
 	if isDroppable {
-		opts = append(opts, s.dropZoneOpts(sc, r, c)...)
-	}
-
-	cell := widget.NewContainer(opts...)
-	sc.container = cell
-	if isDroppable {
+		widgetOpts = append(widgetOpts, s.dropZoneWidgetOpts(sc, coord)...)
 		s.safeZoneCells = append(s.safeZoneCells, sc)
 	}
 
+	cell := ui.NewHexCellWidget(coord, widgetOpts...)
+	cell.SetColor(boardCellBgColor)
+
+	sc.cell = cell
 	return cell
 }
 
-// dropZoneOpts returns widget options that make a cell accept unit drops.
-func (s *Screen) dropZoneOpts(sc *DropZoneCell, r, c int) []widget.ContainerOpt {
-	return []widget.ContainerOpt{
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
-				_, ok := args.Data.(ds.Unit)
-				return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn
-			}),
-			widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
-				unit, ok := args.Data.(ds.Unit)
-				if !ok {
-					return
-				}
-				s.onUnitDropped(sc, unit, r, c)
-			}),
-		),
+// dropZoneWidgetOpts returns widget options that make a cell accept unit drops.
+func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widget.WidgetOpt {
+	return []widget.WidgetOpt{
+		widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
+			_, ok := args.Data.(ds.Unit)
+			return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn
+		}),
+		widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
+			unit, ok := args.Data.(ds.Unit)
+			if !ok {
+				return
+			}
+			s.onUnitDropped(sc, unit, coord)
+		}),
 	}
 }
 
 // onUnitDropped is called when a unit card is successfully dropped onto a safe-zone cell.
-func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, r, c int) {
+func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, coord ds.HexCoord) {
 	sc.occupied = true
 	sc.baseColor = unitFriendlyBgColor
 	s.unitPlacedThisTurn = true
 
 	if sc.activeGraphic != nil {
-		sc.container.RemoveChild(sc.activeGraphic)
 		sc.activeGraphic = nil
 	}
 
-	sc.container.SetBackgroundImage(image.NewNineSliceColor(unitFriendlyBgColor))
-	buildBoardCard(sc.container, unit, false)
+	sc.cell.SetColor(unitFriendlyBgColor)
+	buildBoardCard(sc.cell, unit, false)
 
-	s.onUnitPlaced(unit, r, c)
+	s.onUnitPlaced(unit, coord)
 }
 
-func (s *Screen) boardCellWidget(u ds.Unit) *widget.Container {
-	if u.Row < 0 || u.Row >= len(s.boardCellWidgets) ||
-		u.Col < 0 || u.Col >= len(s.boardCellWidgets[u.Row]) {
+func (s *Screen) boardCellWidget(u ds.Unit) *ui.HexCellWidget {
+	cell := s.boardCellWidgets[ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}]
+	if cell == nil {
 		return nil
 	}
-	return s.boardCellWidgets[u.Row][u.Col]
+
+	return cell
 }
 
 // onCellClicked is the single click handler attached to every board cell.
 // It dispatches to the right action depending on current selection state.
-func (s *Screen) onCellClicked(r, c int) {
+func (s *Screen) onCellClicked(coord ds.HexCoord) {
+	cell := s.board.Cells[coord]
+
 	// If this cell holds the active friendly unit — select it for movement.
-	cell := s.board[r][c]
 	if cell != nil && cell.Unit != nil &&
 		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
+
 		s.selectUnit(*cell.Unit)
 		return
 	}
 
 	// If a unit is selected and this is a reachable cell — move there.
-	if s.selectedUnitID != "" && isReachable(s.reachableCells, r, c) {
-		s.onReachableCellClicked(r, c)
+	if s.selectedUnitID != "" && isReachableHex(s.reachableCells, coord) {
+		s.onReachableCellClicked(coord)
 		return
 	}
 
@@ -153,70 +158,39 @@ func (s *Screen) onCellClicked(r, c int) {
 	}
 }
 
-// centeredGraphic returns a graphic widget centred inside an anchor layout.
-func centeredGraphic(img *ebiten.Image) *widget.Graphic {
-	return widget.NewGraphic(
-		widget.GraphicOpts.Image(img),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
-}
+// cellsInRange returns all hex positions within rangeN of `from`.
+// It uses hex distance (cube/axial equivalent), not square-grid diagonals.
+// Unlike movement range, it does NOT consider occupancy.
+func cellsInRange(from ds.HexCoord, rangeN int, board ds.Board) []ds.HexCoord {
+	var result []ds.HexCoord
 
-// cellsInRange returns all board positions within rangeN of `from`,
-// using the same D&D diagonal rule as ReachableCells
-// (1st diagonal costs 1, 2nd costs 2, etc.).
-// Unlike ReachableCells, it does NOT skip occupied cells —
-// it returns every cell in range regardless of contents.
-func cellsInRange(from [2]int, rangeN int, board ds.Board) [][2]int {
-	rows := len(board)
-	if rows == 0 {
-		return nil
-	}
-	cols := len(board[0])
-
-	abs := func(x int) int {
-		if x < 0 {
-			return -x
-		}
-		return x
-	}
-
-	var result [][2]int
-	for dr := -rangeN; dr <= rangeN; dr++ {
-		for dc := -rangeN; dc <= rangeN; dc++ {
-			if dr == 0 && dc == 0 {
-				continue
-			}
-			adr, adc := abs(dr), abs(dc)
-			diag := min(adr, adc)
-			cost := max(adr, adc) + diag/2
-			if cost > rangeN {
-				continue
-			}
-			r, c := from[0]+dr, from[1]+dc
-			if r < 0 || r >= rows || c < 0 || c >= cols {
-				continue
-			}
-			result = append(result, [2]int{r, c})
+	for coord := range board.Cells {
+		if HexDistance(from, coord) <= rangeN {
+			result = append(result, coord)
 		}
 	}
+
 	return result
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+func HexDistance(a, b ds.HexCoord) int {
+	dq := a.Q - b.Q
+	dr := a.R - b.R
+
+	return max3(
+		abs(dq),
+		abs(dr),
+		abs(dq+dr),
+	)
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
+func abs(x int) int {
+	if x < 0 {
+		return -x
 	}
-	return b
+	return x
+}
+
+func max3(a, b, c int) int {
+	return max(max(a, b), c)
 }

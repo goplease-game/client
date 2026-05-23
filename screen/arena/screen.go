@@ -14,10 +14,13 @@ import (
 )
 
 const (
-	cellSize = 64
-	headerH  = 80
-	statusH  = 32
-	footerH  = 90
+	abilityCardSize = 64 // ability card in footer panel
+	unitCardSize    = 64 // unit card in hand & queue panel
+	unitIconSize    = 54
+
+	headerH = 80
+	statusH = 32
+	footerH = 90
 )
 
 type Screen struct {
@@ -39,20 +42,23 @@ type Screen struct {
 	unitPanelIn        bool
 
 	safeZoneCells    []*DropZoneCell
-	boardCellWidgets [][]*widget.Container
-	unitCards        map[string]*widget.Container
-	headerRef        *widget.Container
-	footerRef        *widget.Container
-	queuePanelRef    *widget.Container
-	unitPanelRef     *widget.Container
-	nextActionBtn    *widget.Button
-	statusLabel      *widget.Text
+	sortedCells      []*ui.HexCellWidget
+	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
+
+	unitCards     map[string]*widget.Container
+	headerRef     *widget.Container
+	footerRef     *widget.Container
+	queuePanelRef *widget.Container
+	unitPanelRef  *widget.Container
+	nextActionBtn *widget.Button
+	statusLabel   *widget.Text
 
 	abilityPanelRef       *widget.Container
 	abilityPanelIn        bool
-	abilityHighlightCells [][2]int
+	abilityHighlightCells []ds.HexCoord
 
-	pulseWidgets          []*widget.Container
+	pulseHexWidgets       []*ui.HexCellWidget // board hex cells that pulse
+	pulseWidgets          []*widget.Container // other UI widgets that pulse
 	pulseTick             float64
 	endTurnBtnPulseActive bool
 
@@ -63,10 +69,10 @@ type Screen struct {
 	devPanelMinimized bool
 
 	// Movement / selection state.
-	selectedUnitID  string    // unit currently selected for movement (empty = none)
-	reachableCells  [][2]int  // precomputed reachable positions for selectedUnit
-	activeUnitMoved bool      // true once the active unit has moved this turn
-	activeMoveAnim  *moveAnim // non-nil while a movement animation is playing
+	selectedUnitID  string        // unit currently selected for movement (empty = none)
+	reachableCells  []ds.HexCoord // precomputed reachable positions for selectedUnit
+	activeUnitMoved bool          // true once the active unit has moved this turn
+	activeMoveAnim  *moveAnim     // non-nil while a movement animation is playing
 
 	// ready is set to true when the server responds with phase unit_placement,
 	// meaning the match has started and the local player may interact.
@@ -127,7 +133,6 @@ done:
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 
-	// Draw the moving unit icon as an overlay on top of everything.
 	if s.activeMoveAnim.active() {
 		x, y := s.activeMoveAnim.currentPos()
 		op := &ebiten.DrawImageOptions{}
@@ -143,18 +148,20 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 // updatePulse advances the pulse animation for highlighted units and the end-turn button.
 func (s *Screen) updatePulse() {
-	if len(s.pulseWidgets) == 0 && !s.endTurnBtnPulseActive {
+	if len(s.pulseHexWidgets) == 0 && len(s.pulseWidgets) == 0 && !s.endTurnBtnPulseActive {
 		return
 	}
 
 	s.pulseTick += 0.05
 	t := (math.Sin(s.pulseTick) + 1) / 2
+	c := ui.LerpColor(unitPulseColor1, unitPulseColor2, t)
 
-	if len(s.pulseWidgets) > 0 {
-		c := ui.LerpColor(unitPulseColor1, unitPulseColor2, t)
-		for _, w := range s.pulseWidgets {
-			w.SetBackgroundImage(image.NewNineSliceColor(c))
-		}
+	for _, w := range s.pulseHexWidgets {
+		w.SetColor(c)
+	}
+
+	for _, w := range s.pulseWidgets {
+		w.SetBackgroundImage(image.NewNineSliceColor(c))
 	}
 
 	if s.endTurnBtnPulseActive && s.nextActionBtn != nil {
@@ -166,7 +173,7 @@ func (s *Screen) updateDropZoneAnim() {
 	animDropArrow.Update()
 	for _, sc := range s.safeZoneCells {
 		if sc.activeGraphic != nil {
-			sc.activeGraphic.Image = animDropArrow.CurrentFrame
+			sc.activeGraphic = animDropArrow.CurrentFrame
 		}
 	}
 }
@@ -188,7 +195,27 @@ func (s *Screen) setupUI() {
 	root.AddChild(s.footerRef)
 	s.setupDevPanel(root)
 
-	s.ui = &ebitenui.UI{Container: root}
+	s.ui = &ebitenui.UI{
+		Container: root,
+		PostRenderHook: func(screen *ebiten.Image) {
+			for _, cell := range s.boardCellWidgets {
+				cell.RenderFill(screen)
+				cell.RenderStroke(screen)
+			}
+			for _, cell := range s.sortedCells {
+				cell.RenderUnitLayer(screen)
+			}
+			for _, sc := range s.safeZoneCells {
+				sc.RenderAnim(screen)
+			}
+			for _, cell := range s.sortedCells {
+				cell.RenderHUDLayer(screen)
+			}
+			for _, cell := range s.sortedCells {
+				cell.RenderFXLayer(screen)
+			}
+		},
+	}
 }
 
 func (s *Screen) setStatus(text string) {
@@ -214,22 +241,24 @@ func (s *Screen) restoreSnapshot(snap ds.GameSnapshot) game.Screen {
 }
 
 func (s *Screen) restoreBoardVisuals() {
-	for r, row := range s.board {
-		for c, cell := range row {
-			if cell == nil || cell.Unit == nil {
-				continue
-			}
-			u := *cell.Unit
-			w := s.boardCellWidgets[r][c]
-			if w == nil {
-				continue
-			}
-			bg := unitFriendlyBgColor
-			if u.IsOpponent {
-				bg = unitEnemyBgColor
-			}
-			w.SetBackgroundImage(image.NewNineSliceColor(bg))
-			buildBoardCard(w, u, false)
+	for pos, cell := range s.board.Cells {
+		if cell == nil || cell.Unit == nil {
+			continue
 		}
+
+		u := *cell.Unit
+
+		w := s.boardCellWidgets[pos]
+		if w == nil {
+			continue
+		}
+
+		bg := unitFriendlyBgColor
+		if u.IsOpponent {
+			bg = unitEnemyBgColor
+		}
+
+		w.SetColor(bg)
+		buildBoardCard(w, u, false)
 	}
 }

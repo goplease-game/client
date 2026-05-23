@@ -8,7 +8,7 @@ Units:
 * fletch: https://game-icons.net/1x1/delapouite/woman-elf-face.html
 * silver: https://game-icons.net/1x1/lorc/ninja-mask.html + https://game-icons.net/1x1/delapouite/bandit.html
 * mist: https://game-icons.net/1x1/lorc/cowled.html
-* july: https://game-icons.net/1x1/cathelineau/nun-face.html
+* july: https://game-icons.net/1x1/cathelineau/nun-face.html (edit)
 
 Abilities:
  * melee attack: https://game-icons.net/1x1/lorc/pointy-sword.html

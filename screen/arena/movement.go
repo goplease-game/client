@@ -2,10 +2,10 @@ package arena
 
 import "github.com/ognev-dev/goplease-ebitengine-client/ds"
 
-// isReachable reports whether (r, c) is in the precomputed reachable list.
-func isReachable(cells [][2]int, r, c int) bool {
-	for _, cell := range cells {
-		if cell[0] == r && cell[1] == c {
+// isReachable reports whether coord is in the precomputed reachable list.
+func isReachableHex(cells []ds.HexCoord, coord ds.HexCoord) bool {
+	for _, c := range cells {
+		if c == coord {
 			return true
 		}
 	}
@@ -13,12 +13,20 @@ func isReachable(cells [][2]int, r, c int) bool {
 }
 
 // moveUnit updates the board state, moving unit from its current position to (toR, toC).
-func (s *Screen) moveUnit(u ds.Unit, toR, toC int) {
+func (s *Screen) moveUnit(u ds.Unit, to ds.HexCoord) {
+	from := ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}
+
 	// Clear old cell.
-	s.board[u.Row][u.Col].Unit = nil
+	if cell := s.board.Cells[from]; cell != nil {
+		cell.Unit = nil
+	}
 
 	// Update unit position.
-	u.Row = toR
-	u.Col = toC
-	s.board[toR][toC].Unit = &u
+	u.Pos.Q = to.Q
+	u.Pos.R = to.R
+
+	// Set new cell.
+	if cell := s.board.Cells[to]; cell != nil {
+		cell.Unit = &u
+	}
 }

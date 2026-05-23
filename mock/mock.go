@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand/v2"
 	"path"
 
@@ -97,11 +98,10 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 	// Collect opponent units already on the board.
 	var onBoard []*ds.Unit
-	for _, row := range snap.Board {
-		for _, cell := range row {
-			if cell != nil && cell.Unit != nil && cell.Unit.IsOpponent {
-				onBoard = append(onBoard, cell.Unit)
-			}
+
+	for _, cell := range snap.Board.Cells {
+		if cell != nil && cell.Unit != nil && cell.Unit.IsOpponent {
+			onBoard = append(onBoard, cell.Unit)
 		}
 	}
 
@@ -186,11 +186,10 @@ func unitsNotOnBoard(initial []ds.Unit, onBoard []*ds.Unit) []ds.Unit {
 // looking up each unit on the board.
 func unitsQueueFromIDs(ids []string, board ds.Board) []*ds.Unit {
 	index := make(map[string]*ds.Unit)
-	for _, row := range board {
-		for _, cell := range row {
-			if cell != nil && cell.Unit != nil {
-				index[cell.Unit.ID] = cell.Unit
-			}
+
+	for _, cell := range board.Cells {
+		if cell != nil && cell.Unit != nil {
+			index[cell.Unit.ID] = cell.Unit
 		}
 	}
 
@@ -213,30 +212,38 @@ func LoadData(filename string) ([]byte, error) {
 	return data.ReadFile(filename)
 }
 
-func GetRandomUnoccupiedSafeZoneCell() (row, col int) {
-	rows := len(gameState.Board)
-	cols := len(gameState.Board[0])
-
-	var emptyCells []struct{ r, c int }
-
-	for c := cols - 2; c < cols; c++ {
-		for r := range rows {
-			if gameState.Board[r][c].Unit == nil {
-				emptyCells = append(emptyCells, struct{ r, c int }{r, c})
-			}
+func GetRandomUnoccupiedOpponentSafeZoneCell() ds.HexCoord {
+	// Find the maximum Q coordinate on the board.
+	maxQ := math.MinInt
+	for coord := range gameState.Board.Cells {
+		if coord.Q > maxQ {
+			maxQ = coord.Q
 		}
 	}
 
-	if len(emptyCells) == 0 {
-		log.Fatal("[mock] GetRandomUnoccupiedSafeZoneCell: no empty cells in safe zone")
+	// Collect empty cells from the two rightmost columns.
+	var empty []ds.HexCoord
+	for coord, cell := range gameState.Board.Cells {
+		if coord.Q < maxQ-1 {
+			continue
+		}
+		if cell.Unit != nil {
+			continue
+		}
+		empty = append(empty, coord)
 	}
 
-	cell := emptyCells[rand.IntN(len(emptyCells))]
-	return cell.r, cell.c
+	if len(empty) == 0 {
+		log.Fatal("[mock] no empty cells in opponent safe zone")
+	}
+
+	return empty[rand.IntN(len(empty))]
 }
 
-func PlaceUnitAt(u *ds.Unit, row, col int) {
-	gameState.Board[row][col].Unit = u
+func PlaceUnitAt(u *ds.Unit, coord ds.HexCoord) {
+	if cell := gameState.Board.Cells[coord]; cell != nil {
+		cell.Unit = u
+	}
 }
 
 func GetUnitByID(id string) *ds.Unit {
@@ -249,11 +256,11 @@ func GetUnitByID(id string) *ds.Unit {
 	return nil
 }
 
-func RandomReachableCell(u ds.Unit) (row, col int) {
+func RandomReachableCell(u ds.Unit) ds.HexCoord {
 	cells := u.ReachableCells(gameState.Board)
 
 	cell := cells[rand.IntN(len(cells))]
-	return cell[0], cell[1]
+	return cell
 }
 
 func PickRandomUnitOfFromHandP2() *ds.Unit {

@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
 const moveDuration = 30 // frames
@@ -111,10 +112,14 @@ func easeInOut(t float64) float64 {
 	return t * t * (3 - 2*t)
 }
 
-// cellCentrePx returns the pixel centre of the board cell widget at (r, c).
-func (s *Screen) cellCentrePx(r, c int) image.Point {
-	w := s.boardCellWidgets[r][c]
+func (s *Screen) cellCentrePx(coord ds.HexCoord) image.Point {
+	w := s.boardCellWidgets[coord]
+	if w == nil {
+		return image.Point{}
+	}
+
 	rect := w.GetWidget().Rect
+
 	return image.Point{
 		X: (rect.Min.X + rect.Max.X) / 2,
 		Y: (rect.Min.Y + rect.Max.Y) / 2,

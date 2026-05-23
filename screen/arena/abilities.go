@@ -72,7 +72,7 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(cellSize, cellSize),
+			widget.WidgetOpts.MinSize(abilityCardSize, abilityCardSize),
 			widget.WidgetOpts.ToolTip(
 				widget.NewToolTip(
 					widget.ToolTipOpts.Content(s.buildAbilityToolTip(ab)),

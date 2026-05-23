@@ -57,7 +57,7 @@ func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ interface{}
 	}
 	if canDrop && target != nil {
 		for _, sc := range d.safeCells {
-			if sc.container == target {
+			if sc.cell == target {
 				sc.SetHover(true)
 				d.currentCell = sc
 				break

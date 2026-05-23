@@ -3,28 +3,29 @@ package arena
 import (
 	"image/color"
 
-	"github.com/ebitenui/ebitenui/image"
-	"github.com/ebitenui/ebitenui/widget"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 type DropZoneCell struct {
-	container     *widget.Container
-	activeGraphic *widget.Graphic
+	cell          *ui.HexCellWidget
+	activeGraphic *ebiten.Image
 	occupied      bool
-	row, col      int
+	coord         ds.HexCoord
 	baseColor     color.Color
 }
 
 func (sc *DropZoneCell) SetHighlight(active bool) {
 	if !active {
 		if sc.activeGraphic != nil {
-			sc.container.RemoveChild(sc.activeGraphic)
+			sc.cell.RemoveChildren()
 			sc.activeGraphic = nil
 		}
 		if sc.occupied {
-			sc.container.SetBackgroundImage(image.NewNineSliceColor(sc.baseColor))
+			sc.cell.SetColor(sc.baseColor)
 		} else {
-			sc.container.SetBackgroundImage(image.NewNineSliceColor(boardCellBgColor))
+			sc.cell.SetColor(boardCellBgColor)
 		}
 		return
 	}
@@ -33,18 +34,9 @@ func (sc *DropZoneCell) SetHighlight(active bool) {
 		return
 	}
 
-	sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneColor))
+	sc.cell.SetColor(unitDropZoneColor)
 	if sc.activeGraphic == nil {
-		sc.activeGraphic = widget.NewGraphic(
-			widget.GraphicOpts.Image(animDropArrow.CurrentFrame),
-			widget.GraphicOpts.WidgetOpts(
-				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-					HorizontalPosition: widget.AnchorLayoutPositionCenter,
-					VerticalPosition:   widget.AnchorLayoutPositionCenter,
-				}),
-			),
-		)
-		sc.container.AddChild(sc.activeGraphic)
+		sc.activeGraphic = animDropArrow.CurrentFrame
 	}
 }
 
@@ -53,8 +45,20 @@ func (sc *DropZoneCell) SetHover(hover bool) {
 		return
 	}
 	if hover {
-		sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneHoverColor))
+		sc.cell.SetColor(unitDropZoneHoverColor)
 	} else {
-		sc.container.SetBackgroundImage(image.NewNineSliceColor(unitDropZoneColor))
+		sc.cell.SetColor(unitDropZoneColor)
 	}
+}
+
+func (sc *DropZoneCell) RenderAnim(screen *ebiten.Image) {
+	if sc.activeGraphic == nil {
+		return
+	}
+	rect := sc.cell.GetWidget().Rect
+	cx := float64(rect.Min.X+rect.Dx()/2) - float64(sc.activeGraphic.Bounds().Dx()/2)
+	cy := float64(rect.Min.Y+rect.Dy()/2) - float64(sc.activeGraphic.Bounds().Dy()/2)
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(cx, cy)
+	screen.DrawImage(sc.activeGraphic, op)
 }

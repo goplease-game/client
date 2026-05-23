@@ -19,7 +19,7 @@ type UnitCardRefs struct {
 }
 
 func buildHandCard(c *widget.Container, u ds.Unit) UnitCardRefs {
-	normalImg := unitImage(u.TemplateID, cellSize)
+	normalImg := unitImage(u.TemplateID, unitCardSize)
 	hoverImg := ui.TintImage(normalImg, unitCardHoverFgColor)
 
 	icon := widget.NewGraphic(
@@ -40,9 +40,10 @@ func buildHandCard(c *widget.Container, u ds.Unit) UnitCardRefs {
 	}
 }
 
-func buildBoardCard(c *widget.Container, u ds.Unit, canMove bool) UnitCardRefs {
+func buildBoardCard(c ChildAdder, u ds.Unit, canMove bool) UnitCardRefs {
 	icon := widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(u.TemplateID, cellSize)),
+		// Вот у этого Image происходит flickering, если он на соседнем хексе
+		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -50,8 +51,9 @@ func buildBoardCard(c *widget.Container, u ds.Unit, canMove bool) UnitCardRefs {
 			}),
 		),
 	)
-	c.AddChild(icon)
-	c.AddChild(hpBadge(u.CurrentHP))
+
+	c.AddToUnitLayer(icon)
+	c.AddToHUDLayer(hpBadge(u.CurrentHP))
 
 	if canMove {
 		const iconSize = 30

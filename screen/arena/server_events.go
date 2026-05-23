@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ebitenui/ebitenui/image"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -103,22 +102,23 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 		log.Fatal("handleOpponentUnitPlaced unmarshal:", err)
 	}
 
-	if payload.Row < 0 || payload.Row >= len(s.boardCellWidgets) ||
-		payload.Col < 0 || payload.Col >= len(s.boardCellWidgets[payload.Row]) {
+	coord := payload.Coord
+
+	cellWidget := s.boardCellWidgets[coord]
+	if cellWidget == nil {
 		return
 	}
 
-	cell := s.boardCellWidgets[payload.Row][payload.Col]
-	cell.SetBackgroundImage(image.NewNineSliceColor(unitEnemyBgColor))
-
-	buildBoardCard(cell, *payload.Unit, false)
+	cellWidget.SetColor(unitEnemyBgColor)
+	buildBoardCard(cellWidget, *payload.Unit, false)
 
 	opponentUnitID := payload.Unit.ID
+
 	u := *payload.Unit
-	u.Row = payload.Row
-	u.Col = payload.Col
+	u.Pos = coord
 	u.IsOpponent = true
-	s.board[payload.Row][payload.Col].Unit = &u
+
+	s.board.Cells[coord].Unit = &u
 
 	s.addUnitToQueue(opponentUnitID)
 }
@@ -135,21 +135,21 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		return
 	}
 
-	fromR, fromC := u.Row, u.Col
-	toR, toC := payload.ToRow, payload.ToCol
+	from := u.Pos
+	to := payload.Coord
 
 	if s.selectedUnitID == u.ID {
 		s.deselectUnit()
 	}
 
-	if w := s.boardCellWidgets[fromR][fromC]; w != nil {
+	if w := s.boardCellWidgets[from]; w != nil {
 		w.RemoveChildren()
 	}
 
 	s.activeMoveAnim = newMoveAnim(
 		unitImage(u.TemplateID),
-		s.cellCentrePx(fromR, fromC),
-		s.cellCentrePx(toR, toC),
-		func() { s.finishMove(u, fromR, fromC, toR, toC) },
+		s.cellCentrePx(from),
+		s.cellCentrePx(to),
+		func() { s.finishMove(u, from, to) },
 	)
 }

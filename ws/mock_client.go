@@ -104,9 +104,8 @@ func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
 	gs := mock.GetGameState()
 
 	unit := mock.PickUnitFromHandByTemplateP1(data.TemplateID)
-	unit.Row = data.Row
-	unit.Col = data.Col
-	mock.PlaceUnitAt(unit, data.Row, data.Col)
+	unit.Pos = data.Coord
+	mock.PlaceUnitAt(unit, data.Coord)
 	mock.AddUnitToQueue(unit)
 
 	gs.Players[0].UnitsPlacedThisRound++
@@ -122,9 +121,8 @@ func (m *MockClient) onUnitMoved(data ds.UnitMovedPayload) {
 		log.Printf("[mock] onUnitMoved: unit %s not found", data.UnitID)
 		return
 	}
-	mock.PlaceUnitAt(unit, data.ToRow, data.ToCol)
-	unit.Row = data.ToRow
-	unit.Col = data.ToCol
+	mock.PlaceUnitAt(unit, data.Coord)
+	unit.Pos = data.Coord
 }
 
 // onEndTurn is the core game-loop driver.
@@ -193,15 +191,13 @@ func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 		return
 	}
 
-	row, col := mock.RandomReachableCell(*unit)
-	mock.PlaceUnitAt(unit, row, col)
-	unit.Row = row
-	unit.Col = col
+	pos := mock.RandomReachableCell(*unit)
+	mock.PlaceUnitAt(unit, pos)
+	unit.Pos = pos
 
 	data, err := json.Marshal(ds.UnitMovedPayload{
 		UnitID: unit.ID,
-		ToRow:  row,
-		ToCol:  col,
+		Coord:  pos,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -265,14 +261,13 @@ func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
 		return
 	}
 
-	row, col := mock.GetRandomUnoccupiedSafeZoneCell()
-	unit.Row = row
-	unit.Col = col
-	mock.PlaceUnitAt(unit, row, col)
+	pos := mock.GetRandomUnoccupiedOpponentSafeZoneCell()
+	unit.Pos = pos
+	mock.PlaceUnitAt(unit, pos)
 	mock.AddUnitToQueue(unit)
 	gs.Players[1].UnitsPlacedThisRound++
 
-	data, err := json.Marshal(ds.PlaceUnitPayload{Row: row, Col: col, Unit: unit})
+	data, err := json.Marshal(ds.PlaceUnitPayload{Coord: pos, Unit: unit})
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -1,7 +1,6 @@
 package arena
 
 import (
-	"github.com/ebitenui/ebitenui/image"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
@@ -10,12 +9,10 @@ import (
 // It clears movement selection, then highlights the ability's range zone
 // and valid targets within it.
 func (s *Screen) highlightAbilityRange(ab ability.Ability) {
-	// Passive abilities have no targeting — nothing to highlight.
 	if ab.IsPassive {
 		return
 	}
 
-	// Clear movement selection first — two highlights at once is noisy.
 	s.deselectUnit()
 
 	caster, ok := s.unitByID(s.activeUnitID)
@@ -23,28 +20,25 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		return
 	}
 
-	from := [2]int{caster.Row, caster.Col}
+	from := caster.Pos
 	cells := cellsInRange(from, ab.Range, s.board)
 
 	s.abilityHighlightCells = cells
 
 	for _, pos := range cells {
-		r, c := pos[0], pos[1]
-		w := s.boardCellWidgets[r][c]
+		w := s.boardCellWidgets[pos]
 		if w == nil {
 			continue
 		}
 
-		cell := s.board[r][c]
+		cell := s.board.Cells[pos]
 
 		switch {
 		case cell == nil || cell.Unit == nil:
-			// Empty cell — highlight as range zone.
-			w.SetBackgroundImage(image.NewNineSliceColor(abilityRangeCellColor))
+			w.SetColor(abilityRangeCellColor)
+
 		case s.isValidTarget(ab, caster, *cell.Unit):
-			// Valid target — highlight as targetable.
-			w.SetBackgroundImage(image.NewNineSliceColor(abilityTargetCellColor))
-			// Ally — leave untouched.
+			w.SetColor(abilityTargetCellColor)
 		}
 	}
 }
@@ -52,13 +46,13 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 // clearAbilityHighlight restores all ability-highlighted cells to their original colours.
 func (s *Screen) clearAbilityHighlight() {
 	for _, pos := range s.abilityHighlightCells {
-		r, c := pos[0], pos[1]
-		w := s.boardCellWidgets[r][c]
+		w := s.boardCellWidgets[pos]
 		if w == nil {
 			continue
 		}
 
-		cell := s.board[r][c]
+		cell := s.board.Cells[pos]
+
 		bg := boardCellBgColor
 		if cell != nil && cell.Unit != nil {
 			if cell.Unit.IsOpponent {
@@ -67,7 +61,8 @@ func (s *Screen) clearAbilityHighlight() {
 				bg = unitFriendlyBgColor
 			}
 		}
-		w.SetBackgroundImage(image.NewNineSliceColor(bg))
+
+		w.SetColor(bg)
 	}
 
 	s.abilityHighlightCells = nil

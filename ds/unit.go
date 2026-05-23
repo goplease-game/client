@@ -18,9 +18,7 @@ type Unit struct {
 	AP int `json:"ap"` // Action Points
 	MP int `json:"mp"` // Move Points
 
-	// board position, -1 - in hand
-	Row int `json:"row"`
-	Col int `json:"col"`
+	Pos HexCoord `json:"pos"`
 
 	Abilities []ability.ID       `json:"abilities"`
 	Cooldowns map[ability.ID]int `json:"cooldowns"`
@@ -73,61 +71,60 @@ type Unit struct {
 //	return result
 //}
 
-// ReachableCells returns all board positions the unit can move to this turn
-// using the D&D style diagonal rule (1st diagonal costs 1, 2nd costs 2, etc.).
-func (u Unit) ReachableCells(board Board) [][2]int {
-	var result [][2]int
-
-	rows := len(board)
-	if rows == 0 {
-		return result
-	}
-	cols := len(board[0])
-
-	abs := func(x int) int {
-		if x < 0 {
-			return -x
-		}
-		return x
+// ReachableCells returns all hex cells the unit can reach within its movement points (MP).
+// Movement is calculated using a breadth-first search over the hex grid, where each step
+// to a neighboring cell costs 1 MP.
+func (u Unit) ReachableCells(board Board) []HexCoord {
+	type node struct {
+		pos  HexCoord
+		cost int
 	}
 
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		}
-		return b
+	visited := make(map[HexCoord]int)
+	queue := []node{{u.Pos, 0}}
+
+	dirs := []HexCoord{
+		{+1, 0}, {+1, -1}, {0, -1},
+		{-1, 0}, {-1, +1}, {0, +1},
 	}
 
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
+	result := make([]HexCoord, 0)
 
-	for dr := -u.MP; dr <= u.MP; dr++ {
-		for dc := -u.MP; dc <= u.MP; dc++ {
-			if dr == 0 && dc == 0 {
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		for _, d := range dirs {
+			next := HexCoord{
+				Q: cur.pos.Q + d.Q,
+				R: cur.pos.R + d.R,
+			}
+
+			// exists?
+			cell, ok := board.Cells[next]
+			if !ok {
 				continue
 			}
 
-			adr := abs(dr)
-			adc := abs(dc)
-
-			cost := max(adr, adc) + (min(adr, adc) / 2)
-			if cost > u.MP {
+			// blocked by unit
+			if cell.Unit != nil && next != u.Pos {
 				continue
 			}
 
-			r, c := u.Row+dr, u.Col+dc
-			if r < 0 || r >= rows || c < 0 || c >= cols {
-				continue
-			}
-			if board[r][c] != nil && board[r][c].Unit != nil {
+			newCost := cur.cost + 1
+			if newCost > u.MP {
 				continue
 			}
 
-			result = append(result, [2]int{r, c})
+			prev, seen := visited[next]
+			if seen && prev <= newCost {
+				continue
+			}
+
+			visited[next] = newCost
+			queue = append(queue, node{next, newCost})
+
+			result = append(result, next)
 		}
 	}
 
@@ -135,9 +132,13 @@ func (u Unit) ReachableCells(board Board) [][2]int {
 }
 
 type PlaceUnitPayload struct {
-	Row  int   `json:"row"`
-	Col  int   `json:"col"`
-	Unit *Unit `json:"unit"`
+	Coord HexCoord `json:"coord"`
+	Unit  *Unit    `json:"unit"`
+}
+
+type UnitMovedPayload struct {
+	Coord  HexCoord `json:"coord"`
+	UnitID string   `json:"unit_id"`
 }
 
 type PlayUnitPayload struct {
@@ -145,13 +146,6 @@ type PlayUnitPayload struct {
 }
 
 type UnitPlacedPayload struct {
-	Row        int `json:"row"`
-	Col        int `json:"col"`
-	TemplateID int `json:"template_id"`
-}
-
-type UnitMovedPayload struct {
-	ToRow  int    `json:"to_row"`
-	ToCol  int    `json:"to_col"`
-	UnitID string `json:"unit_id"`
+	Coord      HexCoord `json:"coord"`
+	TemplateID int      `json:"template_id"`
 }

@@ -15,6 +15,6 @@ func initDropPointAnim() {
 	}
 
 	animDropArrow = anim.NewAnimationPlayer(sheet)
-	animDropArrow.NewAnim("idle", 0, 0, 64, 64, 3, true, false, 6)
+	animDropArrow.NewAnim("idle", 0, 0, 54, 54, 6, true, false, 30)
 	animDropArrow.SetAnim("idle")
 }

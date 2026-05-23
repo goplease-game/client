@@ -1,9 +1,8 @@
 package arena
 
 import (
-	"github.com/ebitenui/ebitenui/image"
-	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -24,17 +23,13 @@ func (s *Screen) selectUnit(u ds.Unit) {
 
 	// Highlight the unit's own cell with a border.
 	if bc := s.boardCellWidget(u); bc != nil {
-		bc.SetBackgroundImage(image.NewBorderedNineSliceColor(
-			unitFriendlyBgColor,
-			selectedUnitBorderColor,
-			3,
-		))
+		bc.SetColor(unitFriendlyBgColor)
 	}
 
 	// Tint reachable cells.
 	for _, pos := range s.reachableCells {
-		if w := s.boardCellWidgets[pos[0]][pos[1]]; w != nil {
-			w.SetBackgroundImage(image.NewNineSliceColor(unitMoveToCellColor))
+		if w := s.boardCellWidgets[pos]; w != nil {
+			w.SetColor(unitMoveToCellColor)
 		}
 	}
 }
@@ -48,13 +43,14 @@ func (s *Screen) deselectUnit() {
 	u, ok := s.unitByID(s.selectedUnitID)
 	if ok {
 		if bc := s.boardCellWidget(u); bc != nil {
-			bc.SetBackgroundImage(image.NewNineSliceColor(unitFriendlyBgColor))
+			bc.SetColor(unitFriendlyBgColor)
 		}
 	}
 
 	// Restore reachable cells.
 	for _, pos := range s.reachableCells {
-		cell := s.board[pos[0]][pos[1]]
+		cell := s.board.Cells[pos]
+
 		bg := boardCellBgColor
 		if cell != nil && cell.Unit != nil {
 			if cell.Unit.IsOpponent {
@@ -63,8 +59,9 @@ func (s *Screen) deselectUnit() {
 				bg = unitFriendlyBgColor
 			}
 		}
-		if w := s.boardCellWidgets[pos[0]][pos[1]]; w != nil {
-			w.SetBackgroundImage(image.NewNineSliceColor(bg))
+
+		if w := s.boardCellWidgets[pos]; w != nil {
+			w.SetColor(bg)
 		}
 	}
 
@@ -72,28 +69,26 @@ func (s *Screen) deselectUnit() {
 	s.reachableCells = nil
 }
 
-// onReachableCellClicked starts the movement animation toward (toR, toC).
-// Board state and visuals are updated only once the animation finishes (onDone).
-func (s *Screen) onReachableCellClicked(toR, toC int) {
+func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 	u, ok := s.unitByID(s.selectedUnitID)
 	if !ok {
 		return
 	}
 
-	fromR, fromC := u.Row, u.Col
+	from := ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}
 
 	s.deselectUnit()
 
 	// Hide the unit icon on the source cell for the duration of the animation.
-	if w := s.boardCellWidgets[fromR][fromC]; w != nil {
+	if w := s.boardCellWidgets[from]; w != nil {
 		w.RemoveChildren()
 	}
 
 	s.activeMoveAnim = newMoveAnim(
 		unitImage(u.TemplateID),
-		s.cellCentrePx(fromR, fromC),
-		s.cellCentrePx(toR, toC),
-		func() { s.finishMove(u, fromR, fromC, toR, toC) },
+		s.cellCentrePx(from),
+		s.cellCentrePx(to),
+		func() { s.finishMove(u, from, to) },
 	)
 
 	// Send to server immediately — the server doesn't need to wait for visuals.
@@ -101,53 +96,52 @@ func (s *Screen) onReachableCellClicked(toR, toC int) {
 		Action: ws.UnitMovedAction,
 		Data: ds.UnitMovedPayload{
 			UnitID: u.ID,
-			ToRow:  toR,
-			ToCol:  toC,
+			Coord:  to,
 		},
 	})
 }
 
 // finishMove is called by the animation's onDone callback.
 // It commits board state and updates cell visuals.
-func (s *Screen) finishMove(u ds.Unit, fromR, fromC, toR, toC int) {
-	s.moveUnit(u, toR, toC)
+func (s *Screen) finishMove(u ds.Unit, from ds.HexCoord, to ds.HexCoord) {
+	s.moveUnit(u, to)
 
 	if s.selectedUnitID == u.ID || !u.IsOpponent {
 		s.activeUnitMoved = true
 	}
 
 	s.activeMoveAnim = nil
-	s.removePulseWidget(s.boardCellWidgets[fromR][fromC])
 
-	if w := s.boardCellWidgets[fromR][fromC]; w != nil {
-		s.restoreSafeZoneCell(fromR, fromC)
-		w.SetBackgroundImage(image.NewNineSliceColor(boardCellBgColor))
-		w.RemoveChildren()
+	if fromW := s.boardCellWidgets[from]; fromW != nil {
+		s.removePulseWidget(fromW)
+		s.restoreSafeZoneCell(from)
+		fromW.SetColor(boardCellBgColor)
+		fromW.RemoveChildren()
 	}
 
-	if w := s.boardCellWidgets[toR][toC]; w != nil {
+	if toW := s.boardCellWidgets[to]; toW != nil {
 		targetBg := unitFriendlyBgColor
 		if u.IsOpponent {
 			targetBg = unitEnemyBgColor
 		}
 
-		w.SetBackgroundImage(image.NewNineSliceColor(targetBg))
-		w.RemoveChildren()
-		buildBoardCard(w, u, false)
+		toW.SetColor(targetBg)
+		toW.RemoveChildren()
+		buildBoardCard(toW, u, false)
 	}
 
 	if !u.IsOpponent {
-		if w := s.boardCellWidgets[toR][toC]; w != nil {
-			s.pulseWidgets = append(s.pulseWidgets, w)
+		if toW := s.boardCellWidgets[to]; toW != nil {
+			s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
 		}
 	}
 }
 
-// removePulseWidget removes a specific container from the pulse list.
-func (s *Screen) removePulseWidget(w *widget.Container) {
-	for i, pw := range s.pulseWidgets {
+// removePulseWidget removes a specific cell from the pulse list.
+func (s *Screen) removePulseWidget(w *ui.HexCellWidget) {
+	for i, pw := range s.pulseHexWidgets {
 		if pw == w {
-			s.pulseWidgets = append(s.pulseWidgets[:i], s.pulseWidgets[i+1:]...)
+			s.pulseHexWidgets = append(s.pulseHexWidgets[:i], s.pulseHexWidgets[i+1:]...)
 			return
 		}
 	}
@@ -155,9 +149,9 @@ func (s *Screen) removePulseWidget(w *widget.Container) {
 
 // restoreSafeZoneCell marks the cell at (r, c) unoccupied if it is a SafeZone,
 // allowing future unit placement there.
-func (s *Screen) restoreSafeZoneCell(r, c int) {
+func (s *Screen) restoreSafeZoneCell(coord ds.HexCoord) {
 	for _, sc := range s.safeZoneCells {
-		if sc.row == r && sc.col == c {
+		if sc.coord == coord {
 			sc.occupied = false
 			sc.baseColor = boardCellBgColor
 			return

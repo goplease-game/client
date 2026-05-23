@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -63,7 +64,7 @@ func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(unitCardBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(cellSize, cellSize),
+			widget.WidgetOpts.MinSize(unitCardSize, unitCardSize),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
 				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHoverBgColor))
 				refs.Icon.Image = refs.HoverIcon
@@ -101,7 +102,7 @@ func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 // Placement
 // ---------------------------------------------------------------------------
 
-func (s *Screen) onUnitPlaced(u ds.Unit, r, c int) {
+func (s *Screen) onUnitPlaced(u ds.Unit, coord ds.HexCoord) {
 	s.removeUnitCard(u.ID)
 
 	for i, pu := range s.player.Units {
@@ -111,10 +112,13 @@ func (s *Screen) onUnitPlaced(u ds.Unit, r, c int) {
 		}
 	}
 
-	u.Row = r
-	u.Col = c
+	u.Pos.Q = coord.Q
+	u.Pos.R = coord.R
 	u.IsOpponent = false
-	s.board[r][c].Unit = &u
+
+	if cell := s.board.Cells[coord]; cell != nil {
+		cell.Unit = &u
+	}
 
 	s.addUnitToQueue(u.ID)
 
@@ -122,8 +126,7 @@ func (s *Screen) onUnitPlaced(u ds.Unit, r, c int) {
 		Action: ws.UnitPlacedAction,
 		Data: ds.UnitPlacedPayload{
 			TemplateID: u.TemplateID,
-			Row:        r,
-			Col:        c,
+			Coord:      coord,
 		},
 	})
 }
@@ -198,12 +201,12 @@ func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(54, 54),
+			widget.WidgetOpts.MinSize(unitCardSize, 54),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
 				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
 				if current, ok := s.unitByID(u.ID); ok {
 					if bc := s.boardCellWidget(current); bc != nil {
-						bc.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
+						bc.SetColor(unitCardHighlightColor)
 					}
 				}
 			}),
@@ -211,7 +214,7 @@ func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 				card.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
 				if current, ok := s.unitByID(u.ID); ok {
 					if bc := s.boardCellWidget(current); bc != nil {
-						bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+						bc.SetColor(restoreColor)
 					}
 				}
 			}),
@@ -222,7 +225,7 @@ func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 		s.pulseWidgets = append(s.pulseWidgets, card)
 	}
 
-	buildBoardCard(card, u, false)
+	buildBoardCard(NewContainerChildAdder(card), u, false)
 	return card
 }
 
@@ -238,7 +241,7 @@ func (s *Screen) highlightActiveUnit(unitID string) {
 				restoreColor = unitEnemyBgColor
 			}
 			if bc := s.boardCellWidget(prev); bc != nil {
-				bc.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+				bc.SetColor(restoreColor)
 				bc.RemoveChildren()
 				buildBoardCard(bc, prev, false)
 			}
@@ -251,7 +254,7 @@ func (s *Screen) highlightActiveUnit(unitID string) {
 	if unitID != "" {
 		if u, ok := s.unitByID(unitID); ok {
 			if bc := s.boardCellWidget(u); bc != nil {
-				s.setPulseTargets([]*widget.Container{bc})
+				s.setPulseHexTargets([]*ui.HexCellWidget{bc})
 				bc.RemoveChildren()
 				buildBoardCard(bc, u, !s.activeUnitMoved)
 			}
@@ -267,21 +270,26 @@ func (s *Screen) setPulseTargets(widgets []*widget.Container) {
 	s.pulseTick = 0
 }
 
+// setPulseHexTargets replaces the current pulse hex cell list and resets the tick.
+func (s *Screen) setPulseHexTargets(widgets []*ui.HexCellWidget) {
+	s.pulseHexWidgets = widgets
+	s.pulseTick = 0
+}
+
 // ---------------------------------------------------------------------------
 // Lookup helpers
 // ---------------------------------------------------------------------------
 
 func (s *Screen) unitByID(id string) (ds.Unit, bool) {
-	for _, row := range s.board {
-		for _, cell := range row {
-			if cell == nil || cell.Unit == nil {
-				continue
-			}
-			if cell.Unit.ID == id {
-				return *cell.Unit, true
-			}
+	for _, cell := range s.board.Cells {
+		if cell == nil || cell.Unit == nil {
+			continue
+		}
+		if cell.Unit.ID == id {
+			return *cell.Unit, true
 		}
 	}
+
 	return ds.Unit{}, false
 }
 
