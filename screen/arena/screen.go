@@ -7,6 +7,8 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
@@ -118,6 +120,16 @@ func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	}
 done:
 
+	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+		mx, my := ebiten.CursorPosition()
+		for coord, cell := range s.boardCellWidgets {
+			if cell.HitTest(mx, my) {
+				s.onCellClicked(coord)
+				break
+			}
+		}
+	}
+
 	s.updatePulse()
 	s.updateDropZoneAnim()
 	s.activeMoveAnim.update()
@@ -200,8 +212,8 @@ func (s *Screen) setupUI() {
 		PostRenderHook: func(screen *ebiten.Image) {
 			for _, cell := range s.boardCellWidgets {
 				cell.RenderFill(screen)
-				cell.RenderStroke(screen)
 			}
+			s.renderGrid(screen)
 			for _, cell := range s.sortedCells {
 				cell.RenderUnitLayer(screen)
 			}
@@ -216,6 +228,18 @@ func (s *Screen) setupUI() {
 			}
 		},
 	}
+}
+
+func (s *Screen) renderGrid(screen *ebiten.Image) {
+	var path vector.Path
+	for _, cell := range s.boardCellWidgets {
+		cell.AppendHexPath(&path)
+	}
+
+	var opts vector.DrawPathOptions
+	opts.AntiAlias = true
+	opts.ColorScale.ScaleWithColor(boardGridColor)
+	vector.StrokePath(screen, &path, &vector.StrokeOptions{Width: 1}, &opts)
 }
 
 func (s *Screen) setStatus(text string) {

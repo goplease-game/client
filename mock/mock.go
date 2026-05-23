@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math"
 	"math/rand/v2"
 	"path"
 
@@ -213,21 +212,22 @@ func LoadData(filename string) ([]byte, error) {
 }
 
 func GetRandomUnoccupiedOpponentSafeZoneCell() ds.HexCoord {
-	// Find the maximum Q coordinate on the board.
-	maxQ := math.MinInt
+	// Find max Q per row.
+	maxQPerRow := make(map[int]int)
 	for coord := range gameState.Board.Cells {
-		if coord.Q > maxQ {
-			maxQ = coord.Q
+		if q, ok := maxQPerRow[coord.R]; !ok || coord.Q > q {
+			maxQPerRow[coord.R] = coord.Q
 		}
 	}
 
-	// Collect empty cells from the two rightmost columns.
+	// Collect empty cells from the two rightmost columns per row.
 	var empty []ds.HexCoord
 	for coord, cell := range gameState.Board.Cells {
-		if coord.Q < maxQ-1 {
+		if cell.Unit != nil {
 			continue
 		}
-		if cell.Unit != nil {
+		maxQ := maxQPerRow[coord.R]
+		if coord.Q != maxQ && coord.Q != maxQ-1 {
 			continue
 		}
 		empty = append(empty, coord)

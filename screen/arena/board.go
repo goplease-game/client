@@ -1,10 +1,10 @@
 package arena
 
 import (
+	"math"
 	"sort"
 
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
@@ -65,17 +65,12 @@ func (s *Screen) createBoardContainer() *widget.Container {
 
 func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWidget {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
-
 	sc := &DropZoneCell{coord: coord}
 
 	widgetOpts := []widget.WidgetOpt{
-		widget.WidgetOpts.MinSize(ui.HexRadius, ui.HexRadius),
-		widget.WidgetOpts.MouseButtonReleasedHandler(
-			func(args *widget.WidgetMouseButtonReleasedEventArgs) {
-				if args.Button == ebiten.MouseButtonLeft && args.Inside {
-					s.onCellClicked(coord)
-				}
-			},
+		widget.WidgetOpts.MinSize(
+			int(math.Sqrt(3)*float64(ui.HexRadius)),
+			int(2*float64(ui.HexRadius)),
 		),
 	}
 

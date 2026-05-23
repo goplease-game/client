@@ -42,7 +42,6 @@ func buildHandCard(c *widget.Container, u ds.Unit) UnitCardRefs {
 
 func buildBoardCard(c ChildAdder, u ds.Unit, canMove bool) UnitCardRefs {
 	icon := widget.NewGraphic(
-		// Вот у этого Image происходит flickering, если он на соседнем хексе
 		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{

@@ -1,18 +1,16 @@
 package ui
 
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"math"
 
+	"github.com/ebitenui/ebitenui/input"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
-
-var boardCellBgColor = color.RGBA{0x45, 0x63, 0x7a, 255}
 
 const (
 	zIndexUnit = 0
@@ -152,7 +150,7 @@ func (h *HexCellWidget) RenderStroke(screen *ebiten.Image) {
 	path := h.hexPath()
 	var opts vector.DrawPathOptions
 	opts.AntiAlias = true
-	opts.ColorScale.ScaleWithColor(boardCellBgColor)
+	//opts.ColorScale.ScaleWithColor(boardCellBgColor)
 	vector.StrokePath(screen, &path, &vector.StrokeOptions{Width: 1}, &opts)
 }
 
@@ -253,9 +251,11 @@ func (h *HexCellWidget) ClearChildren() {
 	h.children = h.children[:0]
 }
 
-// RemoveChildren removes all child widgets from the hex cell.
 func (h *HexCellWidget) RemoveChildren() {
 	h.overlay.RemoveChildren()
+	for _, layer := range h.layers {
+		layer.RemoveChildren()
+	}
 }
 
 // RemoveChild removes a specific child widget from the hex cell.
@@ -268,7 +268,6 @@ func (h *HexCellWidget) CachedVs() []ebiten.Vertex {
 }
 
 func (h *HexCellWidget) AddToUnitLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
-	fmt.Println("AddToUnitLayer", h.Coord, len(children))
 	return h.AddChildZ(zIndexUnit, children...)
 }
 
@@ -304,7 +303,6 @@ func (h *HexCellWidget) AddChildZ(z int, children ...widget.PreferredSizeLocatea
 }
 
 func (h *HexCellWidget) layerFor(z int) *widget.Container {
-	fmt.Println("layerFor", h.Coord, z, "cachedRect:", h.cachedRect)
 	if c, ok := h.layers[z]; ok {
 		return c
 	}
@@ -321,4 +319,33 @@ func (h *HexCellWidget) layerFor(z int) *widget.Container {
 
 func (h *HexCellWidget) CachedRect() image.Rectangle {
 	return h.cachedRect
+}
+
+func (h *HexCellWidget) AppendHexPath(path *vector.Path) {
+	if h.cachedRect.Empty() {
+		return
+	}
+	cx := float32(h.cachedRect.Min.X + h.cachedRect.Dx()/2)
+	cy := float32(h.cachedRect.Min.Y + h.cachedRect.Dy()/2)
+	r := float32(HexRadius)
+
+	for i := 0; i < 6; i++ {
+		angle := float64(i)*math.Pi/3 - math.Pi/2
+		x := cx + r*float32(math.Cos(angle))
+		y := cy + r*float32(math.Sin(angle))
+		if i == 0 {
+			path.MoveTo(x, y)
+		} else {
+			path.LineTo(x, y)
+		}
+	}
+	path.Close()
+}
+
+func (h *HexCellWidget) SetupInputLayer(def input.DeferredSetupInputLayerFunc) {
+	for _, layer := range h.layers {
+		if il, ok := interface{}(layer).(input.Layerer); ok {
+			il.SetupInputLayer(def)
+		}
+	}
 }
