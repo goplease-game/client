@@ -66,6 +66,19 @@ func (s *Screen) hideAbilityPanel() {
 func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	bgColor := abilityCardBgColor(ab)
 
+	normalAbilityImage := abilityImage(string(ab.ID))
+	activeAbilityImage := ui.TintImage(normalAbilityImage, activeAbilityFgColor)
+
+	iconGraphic := widget.NewGraphic(
+		widget.GraphicOpts.Image(normalAbilityImage),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
 	var card *widget.Container
 	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
@@ -88,21 +101,25 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 				s.highlightAbilityRange(ab)
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
+				if s.selectedAbility == nil || s.selectedAbility.ID != ab.ID {
+					card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
+					iconGraphic.Image = normalAbilityImage
+				}
 				s.clearAbilityHighlight()
+			}),
+			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
+				if args.Button == ebiten.MouseButtonLeft && args.Inside {
+					s.onAbilityCardClicked(ab, card, bgColor)
+					if s.selectedAbility != nil && s.selectedAbility.ID == ab.ID {
+						iconGraphic.Image = activeAbilityImage
+						s.selectedAbilityIcon = iconGraphic
+					}
+				}
 			}),
 		),
 	)
 
-	card.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(abilityImage(string(ab.ID))),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
+	card.AddChild(iconGraphic)
 
 	if ab.Cooldown > 0 {
 		card.AddChild(buildCooldownBadge(ab.Cooldown))

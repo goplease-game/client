@@ -281,7 +281,9 @@ func (m *MockClient) startNewRound() {
 	gs.ActiveUnit = 0
 	gs.Phase = mock.PlayPhase
 
-	mock.UnitsPerPlacementPhase--
+	if mock.UnitsPerPlacementPhase >= 2 {
+		mock.UnitsPerPlacementPhase--
+	}
 	gs.Players[0].UnitsPlacedThisRound = 0
 	gs.Players[1].UnitsPlacedThisRound = 0
 

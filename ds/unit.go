@@ -26,51 +26,6 @@ type Unit struct {
 	IsOpponent bool
 }
 
-//// ReachableCells returns all board positions the unit can move to this turn.
-//// A cell (r, c) is reachable if:
-////   - manhattan distance to the unit <= unit.MP
-////   - the cell is within board bounds
-////   - the cell is not already occupied by any unit
-//func (u Unit) ReachableCells(board Board) [][2]int {
-//	var result [][2]int
-//
-//	rows := len(board)
-//	if rows == 0 {
-//		return result
-//	}
-//	cols := len(board[0])
-//
-//	abs := func(x int) int {
-//		if x < 0 {
-//			return -x
-//		}
-//		return x
-//	}
-//
-//	for dr := -u.MP; dr <= u.MP; dr++ {
-//		for dc := -u.MP; dc <= u.MP; dc++ {
-//			if dr == 0 && dc == 0 {
-//				continue
-//			}
-//			if abs(dr)+abs(dc) > u.MP {
-//				continue
-//			}
-//
-//			r, c := u.Row+dr, u.Col+dc
-//			if r < 0 || r >= rows || c < 0 || c >= cols {
-//				continue
-//			}
-//			if board[r][c] != nil && board[r][c].Unit != nil {
-//				continue
-//			}
-//
-//			result = append(result, [2]int{r, c})
-//		}
-//	}
-//
-//	return result
-//}
-
 // ReachableCells returns all hex cells the unit can reach within its movement points (MP).
 // Movement is calculated using a breadth-first search over the hex grid, where each step
 // to a neighboring cell costs 1 MP.

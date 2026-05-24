@@ -54,6 +54,11 @@ var (
 	passiveAbilityBgColor  = ui.RGBFromHex("9B8EC7")
 	abilityTargetCellColor = ui.RGBFromHex("D70654")
 	abilityRangeCellColor  = ui.RGBFromHex("7c9493")
+	// pulse colors for selected ability card
+	activeAbilityBgColor       = ui.RGBFromHex("48A111")
+	activeAbilityFgColor       = ui.RGBFromHex("f5df4d")
+	abilitySelectedPulseColor1 = activeAbilityFgColor
+	abilitySelectedPulseColor2 = activeAbilityBgColor
 )
 
 // Font faces used across the arena package.

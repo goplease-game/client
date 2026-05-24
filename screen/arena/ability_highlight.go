@@ -5,6 +5,12 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
+var hexDirections = [6]ds.HexCoord{
+	{Q: 1, R: 0}, {Q: -1, R: 0},
+	{Q: 0, R: 1}, {Q: 0, R: -1},
+	{Q: 1, R: -1}, {Q: -1, R: 1},
+}
+
 // highlightAbilityRange is called on hover over an ability card.
 // It clears any movement selection, then tints cells within the ability's range:
 // empty cells get the range tint, valid targets get the target tint.
@@ -13,8 +19,10 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 	if ab.IsPassive {
 		return
 	}
-
-	// Clear movement highlight — two simultaneous highlights would be confusing.
+	// In targeting mode — don't change highlights.
+	if s.selectedAbility != nil {
+		return
+	}
 	s.deselectUnit()
 
 	caster, ok := s.unitByID(s.activeUnitID)
@@ -22,7 +30,18 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		return
 	}
 
-	cells := cellsInRange(caster.Pos, ab.Range, s.board)
+	rangeN := ab.Range
+	var cells []ds.HexCoord
+
+	switch ab.Area {
+	case ability.AreaCircle:
+		cells = cellsInRange(caster.Pos, ab.AreaRadius, s.board)
+	case ability.AreaLine:
+		cells = hexAllLines(caster.Pos, ab.AreaRadius, s.board)
+	default:
+		cells = cellsInRange(caster.Pos, rangeN, s.board)
+	}
+
 	s.abilityHighlightCells = cells
 
 	for _, pos := range cells {
@@ -83,4 +102,29 @@ func (s *Screen) isValidTarget(ab ability.Ability, caster ds.Unit, target ds.Uni
 	default:
 		return false
 	}
+}
+
+// hexLine returns cells in a straight line from `from` in direction `dir`
+// up to `length` steps. Only returns cells that exist on the board.
+func hexLine(from ds.HexCoord, dir ds.HexCoord, length int, board ds.Board) []ds.HexCoord {
+	var result []ds.HexCoord
+	cur := from
+	for i := 0; i < length; i++ {
+		cur = ds.HexCoord{Q: cur.Q + dir.Q, R: cur.R + dir.R}
+		if _, ok := board.Cells[cur]; !ok {
+			// Cell doesn't exist on board — stop this ray.
+			break
+		}
+		result = append(result, cur)
+	}
+	return result
+}
+
+// hexAllLines returns cells in all 6 directions from `from` up to `length` steps.
+func hexAllLines(from ds.HexCoord, length int, board ds.Board) []ds.HexCoord {
+	var result []ds.HexCoord
+	for _, dir := range hexDirections {
+		result = append(result, hexLine(from, dir, length, board)...)
+	}
+	return result
 }

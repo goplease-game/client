@@ -1,6 +1,7 @@
 package arena
 
 import (
+	"image/color"
 	"math"
 
 	"github.com/ebitenui/ebitenui"
@@ -10,6 +11,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -59,15 +61,21 @@ type Screen struct {
 	unitPanelRef  *widget.Container
 	nextActionBtn *widget.Button
 	statusLabel   *widget.Text
+	prevStatus    string
 
 	// Ability targeting state.
-	abilityPanelRef       *widget.Container
-	abilityPanelIn        bool
-	abilityHighlightCells []ds.HexCoord // hex coords currently highlighted for ability range
+	abilityPanelRef            *widget.Container
+	abilityPanelIn             bool
+	abilityHighlightCells      []ds.HexCoord // hex coords currently highlighted for ability range
+	selectedAbility            *ability.Ability
+	selectedAbilityCard        *widget.Container
+	selectedAbilityCardColor   color.Color
+	selectedAbilityIcon        *widget.Graphic
+	selectedAbilityActiveColor color.Color
 
 	// Pulse animation state.
 	pulseHexWidgets       []*ui.HexCellWidget // board hex cells that pulse (active unit)
-	pulseWidgets          []*widget.Container // other UI widgets that pulse (queue cards)
+	pulseWidgets          []*widget.Container // other UI widgets that pulse (queue cards, ability card, end turn button)
 	pulseTick             float64
 	endTurnBtnPulseActive bool
 
@@ -142,6 +150,12 @@ done:
 		}
 	}
 
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if s.selectedAbility != nil {
+			s.cancelAbilitySelection()
+		}
+	}
+
 	s.updatePulse()
 	s.updateDropZoneAnim()
 	s.activeMoveAnim.update()
@@ -180,7 +194,8 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
 // and queue cards. Early-returns if nothing is currently pulsing.
 func (s *Screen) updatePulse() {
-	if len(s.pulseHexWidgets) == 0 && len(s.pulseWidgets) == 0 && !s.endTurnBtnPulseActive {
+	if len(s.pulseHexWidgets) == 0 && len(s.pulseWidgets) == 0 &&
+		!s.endTurnBtnPulseActive && s.selectedAbilityCard == nil {
 		return
 	}
 
@@ -191,13 +206,21 @@ func (s *Screen) updatePulse() {
 	for _, w := range s.pulseHexWidgets {
 		w.SetColor(c)
 	}
-
 	for _, w := range s.pulseWidgets {
 		w.SetBackgroundImage(image.NewNineSliceColor(c))
 	}
-
 	if s.endTurnBtnPulseActive && s.nextActionBtn != nil {
 		s.pulseEndTurnBtn(t)
+	}
+
+	// Pulse border on the selected ability card.
+	if s.selectedAbilityCard != nil {
+		borderColor := ui.LerpColor(abilitySelectedPulseColor1, abilitySelectedPulseColor2, t)
+		s.selectedAbilityCard.SetBackgroundImage(image.NewBorderedNineSliceColor(
+			s.selectedAbilityActiveColor,
+			borderColor,
+			3,
+		))
 	}
 }
 
@@ -259,6 +282,11 @@ func (s *Screen) setupUI() {
 			for _, cell := range s.sortedCells {
 				cell.RenderFXLayer(screen)
 			}
+			// ...
+			// Dev panel rendered on top of hex layer.
+			if s.devPanelRef != nil {
+				s.devPanelRef.Render(screen)
+			}
 		},
 	}
 }
@@ -282,6 +310,20 @@ func (s *Screen) setStatus(text string) {
 	if s.statusLabel != nil {
 		s.statusLabel.Label = text
 	}
+}
+
+// pushStatus saves the current status and sets a new one.
+func (s *Screen) pushStatus(text string) {
+	if s.statusLabel != nil {
+		s.prevStatus = s.statusLabel.Label
+	}
+	s.setStatus(text)
+}
+
+// popStatus restores the previously saved status.
+func (s *Screen) popStatus() {
+	s.setStatus(s.prevStatus)
+	s.prevStatus = ""
 }
 
 // takeSnapshot captures the current game state into a GameSnapshot.

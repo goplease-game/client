@@ -2,6 +2,7 @@ package ds
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -43,4 +44,22 @@ func (b *BoardCells) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// Needed for saving state
+func (b BoardCells) MarshalJSON() ([]byte, error) {
+	type Alias BoardCell
+
+	out := make(map[string]*BoardCell, len(b))
+	for coord, cell := range b {
+		if cell == nil {
+			continue
+		}
+
+		key := fmt.Sprintf("%d:%d", coord.Q, coord.R)
+
+		out[key] = cell
+	}
+
+	return json.Marshal(out)
 }

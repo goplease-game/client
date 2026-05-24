@@ -14,10 +14,10 @@ const (
 	UndyingWill ID = "undying_will"
 
 	// warrior
-	BattleCry ID = "battle_cry"
-	Cleave    ID = "cleave"
-	PowerPush ID = "power_push"
-	Frenzy    ID = "frenzy"
+	BattleCry   ID = "battle_cry"
+	IdolihuSpin ID = "idolihu_spin"
+	PowerPush   ID = "power_push"
+	Frenzy      ID = "frenzy"
 
 	// ranger
 	PiercingShot  ID = "piercing_shot"
@@ -62,7 +62,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Shoot",
 		Description: "Fires projectile at a distant target.",
 		Cooldown:    0,
-		Range:       3,
+		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
 		Effects:     Effects(effect.NewBasicAttack()),
@@ -73,7 +73,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Arcane Bolt",
 		Description: "Hurls bolt of arcane energy.",
 		Cooldown:    0,
-		Range:       3,
+		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
 		Effects:     Effects(effect.NewBasicAttack()),
@@ -140,16 +140,15 @@ var Abilities = map[ID]Ability{
 		AreaRadius:  2,
 		Effects:     Effects(effect.NewStatusEffect(effect.DecayingAttack)),
 	},
-	Cleave: {
+	IdolihuSpin: {
 		Type:        Skill,
 		IsPassive:   false,
-		Name:        "Cleave",
-		Description: "Swings in a wide arc, hitting all enemies in front for base damage.",
+		Name:        "IDOLIHU! Spin",
+		Description: "Strikes all adjacent enemies in a single sweeping motion.",
 		Cooldown:    3,
-		Range:       1,
 		TargetMode:  TargetEnemies,
-		Activation:  SelectAny,
-		Area:        AreaArc,
+		Activation:  Instant,
+		Area:        AreaCircle,
 		AreaRadius:  1,
 		Effects:     Effects(effect.NewBasicAttack()),
 	},
@@ -180,10 +179,10 @@ var Abilities = map[ID]Ability{
 		Name:        "Piercing Shot",
 		Description: "Fires a piercing shot that deals attack damage to all enemies in a straight line.",
 		Cooldown:    3,
-		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectAny,
 		Area:        AreaLine,
+		AreaRadius:  4,
 		Effects:     Effects(effect.NewBasicAttack()),
 	},
 	HuntersMark: {

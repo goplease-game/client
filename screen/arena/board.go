@@ -135,6 +135,11 @@ func (s *Screen) boardCellWidget(u ds.Unit) *ui.HexCellWidget {
 //   - clicking a reachable cell moves the selected unit there
 //   - any other click clears the current selection
 func (s *Screen) onCellClicked(coord ds.HexCoord) {
+	// If an ability is selected — try to apply it to this cell.
+	if s.onCellClickedWithAbility(coord) {
+		return
+	}
+
 	cell := s.board.Cells[coord]
 
 	if cell != nil && cell.Unit != nil &&
