@@ -16,10 +16,9 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-// ---------------------------------------------------------------------------
-// Panel lifecycle
-// ---------------------------------------------------------------------------
-
+// showAbilityPanel builds and attaches an ability card row to the footer
+// for the given unit. Any previously shown panel is removed first.
+// Does nothing if the unit has no abilities.
 func (s *Screen) showAbilityPanel(unit ds.Unit) {
 	s.hideAbilityPanel()
 
@@ -51,6 +50,8 @@ func (s *Screen) showAbilityPanel(unit ds.Unit) {
 	s.abilityPanelIn = true
 }
 
+// hideAbilityPanel removes the ability panel from the footer and resets panel state.
+// Safe to call when no panel is currently shown.
 func (s *Screen) hideAbilityPanel() {
 	if !s.abilityPanelIn || s.abilityPanelRef == nil {
 		return
@@ -60,10 +61,8 @@ func (s *Screen) hideAbilityPanel() {
 	s.abilityPanelIn = false
 }
 
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
-
+// buildAbilityCard builds a single ability card widget with hover highlight,
+// tooltip, ability icon, and an optional cooldown badge.
 func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	bgColor := abilityCardBgColor(ab)
 
@@ -113,7 +112,7 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 }
 
 // abilityCardBgColor returns the background colour for an ability card
-// based on its type (basic attack, passive, or regular).
+// based on its type: basic attack, passive, or regular ability.
 func abilityCardBgColor(ab ability.Ability) color.Color {
 	switch {
 	case ab.IsBasicAttack():
@@ -125,7 +124,8 @@ func abilityCardBgColor(ab ability.Ability) color.Color {
 	}
 }
 
-// buildCooldownBadge returns a small top-left badge showing the cooldown turns.
+// buildCooldownBadge returns a small badge anchored to the top-left of an
+// ability card showing the cooldown turn count with a clock icon.
 func buildCooldownBadge(cooldown int) *widget.Container {
 	badge := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -140,20 +140,21 @@ func buildCooldownBadge(cooldown int) *widget.Container {
 			}),
 		),
 	)
+
 	badge.AddChild(widget.NewGraphic(
 		widget.GraphicOpts.Image(asset.Image("turn.png", 12)),
 	))
+
 	tf := ui.TextFace(11)
 	badge.AddChild(widget.NewText(
 		widget.TextOpts.Text(fmt.Sprintf("%d", cooldown), &tf, colornames.White),
 	))
+
 	return badge
 }
 
-// ---------------------------------------------------------------------------
-// Assets
-// ---------------------------------------------------------------------------
-
+// abilityImage loads the icon for the given ability ID at the specified size.
+// Size defaults to 64px if not provided.
 func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
 	size := 64
 	if len(sizeOpt) > 0 {
@@ -162,10 +163,8 @@ func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
 	return asset.Image(path.Join("abilities", abilityID+".png"), size)
 }
 
-// ---------------------------------------------------------------------------
-// Tooltip
-// ---------------------------------------------------------------------------
-
+// buildAbilityToolTip constructs the tooltip content for an ability card,
+// including icon, name, description, and optional stat rows (cooldown, range, passive).
 func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 	c := buildToolTipBase(abilityImage(string(ab.ID), 28), ab.Name)
 
@@ -187,6 +186,8 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 	return c
 }
 
+// buildToolTipRow returns a horizontal row container with a single coloured text label.
+// Used to display ability stats (cooldown, range, passive) in tooltips.
 func buildToolTipRow(text string, c color.Color) *widget.Container {
 	row := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(

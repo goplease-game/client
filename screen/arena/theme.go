@@ -7,49 +7,47 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-// ---- COLORS ----
 var (
-	// LAYOUT
+	// Layout colours.
 	bodyBgColor      = color.NRGBA{0x13, 0x1a, 0x22, 0xff}
 	footerBgColor    = ui.RGBFromHex("5682B1")
 	headerBgColor    = ui.RGBFromHex("5682B1")
 	statusBarBgColor = ui.DarkenRGB(footerBgColor, 5)
 
-	// UNITS
-	unitPanelBgColor        = ui.DarkenRGB(footerBgColor, 5)
-	unitCardBgColor         = ui.DarkenRGB(unitPanelBgColor, 20)
-	unitCardHoverBgColor    = ui.DarkenRGB(unitCardBgColor, 15)
-	unitCardHoverFgColor    = ui.RGBFromHex("f5df4d")
-	unitCardHighlightColor  = colornames.Gold
-	unitDragBgColor         = ui.RGBFromHex("78B3CE")
-	unitFriendlyBgColor     = ui.RGBFromHex("B0DB9C")
-	unitEnemyBgColor        = ui.RGBFromHex("EA7B7B")
-	selectedUnitBorderColor = colornames.Red
-	unitMoveToCellColor     = ui.RGBFromHex("6e8596")
-	unitPulseColor1         = ui.RGBFromHex("FFC700")
-	unitPulseColor2         = ui.DarkenRGB(unitPulseColor1, 80)
+	// Unit panel and card colours.
+	unitPanelBgColor       = ui.DarkenRGB(footerBgColor, 5)
+	unitCardBgColor        = ui.DarkenRGB(unitPanelBgColor, 20)
+	unitCardHoverBgColor   = ui.DarkenRGB(unitCardBgColor, 15)
+	unitCardHoverFgColor   = ui.RGBFromHex("f5df4d")
+	unitCardHighlightColor = colornames.Gold
+	unitDragBgColor        = ui.RGBFromHex("78B3CE")
+	unitFriendlyBgColor    = ui.RGBFromHex("B0DB9C")
+	unitEnemyBgColor       = ui.RGBFromHex("EA7B7B")
+	unitMoveToCellColor    = ui.RGBFromHex("6e8596")
+	unitPulseColor1        = ui.RGBFromHex("FFC700")
+	unitPulseColor2        = ui.DarkenRGB(unitPulseColor1, 80)
 
-	// TOOLTIPS
+	// Tooltip colours.
 	ttBgColor     = ui.RGBFromHex("42668d")
 	ttBorderColor = ui.LightenRGB(ttBgColor, 50)
 	ttTitleColor  = ui.RGBFromHex("f5df4d")
 	ttTextColor   = colornames.Ghostwhite
 
-	// HUD
+	// HUD colours.
 	hpColor            = colornames.Tomato
 	atkColor           = colornames.Orange
 	mpColor            = colornames.Skyblue
 	shieldColor        = colornames.Gold
 	statusBarTextColor = colornames.Gold
 
-	// BOARD
+	// Board colours.
 	boardBgColor           = ui.RGBFromHex("607B8F")
 	boardCellBgColor       = ui.DarkenRGB(boardBgColor, 10)
 	boardGridColor         = color.RGBA{0x45, 0x63, 0x7a, 255}
 	unitDropZoneColor      = ui.RGBFromHex("A7E399")
 	unitDropZoneHoverColor = ui.DarkenRGB(unitDropZoneColor, 50)
 
-	// ABILITIES
+	// Ability colours.
 	abilitiesPanelBgColor  = ui.DarkenRGB(footerBgColor, 5)
 	basicAttackBgColor     = ui.RGBFromHex("E97F4A")
 	abilityBgColor         = ui.RGBFromHex("8CA9FF")
@@ -58,7 +56,7 @@ var (
 	abilityRangeCellColor  = ui.RGBFromHex("7c9493")
 )
 
-// FONTS
+// Font faces used across the arena package.
 var (
 	toolTipTitleTF = ui.TextFace(28)
 	toolTipTextTF  = ui.TextFace(18)

@@ -19,17 +19,18 @@ const (
 	devPanelHeaderH = 28
 )
 
-// setupDevPanel adds the dev panel to the root container if DevMode is enabled.
-// Must be called after setupUI so the root container exists.
+// setupDevPanel adds the dev panel to root if DevMode is enabled.
+// Must be called after setupUI so that root already exists.
 func (s *Screen) setupDevPanel(root *widget.Container) {
 	if !config.Get().DevMode.Enabled {
 		return
 	}
-
 	s.devPanelRef = s.buildDevPanel()
 	root.AddChild(s.devPanelRef)
 }
 
+// buildDevPanel creates the floating dev panel anchored to the top-right corner.
+// The panel starts minimised; the body is added/removed on toggle.
 func (s *Screen) buildDevPanel() *widget.Container {
 	panel := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewBorderedNineSliceColor(
@@ -53,14 +54,13 @@ func (s *Screen) buildDevPanel() *widget.Container {
 
 	panel.AddChild(s.buildDevPanelHeader(panel))
 	s.devPanelBody = s.buildDevPanelBody()
-	//panel.AddChild(s.devPanelBody)
-
 	s.devPanelMinimized = true
+	// Body is intentionally not added here — panel starts minimised.
 
 	return panel
 }
 
-// buildDevPanelHeader builds the title bar with a minimize toggle.
+// buildDevPanelHeader builds the title bar with a minimize/restore toggle button.
 func (s *Screen) buildDevPanelHeader(panel *widget.Container) *widget.Container {
 	tf := ui.TextFaceBold(12)
 
@@ -76,7 +76,7 @@ func (s *Screen) buildDevPanelHeader(panel *widget.Container) *widget.Container 
 		),
 	)
 
-	titleLabel := widget.NewText(
+	header.AddChild(widget.NewText(
 		widget.TextOpts.Text("Dev Panel", &tf, colornames.Lightblue),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -84,10 +84,8 @@ func (s *Screen) buildDevPanelHeader(panel *widget.Container) *widget.Container 
 				Stretch:  true,
 			}),
 		),
-	)
-	header.AddChild(titleLabel)
+	))
 
-	// Minimize / restore button.
 	var toggleBtn *widget.Button
 	tfBtn := ui.TextFace(11)
 	toggleBtn = widget.NewButton(
@@ -122,7 +120,7 @@ func (s *Screen) buildDevPanelHeader(panel *widget.Container) *widget.Container 
 	return header
 }
 
-// buildDevPanelBody builds the collapsible content area.
+// buildDevPanelBody builds the collapsible body with save and load sections.
 func (s *Screen) buildDevPanelBody() *widget.Container {
 	body := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -142,7 +140,8 @@ func (s *Screen) buildDevPanelBody() *widget.Container {
 	return body
 }
 
-// buildSaveSection builds the "Save current state" button + status label.
+// buildSaveSection builds the save-state section with a name input, save button,
+// and inline status labels for success and error feedback.
 func (s *Screen) buildSaveSection() *widget.Container {
 	section := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -178,12 +177,8 @@ func (s *Screen) buildSaveSection() *widget.Container {
 	)
 	section.AddChild(nameInput)
 
-	statusOk := widget.NewText(
-		widget.TextOpts.Text("", &tfSmall, colornames.Palegreen),
-	)
-	statusErr := widget.NewText(
-		widget.TextOpts.Text("", &tfSmall, colornames.Red),
-	)
+	statusOk := widget.NewText(widget.TextOpts.Text("", &tfSmall, colornames.Palegreen))
+	statusErr := widget.NewText(widget.TextOpts.Text("", &tfSmall, colornames.Red))
 
 	saveBtn := widget.NewButton(
 		widget.ButtonOpts.Text("💾 Save", &tf, &widget.ButtonTextColor{
@@ -221,7 +216,7 @@ func (s *Screen) buildSaveSection() *widget.Container {
 	return section
 }
 
-// buildLoadSection builds the scrollable list of available states.
+// buildLoadSection builds the load-state section with a scrollable list of saves.
 func (s *Screen) buildLoadSection() *widget.Container {
 	section := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -247,7 +242,7 @@ func (s *Screen) buildLoadSection() *widget.Container {
 	return section
 }
 
-// rebuildLoadList refreshes the list of loadable states.
+// rebuildLoadList clears and repopulates the load list from available saved states.
 func (s *Screen) rebuildLoadList() {
 	if s.devLoadList == nil {
 		return
@@ -256,7 +251,7 @@ func (s *Screen) rebuildLoadList() {
 
 	tf := ui.TextFace(10)
 	for _, name := range mock.ListStates() {
-		n := name // capture for closure
+		n := name // capture loop variable for closure
 		btn := widget.NewButton(
 			widget.ButtonOpts.Text(n, &tf, &widget.ButtonTextColor{
 				Idle:  colornames.White,
@@ -278,20 +273,19 @@ func (s *Screen) rebuildLoadList() {
 	}
 }
 
-// loadDevState loads the selected state and reinitialises the screen.
+// loadDevState loads the named snapshot and transitions to a fresh Screen.
 func (s *Screen) loadDevState(name string) {
 	snap, err := mock.LoadState(name)
 	if err != nil {
 		s.setStatus("Dev: failed to load " + name)
 		return
 	}
-	s.restoreSnapshot(snap)
 	s.setStatus("Dev: loaded " + name)
-
 	mock.RestoreGameState(name, snap)
 	s.pendingScreen = NewScreen(snap, s.server)
 }
 
+// buildDivider returns a thin horizontal rule for separating dev panel sections.
 func buildDivider() *widget.Container {
 	return widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x44, 0x44, 0x66, 0xff})),

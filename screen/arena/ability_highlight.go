@@ -6,13 +6,15 @@ import (
 )
 
 // highlightAbilityRange is called on hover over an ability card.
-// It clears movement selection, then highlights the ability's range zone
-// and valid targets within it.
+// It clears any movement selection, then tints cells within the ability's range:
+// empty cells get the range tint, valid targets get the target tint.
+// Passive abilities have no targeting and are skipped.
 func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 	if ab.IsPassive {
 		return
 	}
 
+	// Clear movement highlight — two simultaneous highlights would be confusing.
 	s.deselectUnit()
 
 	caster, ok := s.unitByID(s.activeUnitID)
@@ -20,9 +22,7 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		return
 	}
 
-	from := caster.Pos
-	cells := cellsInRange(from, ab.Range, s.board)
-
+	cells := cellsInRange(caster.Pos, ab.Range, s.board)
 	s.abilityHighlightCells = cells
 
 	for _, pos := range cells {
@@ -36,14 +36,14 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		switch {
 		case cell == nil || cell.Unit == nil:
 			w.SetColor(abilityRangeCellColor)
-
 		case s.isValidTarget(ab, caster, *cell.Unit):
 			w.SetColor(abilityTargetCellColor)
 		}
 	}
 }
 
-// clearAbilityHighlight restores all ability-highlighted cells to their original colours.
+// clearAbilityHighlight restores all ability-highlighted cells to their default colours.
+// Called when the cursor leaves an ability card.
 func (s *Screen) clearAbilityHighlight() {
 	for _, pos := range s.abilityHighlightCells {
 		w := s.boardCellWidgets[pos]
@@ -68,8 +68,8 @@ func (s *Screen) clearAbilityHighlight() {
 	s.abilityHighlightCells = nil
 }
 
-// isValidTarget checks whether `target` is a valid target for `ab`
-// according to the ability's TargetMode.
+// isValidTarget reports whether target is a valid target for ab cast by caster,
+// based on the ability's TargetMode.
 func (s *Screen) isValidTarget(ab ability.Ability, caster ds.Unit, target ds.Unit) bool {
 	switch ab.TargetMode {
 	case ability.TargetEnemies:

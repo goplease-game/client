@@ -9,7 +9,10 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
+// createBoardContainer builds the EbitenUI container that holds all hex cell
+// widgets. It also populates boardCellWidgets and sortedCells.
 func (s *Screen) createBoardContainer() *widget.Container {
+	// Outer container stretches to fill the space between header and footer.
 	container := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
@@ -24,10 +27,8 @@ func (s *Screen) createBoardContainer() *widget.Container {
 		),
 	)
 
+	// Inner container uses HexLayout to position cells by axial coordinate.
 	boardWidget := widget.NewContainer(
-		//widget.ContainerOpts.BackgroundImage(
-		//	image.NewNineSliceColor(boardBgColor),
-		//),
 		widget.ContainerOpts.Layout(&ui.HexLayout{
 			HexSize: ui.HexRadius,
 		}),
@@ -47,6 +48,8 @@ func (s *Screen) createBoardContainer() *widget.Container {
 		boardWidget.AddChild(cell)
 	}
 
+	// sortedCells provides a deterministic render order (row-major, left to right)
+	// so that unit overlays and HUD badges always draw consistently at hex borders.
 	s.sortedCells = make([]*ui.HexCellWidget, 0, len(s.boardCellWidgets))
 	for _, cell := range s.boardCellWidgets {
 		s.sortedCells = append(s.sortedCells, cell)
@@ -59,10 +62,11 @@ func (s *Screen) createBoardContainer() *widget.Container {
 	})
 
 	container.AddChild(boardWidget)
-
 	return container
 }
 
+// createCell creates a HexCellWidget for the given coordinate and cell data.
+// Safe-zone cells receive additional drop-target widget options.
 func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWidget {
 	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
 	sc := &DropZoneCell{coord: coord}
@@ -86,7 +90,9 @@ func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWi
 	return cell
 }
 
-// dropZoneWidgetOpts returns widget options that make a cell accept unit drops.
+// dropZoneWidgetOpts returns widget options that make a cell accept unit drops
+// via EbitenUI drag-and-drop. A drop is accepted only when the game is ready,
+// the cell is unoccupied, and the player has not yet placed a unit this turn.
 func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widget.WidgetOpt {
 	return []widget.WidgetOpt{
 		widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
@@ -104,14 +110,12 @@ func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widge
 }
 
 // onUnitDropped is called when a unit card is successfully dropped onto a safe-zone cell.
+// It marks the cell as occupied, renders the unit card, and notifies the server.
 func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, coord ds.HexCoord) {
 	sc.occupied = true
 	sc.baseColor = unitFriendlyBgColor
 	s.unitPlacedThisTurn = true
-
-	if sc.activeGraphic != nil {
-		sc.activeGraphic = nil
-	}
+	sc.activeGraphic = nil
 
 	sc.cell.SetColor(unitFriendlyBgColor)
 	buildBoardCard(sc.cell, unit, false)
@@ -119,64 +123,55 @@ func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, coord ds.HexCoord
 	s.onUnitPlaced(unit, coord)
 }
 
+// boardCellWidget returns the HexCellWidget for the cell occupied by unit u,
+// or nil if the cell does not exist.
 func (s *Screen) boardCellWidget(u ds.Unit) *ui.HexCellWidget {
-	cell := s.boardCellWidgets[ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}]
-	if cell == nil {
-		return nil
-	}
-
-	return cell
+	return s.boardCellWidgets[ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}]
 }
 
-// onCellClicked is the single click handler attached to every board cell.
-// It dispatches to the right action depending on current selection state.
+// onCellClicked is the single entry point for board cell clicks.
+// It dispatches based on the current selection state:
+//   - clicking the active unit selects it for movement
+//   - clicking a reachable cell moves the selected unit there
+//   - any other click clears the current selection
 func (s *Screen) onCellClicked(coord ds.HexCoord) {
 	cell := s.board.Cells[coord]
 
-	// If this cell holds the active friendly unit — select it for movement.
 	if cell != nil && cell.Unit != nil &&
 		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
-
 		s.selectUnit(*cell.Unit)
 		return
 	}
 
-	// If a unit is selected and this is a reachable cell — move there.
 	if s.selectedUnitID != "" && isReachableHex(s.reachableCells, coord) {
 		s.onReachableCellClicked(coord)
 		return
 	}
 
-	// Any other click clears the selection.
 	if s.selectedUnitID != "" {
 		s.deselectUnit()
 	}
 }
 
-// cellsInRange returns all hex positions within rangeN of `from`.
-// It uses hex distance (cube/axial equivalent), not square-grid diagonals.
-// Unlike movement range, it does NOT consider occupancy.
+// cellsInRange returns all board positions within rangeN hex steps of from.
+// Uses hex cube distance, not square-grid distance, so diagonals are correct.
+// Does not filter by occupancy — use for ability targeting, not movement.
 func cellsInRange(from ds.HexCoord, rangeN int, board ds.Board) []ds.HexCoord {
 	var result []ds.HexCoord
-
 	for coord := range board.Cells {
 		if HexDistance(from, coord) <= rangeN {
 			result = append(result, coord)
 		}
 	}
-
 	return result
 }
 
+// HexDistance returns the hex cube distance between two axial coordinates.
+// Equivalent to max(|dq|, |dr|, |dq+dr|).
 func HexDistance(a, b ds.HexCoord) int {
 	dq := a.Q - b.Q
 	dr := a.R - b.R
-
-	return max3(
-		abs(dq),
-		abs(dr),
-		abs(dq+dr),
-	)
+	return max3(abs(dq), abs(dr), abs(dq+dr))
 }
 
 func abs(x int) int {

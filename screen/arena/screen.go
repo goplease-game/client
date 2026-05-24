@@ -16,20 +16,23 @@ import (
 )
 
 const (
-	abilityCardSize = 64 // ability card in footer panel
-	unitCardSize    = 64 // unit card in hand & queue panel
-	unitIconSize    = 54
+	abilityCardSize = 64 // ability card size in the footer panel
+	unitCardSize    = 64 // unit card size in the hand and queue panel
+	unitIconSize    = 54 // unit portrait size rendered on the board hex
 
 	headerH = 80
 	statusH = 32
 	footerH = 90
 )
 
+// Screen is the main arena game screen.
+// It owns all game state visible to the local player and orchestrates
+// server communication, UI layout, board rendering, and animations.
 type Screen struct {
 	server ws.Client
 	ui     *ebitenui.UI
 
-	// game data
+	// Game state received from the server.
 	board              ds.Board
 	roomID             string
 	player             ds.Player
@@ -43,10 +46,12 @@ type Screen struct {
 	queueIn            bool
 	unitPanelIn        bool
 
-	safeZoneCells    []*DropZoneCell
-	sortedCells      []*ui.HexCellWidget
+	// Board rendering.
+	safeZoneCells    []*DropZoneCell     // safe-zone cells that accept unit drops
+	sortedCells      []*ui.HexCellWidget // board cells sorted by (R, Q) for deterministic overlay render order
 	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
 
+	// UI widget references used for dynamic updates.
 	unitCards     map[string]*widget.Container
 	headerRef     *widget.Container
 	footerRef     *widget.Container
@@ -55,38 +60,42 @@ type Screen struct {
 	nextActionBtn *widget.Button
 	statusLabel   *widget.Text
 
+	// Ability targeting state.
 	abilityPanelRef       *widget.Container
 	abilityPanelIn        bool
-	abilityHighlightCells []ds.HexCoord
+	abilityHighlightCells []ds.HexCoord // hex coords currently highlighted for ability range
 
-	pulseHexWidgets       []*ui.HexCellWidget // board hex cells that pulse
-	pulseWidgets          []*widget.Container // other UI widgets that pulse
+	// Pulse animation state.
+	pulseHexWidgets       []*ui.HexCellWidget // board hex cells that pulse (active unit)
+	pulseWidgets          []*widget.Container // other UI widgets that pulse (queue cards)
 	pulseTick             float64
 	endTurnBtnPulseActive bool
 
-	// Dev panel (only active when DevMode.Enabled).
+	// Dev panel — only rendered when DevMode.Enabled.
 	devPanelRef       *widget.Container
 	devPanelBody      *widget.Container
 	devLoadList       *widget.Container
 	devPanelMinimized bool
 
-	// Movement / selection state.
-	selectedUnitID  string        // unit currently selected for movement (empty = none)
-	reachableCells  []ds.HexCoord // precomputed reachable positions for selectedUnit
+	// Movement and selection state.
+	selectedUnitID  string        // unit currently selected for movement; empty means none
+	reachableCells  []ds.HexCoord // precomputed reachable positions for selectedUnitID
 	activeUnitMoved bool          // true once the active unit has moved this turn
-	activeMoveAnim  *moveAnim     // non-nil while a movement animation is playing
+	activeMoveAnim  *moveAnim     // non-nil while a movement animation is in progress
 
 	// ready is set to true when the server responds with phase unit_placement,
 	// meaning the match has started and the local player may interact.
 	ready bool
-	// firstDrawn tracks whether we have completed at least one Draw call so
-	// that we send ready_to_play exactly once after the UI is fully rendered.
+
+	// firstDrawn is set after the first Draw call so that ready_to_play
+	// is sent to the server exactly once, after the UI is fully rendered.
 	firstDrawn bool
 
-	// for state reloading
+	// pendingScreen is set when a screen transition should occur on the next Update.
 	pendingScreen game.Screen
 }
 
+// NewScreen constructs a fully initialised arena Screen from a server snapshot.
 func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
 	s := &Screen{
 		server:       server,
@@ -103,13 +112,15 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
 	initDropPointAnim()
 	s.setupUI()
 	s.restoreBoardVisuals()
-
-	// Restore queue panel from snapshot.
 	s.rebuildQueuePanel()
 
 	return s
 }
+
+// Update processes server messages, handles input, and advances all animations.
+// Implements game.Screen.
 func (s *Screen) Update(g *game.Game) (game.Screen, error) {
+	// Drain all pending server messages before updating game logic.
 	for {
 		select {
 		case msg := <-g.Server.Inbox():
@@ -120,6 +131,7 @@ func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	}
 done:
 
+	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
 		for coord, cell := range s.boardCellWidgets {
@@ -133,7 +145,6 @@ done:
 	s.updatePulse()
 	s.updateDropZoneAnim()
 	s.activeMoveAnim.update()
-
 	s.ui.Update()
 
 	if s.pendingScreen != nil {
@@ -142,9 +153,15 @@ done:
 	return s, nil
 }
 
+// Draw renders the screen. Hex cells are drawn via PostRenderHook inside
+// s.ui.Draw so they appear above the UI background but below EbitenUI windows
+// (drag cards, tooltips). The movement animation is drawn as the topmost layer.
+// Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
+	// ui.Draw triggers PostRenderHook which renders hex fills, grid, and overlays.
 	s.ui.Draw(screen)
 
+	// Movement animation is rendered above everything including EbitenUI windows.
 	if s.activeMoveAnim.active() {
 		x, y := s.activeMoveAnim.currentPos()
 		op := &ebiten.DrawImageOptions{}
@@ -152,13 +169,16 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		screen.DrawImage(s.activeMoveAnim.img, op)
 	}
 
+	// Send ready_to_play once after the first complete draw so the server
+	// knows the client is ready to receive game events.
 	if !s.firstDrawn {
 		s.firstDrawn = true
 		s.server.Send(ws.OutMessage{Action: ws.ReadyToPlay})
 	}
 }
 
-// updatePulse advances the pulse animation for highlighted units and the end-turn button.
+// updatePulse advances the sinusoidal pulse animation for highlighted hex cells
+// and queue cards. Early-returns if nothing is currently pulsing.
 func (s *Screen) updatePulse() {
 	if len(s.pulseHexWidgets) == 0 && len(s.pulseWidgets) == 0 && !s.endTurnBtnPulseActive {
 		return
@@ -181,6 +201,8 @@ func (s *Screen) updatePulse() {
 	}
 }
 
+// updateDropZoneAnim advances the drop-arrow animation and syncs the current
+// frame to all active drop zone cells.
 func (s *Screen) updateDropZoneAnim() {
 	animDropArrow.Update()
 	for _, sc := range s.safeZoneCells {
@@ -190,6 +212,8 @@ func (s *Screen) updateDropZoneAnim() {
 	}
 }
 
+// setupUI builds the full EbitenUI widget tree and registers the PostRenderHook
+// that draws hex cells in the correct layer order.
 func (s *Screen) setupUI() {
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)),
@@ -209,20 +233,29 @@ func (s *Screen) setupUI() {
 
 	s.ui = &ebitenui.UI{
 		Container: root,
+		// PostRenderHook is called after the main container renders but before
+		// EbitenUI windows (drag card, tooltips), giving us the correct layer order:
+		// hex fills → grid → unit portraits → drop zone FX → HUD badges → FX effects.
 		PostRenderHook: func(screen *ebiten.Image) {
+			// Layer 1: hex polygon fills (background color).
 			for _, cell := range s.boardCellWidgets {
 				cell.RenderFill(screen)
 			}
+			// Layer 2: grid stroke drawn as a single path to avoid double-width edges.
 			s.renderGrid(screen)
+			// Layer 3: unit portraits — sorted for deterministic overlap at hex borders.
 			for _, cell := range s.sortedCells {
 				cell.RenderUnitLayer(screen)
 			}
+			// Layer 4: drop zone arrow animations.
 			for _, sc := range s.safeZoneCells {
 				sc.RenderAnim(screen)
 			}
+			// Layer 5: HUD badges (hp, shield, move indicator).
 			for _, cell := range s.sortedCells {
 				cell.RenderHUDLayer(screen)
 			}
+			// Layer 6: FX (damage numbers, attack effects).
 			for _, cell := range s.sortedCells {
 				cell.RenderFXLayer(screen)
 			}
@@ -230,6 +263,8 @@ func (s *Screen) setupUI() {
 	}
 }
 
+// renderGrid draws the hex grid as a single combined stroke path.
+// Using one path avoids double-width edges where adjacent hex strokes overlap.
 func (s *Screen) renderGrid(screen *ebiten.Image) {
 	var path vector.Path
 	for _, cell := range s.boardCellWidgets {
@@ -242,12 +277,15 @@ func (s *Screen) renderGrid(screen *ebiten.Image) {
 	vector.StrokePath(screen, &path, &vector.StrokeOptions{Width: 1}, &opts)
 }
 
+// setStatus updates the status bar label text.
 func (s *Screen) setStatus(text string) {
 	if s.statusLabel != nil {
 		s.statusLabel.Label = text
 	}
 }
 
+// takeSnapshot captures the current game state into a GameSnapshot.
+// Used before navigating away from the screen so state can be restored.
 func (s *Screen) takeSnapshot() ds.GameSnapshot {
 	return ds.GameSnapshot{
 		RoomID:       s.roomID,
@@ -260,10 +298,13 @@ func (s *Screen) takeSnapshot() ds.GameSnapshot {
 	}
 }
 
+// restoreSnapshot creates a new Screen from a previously captured snapshot.
 func (s *Screen) restoreSnapshot(snap ds.GameSnapshot) game.Screen {
 	return NewScreen(snap, s.server)
 }
 
+// restoreBoardVisuals re-renders unit cards on the board after a snapshot restore.
+// Called once during NewScreen before the first Draw.
 func (s *Screen) restoreBoardVisuals() {
 	for pos, cell := range s.board.Cells {
 		if cell == nil || cell.Unit == nil {

@@ -2,32 +2,35 @@ package ui
 
 import (
 	"image"
-	"image/color"
 	"math"
 
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/vector"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-const HexRadius = 37 // √3 * 37 ≈ 64px
+// HexRadius is the center-to-vertex radius of a hex cell in pixels.
+// For a pointy-top hex: width = √3 * HexRadius ≈ 64px, height = 2 * HexRadius = 74px.
+const HexRadius = 37
 
-var whiteImage = ebiten.NewImage(1, 1)
-
-func init() {
-	whiteImage.Fill(color.White)
-}
-
+// HexChild is implemented by any widget that can be positioned by HexLayout.
+// It provides the axial coordinate used to compute the widget's screen position.
 type HexChild interface {
 	GetHexCoord() ds.HexCoord
 	GetWidget() *widget.Widget
 }
 
+// HexLayout is an EbitenUI Layouter that positions hex cell widgets
+// using axial (Q, R) coordinates. It supports pointy-top hex orientation.
+//
+// HexSize defaults to HexRadius if not set.
 type HexLayout struct {
 	HexSize float64
 }
 
+// Layout positions each widget that implements HexChild using axial-to-pixel
+// conversion. Widgets that do not implement HexChild are skipped.
+// SetLocation is called both on the EbitenUI widget (for input handling)
+// and on the widget itself if it implements the interface (for geometry rebuild).
 func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect image.Rectangle) {
 	if l.HexSize == 0 {
 		l.HexSize = HexRadius
@@ -45,6 +48,7 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 		coord := hc.GetHexCoord()
 		x, y := axialToPixel(coord, l.HexSize)
 
+		// Offset by the container's top-left corner.
 		x += float64(rect.Min.X)
 		y += float64(rect.Min.Y)
 
@@ -53,14 +57,18 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 
 		r := image.Rect(rx, ry, rx+hexW, ry+hexH)
 
+		// SetLocation on the EbitenUI widget enables input event handling.
 		w.GetWidget().SetLocation(r)
 
+		// SetLocation on the widget itself triggers geometry rebuild (e.g. HexCellWidget).
 		if h, ok := w.(interface{ SetLocation(image.Rectangle) }); ok {
 			h.SetLocation(r)
 		}
 	}
 }
 
+// PreferredSize returns the minimum bounding box that contains all hex cells.
+// Used by EbitenUI to size the board container.
 func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget) (int, int) {
 	if l.HexSize == 0 {
 		l.HexSize = HexRadius
@@ -70,20 +78,16 @@ func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget
 	maxY := 0.0
 
 	for _, w := range widgets {
-
 		hc, ok := w.(HexChild)
 		if !ok {
 			continue
 		}
 
-		coord := hc.GetHexCoord()
-
-		x, y := axialToPixel(coord, l.HexSize)
+		x, y := axialToPixel(hc.GetHexCoord(), l.HexSize)
 
 		if x > maxX {
 			maxX = x
 		}
-
 		if y > maxY {
 			maxY = y
 		}
@@ -95,6 +99,9 @@ func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget
 	return width, height
 }
 
+// axialToPixel converts axial hex coordinates (Q, R) to pixel coordinates
+// using integer-aligned hex dimensions to prevent subpixel gaps between cells.
+// Returns the top-left corner of the hex bounding box.
 func axialToPixel(h ds.HexCoord, size float64) (float64, float64) {
 	hexW := int(math.Round(math.Sqrt(3) * size))
 	hexH := int(math.Round(2 * size))
@@ -103,54 +110,4 @@ func axialToPixel(h ds.HexCoord, size float64) (float64, float64) {
 	y := float64(h.R) * float64(hexH) * 3 / 4
 
 	return x, y
-}
-
-func HexImage(size int, clr color.Color) *ebiten.Image {
-	w := int(math.Sqrt(3) * float64(size))
-	h := size * 2
-
-	dst := ebiten.NewImage(w, h)
-	dst.Fill(color.RGBA{0, 0, 0, 0})
-
-	cx := float32(w) / 2
-	cy := float32(h) / 2
-	r := float32(size)
-
-	var path vector.Path
-
-	for i := 0; i < 6; i++ {
-		angle := float64(i)*math.Pi/3 - math.Pi/2
-
-		x := cx + r*float32(math.Cos(angle))
-		y := cy + r*float32(math.Sin(angle))
-
-		if i == 0 {
-			path.MoveTo(x, y)
-		} else {
-			path.LineTo(x, y)
-		}
-	}
-
-	path.Close()
-
-	// ВАЖНО: FillOptions не содержит цвета
-	vector.FillPath(
-		dst,
-		&path,
-		&vector.FillOptions{},
-		&vector.DrawPathOptions{},
-	)
-
-	// цвет делаем через overlay
-	overlay := ebiten.NewImage(w, h)
-	overlay.Fill(clr)
-
-	out := ebiten.NewImage(w, h)
-	out.DrawImage(dst, nil)
-
-	op := &ebiten.DrawImageOptions{}
-	op.Blend = ebiten.BlendSourceOver
-	out.DrawImage(overlay, op)
-
-	return out
 }

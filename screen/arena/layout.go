@@ -9,10 +9,8 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
-// ---------------------------------------------------------------------------
-// Header
-// ---------------------------------------------------------------------------
-
+// createHeader builds the top bar container that holds the unit queue panel.
+// The queue panel is stored in s.queuePanelRef for later population.
 func (s *Screen) createHeader() *widget.Container {
 	h := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(headerBgColor)),
@@ -41,10 +39,8 @@ func (s *Screen) createHeader() *widget.Container {
 	return h
 }
 
-// ---------------------------------------------------------------------------
-// Footer
-// ---------------------------------------------------------------------------
-
+// createFooter builds the bottom bar container with the Next button anchored
+// to the right. The ability panel is added dynamically via showAbilityPanel.
 func (s *Screen) createFooter() *widget.Container {
 	footer := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(footerBgColor)),
@@ -69,10 +65,7 @@ func (s *Screen) createFooter() *widget.Container {
 	return footer
 }
 
-// ---------------------------------------------------------------------------
-// Status bar
-// ---------------------------------------------------------------------------
-
+// createStatusBar builds the thin bar above the footer that shows game status text.
 func (s *Screen) createStatusBar() *widget.Container {
 	bar := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(statusBarBgColor)),
@@ -102,10 +95,8 @@ func (s *Screen) createStatusBar() *widget.Container {
 	return bar
 }
 
-// ---------------------------------------------------------------------------
-// Next-move button
-// ---------------------------------------------------------------------------
-
+// buildNextMoveButton creates the Next/End Turn button and stores it in s.nextActionBtn.
+// The button starts disabled and is enabled when it becomes the player's turn.
 func (s *Screen) buildNextMoveButton() *widget.Button {
 	const size = 80
 	tf := ui.TextFace(18)
@@ -138,10 +129,8 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 	return btn
 }
 
-// ---------------------------------------------------------------------------
-// End-turn button pulse helpers
-// ---------------------------------------------------------------------------
-
+// pulseEndTurnBtn updates the Next button border colour for the current pulse frame.
+// t is a normalised value in [0, 1] driven by the pulse sine wave.
 func (s *Screen) pulseEndTurnBtn(t float64) {
 	borderColor := ui.LerpColor(
 		color.RGBA{0x11, 0x55, 0x11, 0xff},
@@ -155,15 +144,13 @@ func (s *Screen) pulseEndTurnBtn(t float64) {
 	)
 }
 
+// stopEndTurnPulse cancels the pulse animation and restores the button's idle image.
 func (s *Screen) stopEndTurnPulse() {
 	s.endTurnBtnPulseActive = false
 	s.nextActionBtn.Image().Idle = endTurnBtnIdle()
 }
 
-// ---------------------------------------------------------------------------
-// Button image constructors (single source of truth for button colours)
-// ---------------------------------------------------------------------------
-
+// endTurnBtnIdle returns the default nine-slice image for the Next button.
 func endTurnBtnIdle() *image.NineSlice {
 	return image.NewBorderedNineSliceColor(
 		color.NRGBA{0x22, 0x8B, 0x22, 0xff},
@@ -172,6 +159,7 @@ func endTurnBtnIdle() *image.NineSlice {
 	)
 }
 
+// endTurnBtnHover returns the hovered nine-slice image for the Next button.
 func endTurnBtnHover() *image.NineSlice {
 	return image.NewBorderedNineSliceColor(
 		color.NRGBA{0x32, 0xAB, 0x32, 0xff},
@@ -180,6 +168,7 @@ func endTurnBtnHover() *image.NineSlice {
 	)
 }
 
+// endTurnBtnPressed returns the pressed nine-slice image for the Next button.
 func endTurnBtnPressed() *image.NineSlice {
 	return image.NewBorderedNineSliceColor(
 		color.NRGBA{0x12, 0x6B, 0x12, 0xff},
@@ -188,6 +177,7 @@ func endTurnBtnPressed() *image.NineSlice {
 	)
 }
 
+// endTurnBtnDisabled returns the disabled nine-slice image for the Next button.
 func endTurnBtnDisabled() *image.NineSlice {
 	return image.NewBorderedNineSliceColor(
 		color.NRGBA{0x88, 0x88, 0x88, 0xff},
@@ -196,16 +186,14 @@ func endTurnBtnDisabled() *image.NineSlice {
 	)
 }
 
-// ---------------------------------------------------------------------------
-// Button helpers
-// ---------------------------------------------------------------------------
-
+// setNextActionLabel updates the label text on the Next button.
 func (s *Screen) setNextActionLabel(label string) {
 	if s.nextActionBtn != nil {
 		s.nextActionBtn.Text().Label = label
 	}
 }
 
+// enableNextActionBtn enables the Next button so the player can end their turn.
 func (s *Screen) enableNextActionBtn() {
 	if s.nextActionBtn != nil {
 		s.nextActionBtn.GetWidget().Disabled = false

@@ -16,10 +16,8 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
-// ---------------------------------------------------------------------------
-// Unit panel (footer)
-// ---------------------------------------------------------------------------
-
+// setupUnitPanel builds the hand panel in the footer showing the player's
+// undeployed units. No-ops if the panel is already shown or there are no units.
 func (s *Screen) setupUnitPanel() {
 	if s.unitPanelIn || len(s.player.Units) == 0 {
 		return
@@ -50,6 +48,8 @@ func (s *Screen) setupUnitPanel() {
 	s.unitPanelIn = true
 }
 
+// buildUnitCard creates a draggable unit card for the hand panel.
+// The card shows hover and drag-and-drop behaviour and includes a tooltip.
 func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 	dnd := &dndHandler{
 		dndUnit:   &dndUnit{unit: u},
@@ -98,10 +98,9 @@ func (s *Screen) buildUnitCard(u ds.Unit) *widget.Container {
 	return card
 }
 
-// ---------------------------------------------------------------------------
-// Placement
-// ---------------------------------------------------------------------------
-
+// onUnitPlaced is called after a successful drop onto a safe-zone cell.
+// It removes the unit from the player's hand, updates the board state,
+// adds the unit to the turn queue, and notifies the server.
 func (s *Screen) onUnitPlaced(u ds.Unit, coord ds.HexCoord) {
 	s.removeUnitCard(u.ID)
 
@@ -131,6 +130,8 @@ func (s *Screen) onUnitPlaced(u ds.Unit, coord ds.HexCoord) {
 	})
 }
 
+// removeUnitCard removes the card for unitID from the hand panel.
+// If the panel becomes empty it is also removed from the footer.
 func (s *Screen) removeUnitCard(unitID string) {
 	card, ok := s.unitCards[unitID]
 	if !ok {
@@ -145,10 +146,8 @@ func (s *Screen) removeUnitCard(unitID string) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Queue panel (header)
-// ---------------------------------------------------------------------------
-
+// addUnitToQueue appends unitID to the turn queue if not already present,
+// then rebuilds the queue panel in the header.
 func (s *Screen) addUnitToQueue(unitID string) {
 	for _, id := range s.unitsQueue {
 		if id == unitID {
@@ -159,6 +158,8 @@ func (s *Screen) addUnitToQueue(unitID string) {
 	s.rebuildQueuePanel()
 }
 
+// rebuildQueuePanel clears and repopulates the queue panel in the header.
+// The queue is displayed newest-first. The panel is hidden when the queue is empty.
 func (s *Screen) rebuildQueuePanel() {
 	if s.queuePanelRef == nil || s.headerRef == nil {
 		return
@@ -178,7 +179,6 @@ func (s *Screen) rebuildQueuePanel() {
 		s.queueIn = true
 	}
 
-	// Queue is displayed newest-first.
 	for i := len(s.unitsQueue) - 1; i >= 0; i-- {
 		uID := s.unitsQueue[i]
 		u, ok := s.unitByID(uID)
@@ -189,13 +189,16 @@ func (s *Screen) rebuildQueuePanel() {
 	}
 }
 
+// buildQueueCard creates a unit card for the turn queue panel in the header.
+// The active unit's card is added to pulseWidgets so it pulses.
+// Hovering a card also highlights the corresponding hex cell on the board.
 func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 	bgColor := unitFriendlyBgColor
 	if u.IsOpponent {
 		bgColor = unitEnemyBgColor
 	}
 
-	restoreColor := bgColor // capture for closures
+	restoreColor := bgColor
 	var card *widget.Container
 	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
@@ -229,10 +232,9 @@ func (s *Screen) buildQueueCard(u ds.Unit, isActive bool) *widget.Container {
 	return card
 }
 
-// ---------------------------------------------------------------------------
-// Highlight / pulse
-// ---------------------------------------------------------------------------
-
+// highlightActiveUnit updates board visuals when the active unit changes.
+// It restores the previous unit's cell, sets the new active unit,
+// starts the pulse on its hex cell, and rebuilds the queue panel.
 func (s *Screen) highlightActiveUnit(unitID string) {
 	if s.activeUnitID != "" {
 		if prev, ok := s.unitByID(s.activeUnitID); ok {
@@ -264,22 +266,20 @@ func (s *Screen) highlightActiveUnit(unitID string) {
 	s.rebuildQueuePanel()
 }
 
-// setPulseTargets replaces the current pulse widget list and resets the tick.
+// setPulseTargets replaces the queue card pulse list and resets the tick.
 func (s *Screen) setPulseTargets(widgets []*widget.Container) {
 	s.pulseWidgets = widgets
 	s.pulseTick = 0
 }
 
-// setPulseHexTargets replaces the current pulse hex cell list and resets the tick.
+// setPulseHexTargets replaces the hex cell pulse list and resets the tick.
 func (s *Screen) setPulseHexTargets(widgets []*ui.HexCellWidget) {
 	s.pulseHexWidgets = widgets
 	s.pulseTick = 0
 }
 
-// ---------------------------------------------------------------------------
-// Lookup helpers
-// ---------------------------------------------------------------------------
-
+// unitByID searches all board cells and returns the unit with the given ID.
+// Returns false if no unit with that ID is currently on the board.
 func (s *Screen) unitByID(id string) (ds.Unit, bool) {
 	for _, cell := range s.board.Cells {
 		if cell == nil || cell.Unit == nil {
@@ -289,14 +289,11 @@ func (s *Screen) unitByID(id string) (ds.Unit, bool) {
 			return *cell.Unit, true
 		}
 	}
-
 	return ds.Unit{}, false
 }
 
-// ---------------------------------------------------------------------------
-// Assets
-// ---------------------------------------------------------------------------
-
+// unitImage loads the portrait for the given template ID at the specified size.
+// Size defaults to 64px if not provided.
 func unitImage(templateID int, sizeOpt ...int) *ebiten.Image {
 	size := 64
 	if len(sizeOpt) > 0 {
@@ -305,10 +302,8 @@ func unitImage(templateID int, sizeOpt ...int) *ebiten.Image {
 	return asset.Image(path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID)), size)
 }
 
-// ---------------------------------------------------------------------------
-// Tooltip
-// ---------------------------------------------------------------------------
-
+// buildUnitToolTip constructs the tooltip content for a unit card,
+// including icon, name, description, and a stat row (HP, ATK, Move).
 func (s *Screen) buildUnitToolTip(u ds.Unit) *widget.Container {
 	c := buildToolTipBase(unitImage(u.TemplateID, 28), u.Name)
 
@@ -331,6 +326,8 @@ func (s *Screen) buildUnitToolTip(u ds.Unit) *widget.Container {
 	return c
 }
 
+// tooltipStatRow returns a horizontal row with a small icon and a coloured label.
+// Used inside unit tooltips to display individual stat values.
 func tooltipStatRow(iconPath, label string, tf *text.Face, c color.Color) *widget.Container {
 	row := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(

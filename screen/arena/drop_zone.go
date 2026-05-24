@@ -8,14 +8,20 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
+// DropZoneCell tracks the state of a safe-zone hex cell that can accept unit drops.
+// It wraps the underlying HexCellWidget and manages the drop-arrow animation,
+// highlight color, and occupied state independently of the board data.
 type DropZoneCell struct {
 	cell          *ui.HexCellWidget
-	activeGraphic *ebiten.Image
-	occupied      bool
+	activeGraphic *ebiten.Image // current animation frame; nil when not highlighted
+	occupied      bool          // true once a unit has been placed on this cell
 	coord         ds.HexCoord
-	baseColor     color.Color
+	baseColor     color.Color // restore color used after highlight is cleared
 }
 
+// SetHighlight toggles the drop-zone highlight on this cell.
+// When active, the cell is tinted and the drop-arrow animation starts.
+// When inactive, the cell color is restored and the animation is cleared.
 func (sc *DropZoneCell) SetHighlight(active bool) {
 	if !active {
 		if sc.activeGraphic != nil {
@@ -30,6 +36,7 @@ func (sc *DropZoneCell) SetHighlight(active bool) {
 		return
 	}
 
+	// Occupied cells do not show a drop highlight.
 	if sc.occupied {
 		return
 	}
@@ -40,6 +47,8 @@ func (sc *DropZoneCell) SetHighlight(active bool) {
 	}
 }
 
+// SetHover tints the cell when the dragged card hovers directly over it.
+// Has no effect if the cell is already occupied.
 func (sc *DropZoneCell) SetHover(hover bool) {
 	if sc.occupied {
 		return
@@ -51,6 +60,9 @@ func (sc *DropZoneCell) SetHover(hover bool) {
 	}
 }
 
+// RenderAnim draws the drop-arrow animation frame centered on the hex cell.
+// Called from Screen.PostRenderHook between the unit layer and HUD layer.
+// No-ops if there is no active animation frame.
 func (sc *DropZoneCell) RenderAnim(screen *ebiten.Image) {
 	if sc.activeGraphic == nil {
 		return

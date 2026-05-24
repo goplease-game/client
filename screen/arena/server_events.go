@@ -9,6 +9,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
+// handleServerMessage dispatches an incoming server message to the appropriate handler.
 func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	fmt.Printf("received: %v\n", msg.Action)
 
@@ -31,6 +32,7 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 }
 
 // handlePlaceUnit is called when the server enters the unit-placement phase.
+// It marks the screen as ready and prompts the player to deploy a unit.
 func (s *Screen) handlePlaceUnit() {
 	s.ready = true
 	s.unitPlacedThisTurn = false
@@ -45,7 +47,7 @@ func (s *Screen) handlePlaceUnit() {
 	}
 }
 
-// handleEndRound is called when the current round ends and the player may end their turn.
+// handleEndRound is called when the round ends and the player may finish their turn.
 func (s *Screen) handleEndRound() {
 	s.setNextActionLabel("END\nROUND")
 	s.enableNextActionBtn()
@@ -54,7 +56,7 @@ func (s *Screen) handleEndRound() {
 	s.highlightActiveUnit("")
 }
 
-// handleEndTurn is called when the player's turn can be ended.
+// handleEndTurn is called when the server signals the player may end their turn.
 func (s *Screen) handleEndTurn() {
 	s.setNextActionLabel("END\nTURN")
 	s.enableNextActionBtn()
@@ -63,6 +65,7 @@ func (s *Screen) handleEndTurn() {
 }
 
 // handlePlayUnit is called when it is a specific unit's turn to act.
+// It shows the unit's ability panel, highlights it on the board, and enables the Next button.
 func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	var payload ds.PlayUnitPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
@@ -81,7 +84,6 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 
 	s.activeUnitMoved = false
 	s.deselectUnit()
-
 	s.showAbilityPanel(unit)
 	s.highlightActiveUnit(payload.UnitID)
 	s.setNextActionLabel("SKIP\nTURN")
@@ -89,22 +91,21 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.setStatus(fmt.Sprintf("Play unit: %s", unit.Name))
 }
 
-// handleWaitingForOpponent is called when we are waiting for the other player.
+// handleWaitingForOpponent is called when the local player is waiting for the opponent.
 func (s *Screen) handleWaitingForOpponent() {
 	s.hideAbilityPanel()
 	s.setStatus("Waiting for opponent...")
 }
 
 // handleOpponentUnitPlaced is called when the opponent places a unit on the board.
+// It renders the unit card on the destination cell and adds it to the turn queue.
 func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	var payload ds.PlaceUnitPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
 		log.Fatal("handleOpponentUnitPlaced unmarshal:", err)
 	}
 
-	coord := payload.Coord
-
-	cellWidget := s.boardCellWidgets[coord]
+	cellWidget := s.boardCellWidgets[payload.Coord]
 	if cellWidget == nil {
 		return
 	}
@@ -112,17 +113,16 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	cellWidget.SetColor(unitEnemyBgColor)
 	buildBoardCard(cellWidget, *payload.Unit, false)
 
-	opponentUnitID := payload.Unit.ID
-
 	u := *payload.Unit
-	u.Pos = coord
+	u.Pos = payload.Coord
 	u.IsOpponent = true
 
-	s.board.Cells[coord].Unit = &u
-
-	s.addUnitToQueue(opponentUnitID)
+	s.board.Cells[payload.Coord].Unit = &u
+	s.addUnitToQueue(payload.Unit.ID)
 }
 
+// handleUnitMoved is called when any unit (friendly or opponent) moves on the board.
+// It starts the movement animation; finishMove is called when the animation completes.
 func (s *Screen) handleUnitMoved(data json.RawMessage) {
 	var payload ds.UnitMovedPayload
 	if err := json.Unmarshal(data, &payload); err != nil {

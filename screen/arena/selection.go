@@ -7,13 +7,14 @@ import (
 )
 
 // selectUnit is called when the player clicks the active unit on the board.
-// It highlights the unit cell with a border and tints all reachable cells.
+// Tints all reachable cells and stores the selection.
+// A second click on the same unit deselects it.
+// No-ops if the unit has already moved this turn.
 func (s *Screen) selectUnit(u ds.Unit) {
 	if s.activeUnitMoved {
 		return
 	}
 	if s.selectedUnitID == u.ID {
-		// Second click on the same unit — deselect.
 		s.deselectUnit()
 		return
 	}
@@ -21,12 +22,10 @@ func (s *Screen) selectUnit(u ds.Unit) {
 	s.selectedUnitID = u.ID
 	s.reachableCells = u.ReachableCells(s.board)
 
-	// Highlight the unit's own cell with a border.
 	if bc := s.boardCellWidget(u); bc != nil {
 		bc.SetColor(unitFriendlyBgColor)
 	}
 
-	// Tint reachable cells.
 	for _, pos := range s.reachableCells {
 		if w := s.boardCellWidgets[pos]; w != nil {
 			w.SetColor(unitMoveToCellColor)
@@ -34,20 +33,19 @@ func (s *Screen) selectUnit(u ds.Unit) {
 	}
 }
 
-// deselectUnit clears selection and restores all highlighted cells to their original colours.
+// deselectUnit clears the current unit selection and restores all
+// highlighted cells to their original colours. No-ops if nothing is selected.
 func (s *Screen) deselectUnit() {
 	if s.selectedUnitID == "" {
 		return
 	}
 
-	u, ok := s.unitByID(s.selectedUnitID)
-	if ok {
+	if u, ok := s.unitByID(s.selectedUnitID); ok {
 		if bc := s.boardCellWidget(u); bc != nil {
 			bc.SetColor(unitFriendlyBgColor)
 		}
 	}
 
-	// Restore reachable cells.
 	for _, pos := range s.reachableCells {
 		cell := s.board.Cells[pos]
 
@@ -69,6 +67,8 @@ func (s *Screen) deselectUnit() {
 	s.reachableCells = nil
 }
 
+// onReachableCellClicked is called when the player clicks a highlighted reachable cell.
+// It starts the movement animation and immediately notifies the server.
 func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 	u, ok := s.unitByID(s.selectedUnitID)
 	if !ok {
@@ -79,7 +79,7 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 
 	s.deselectUnit()
 
-	// Hide the unit icon on the source cell for the duration of the animation.
+	// Remove the unit icon from the source cell for the duration of the animation.
 	if w := s.boardCellWidgets[from]; w != nil {
 		w.RemoveChildren()
 	}
@@ -91,7 +91,7 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 		func() { s.finishMove(u, from, to) },
 	)
 
-	// Send to server immediately — the server doesn't need to wait for visuals.
+	// Notify the server immediately — it does not need to wait for the animation.
 	s.server.Send(ws.OutMessage{
 		Action: ws.UnitMovedAction,
 		Data: ds.UnitMovedPayload{
@@ -101,8 +101,8 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 	})
 }
 
-// finishMove is called by the animation's onDone callback.
-// It commits board state and updates cell visuals.
+// finishMove is called by the moveAnim onDone callback.
+// It commits board state, updates cell visuals, and starts the pulse on the destination cell.
 func (s *Screen) finishMove(u ds.Unit, from ds.HexCoord, to ds.HexCoord) {
 	s.moveUnit(u, to)
 
@@ -124,20 +124,17 @@ func (s *Screen) finishMove(u ds.Unit, from ds.HexCoord, to ds.HexCoord) {
 		if u.IsOpponent {
 			targetBg = unitEnemyBgColor
 		}
-
 		toW.SetColor(targetBg)
 		toW.RemoveChildren()
 		buildBoardCard(toW, u, false)
-	}
 
-	if !u.IsOpponent {
-		if toW := s.boardCellWidgets[to]; toW != nil {
+		if !u.IsOpponent {
 			s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
 		}
 	}
 }
 
-// removePulseWidget removes a specific cell from the pulse list.
+// removePulseWidget removes w from the pulse list if present.
 func (s *Screen) removePulseWidget(w *ui.HexCellWidget) {
 	for i, pw := range s.pulseHexWidgets {
 		if pw == w {
@@ -147,8 +144,8 @@ func (s *Screen) removePulseWidget(w *ui.HexCellWidget) {
 	}
 }
 
-// restoreSafeZoneCell marks the cell at (r, c) unoccupied if it is a SafeZone,
-// allowing future unit placement there.
+// restoreSafeZoneCell resets the safe-zone cell at coord to unoccupied,
+// allowing a unit to be placed there again in a future turn.
 func (s *Screen) restoreSafeZoneCell(coord ds.HexCoord) {
 	for _, sc := range s.safeZoneCells {
 		if sc.coord == coord {

@@ -6,9 +6,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// buildToolTipBase creates the common tooltip shell: a bordered container
-// with a header row consisting of an icon and a title. Both abilities.go and
-// units.go call this and then append their own content rows.
+// buildToolTipBase creates the common tooltip shell: a bordered vertical
+// container with a header row consisting of an icon and a title.
+// Callers (ability panel, unit panel) append their own content rows to the
+// returned container.
 func buildToolTipBase(icon *ebiten.Image, title string) *widget.Container {
 	c := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewBorderedNineSliceColor(ttBgColor, ttBorderColor, 2)),
@@ -42,6 +43,5 @@ func buildToolTipBase(icon *ebiten.Image, title string) *widget.Container {
 	))
 
 	c.AddChild(header)
-
 	return c
 }
