@@ -10,7 +10,7 @@ import (
 // Tints all reachable cells and stores the selection.
 // A second click on the same unit deselects it.
 // No-ops if the unit has already moved this turn.
-func (s *Screen) selectUnit(u ds.Unit) {
+func (s *Screen) selectUnit(u *ds.Unit) {
 	if s.activeUnitMoved {
 		return
 	}
@@ -40,10 +40,9 @@ func (s *Screen) deselectUnit() {
 		return
 	}
 
-	if u, ok := s.unitByID(s.selectedUnitID); ok {
-		if bc := s.boardCellWidget(u); bc != nil {
-			bc.SetColor(unitFriendlyBgColor)
-		}
+	u := s.unitByID(s.selectedUnitID)
+	if bc := s.boardCellWidget(u); bc != nil {
+		bc.SetColor(unitFriendlyBgColor)
 	}
 
 	for _, pos := range s.reachableCells {
@@ -70,11 +69,7 @@ func (s *Screen) deselectUnit() {
 // onReachableCellClicked is called when the player clicks a highlighted reachable cell.
 // It starts the movement animation and immediately notifies the server.
 func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
-	u, ok := s.unitByID(s.selectedUnitID)
-	if !ok {
-		return
-	}
-
+	u := s.unitByID(s.selectedUnitID)
 	from := ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}
 
 	s.deselectUnit()
@@ -103,11 +98,13 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 
 // finishMove is called by the moveAnim onDone callback.
 // It commits board state, updates cell visuals, and starts the pulse on the destination cell.
-func (s *Screen) finishMove(u ds.Unit, from ds.HexCoord, to ds.HexCoord) {
+func (s *Screen) finishMove(u *ds.Unit, from ds.HexCoord, to ds.HexCoord) {
 	s.moveUnit(u, to)
 
 	if s.selectedUnitID == u.ID || !u.IsOpponent {
 		s.activeUnitMoved = true
+		s.updateActiveUnitStatusLabel()
+		s.updateNextActionLabel()
 	}
 
 	s.activeMoveAnim = nil

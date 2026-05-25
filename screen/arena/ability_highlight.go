@@ -25,10 +25,7 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 	}
 	s.deselectUnit()
 
-	caster, ok := s.unitByID(s.activeUnitID)
-	if !ok {
-		return
-	}
+	caster := s.unitByID(s.activeUnitID)
 
 	rangeN := ab.Range
 	var cells []ds.HexCoord
@@ -89,7 +86,7 @@ func (s *Screen) clearAbilityHighlight() {
 
 // isValidTarget reports whether target is a valid target for ab cast by caster,
 // based on the ability's TargetMode.
-func (s *Screen) isValidTarget(ab ability.Ability, caster ds.Unit, target ds.Unit) bool {
+func (s *Screen) isValidTarget(ab ability.Ability, caster *ds.Unit, target ds.Unit) bool {
 	switch ab.TargetMode {
 	case ability.TargetEnemies:
 		return target.IsOpponent != caster.IsOpponent

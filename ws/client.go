@@ -57,6 +57,7 @@ const (
 	PlayUnitAction     Action = "play_unit"
 	UnitMovedAction    Action = "unit_moved"
 	UseAbility         Action = "use_ability"
+	NewRound           Action = "new_round"
 
 	OppDisconnectedAction Action = "opp_disconnected"
 	CancelMatchAction     Action = "cancel_match"

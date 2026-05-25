@@ -1,6 +1,7 @@
 package arena
 
 import (
+	"fmt"
 	"image/color"
 	"math"
 
@@ -40,9 +41,10 @@ type Screen struct {
 	player             ds.Player
 	opponentName       string
 	isMyTurn           bool
-	unitsQueue         []string
+	unitsQueue         []*ds.Unit
 	activeUnitID       string
 	activeUnitIndex    int
+	prevActiveUnitID   string
 	roundNumber        int
 	unitPlacedThisTurn bool
 	queueIn            bool
@@ -61,7 +63,6 @@ type Screen struct {
 	unitPanelRef  *widget.Container
 	nextActionBtn *widget.Button
 	statusLabel   *widget.Text
-	prevStatus    string
 
 	// Ability targeting state.
 	abilityPanelRef            *widget.Container
@@ -312,18 +313,29 @@ func (s *Screen) setStatus(text string) {
 	}
 }
 
-// pushStatus saves the current status and sets a new one.
-func (s *Screen) pushStatus(text string) {
-	if s.statusLabel != nil {
-		s.prevStatus = s.statusLabel.Label
+// updateActiveUnitStatusLabel sets the status bar text based on what the active unit can still do.
+func (s *Screen) updateActiveUnitStatusLabel() {
+	u := s.unitByID(s.activeUnitID)
+	if u == nil {
+		return
 	}
-	s.setStatus(text)
-}
 
-// popStatus restores the previously saved status.
-func (s *Screen) popStatus() {
-	s.setStatus(s.prevStatus)
-	s.prevStatus = ""
+	canMove := !s.activeUnitMoved
+	canAct := u.CurrentAP > 0
+
+	var status string
+	switch {
+	case canMove && canAct:
+		status = fmt.Sprintf("%s can move and use an ability", u.Name)
+	case canMove:
+		status = fmt.Sprintf("%s can move", u.Name)
+	case canAct:
+		status = fmt.Sprintf("%s can use an ability", u.Name)
+	default:
+		status = fmt.Sprintf("%s may end turn", u.Name)
+	}
+
+	s.setStatus(status)
 }
 
 // takeSnapshot captures the current game state into a GameSnapshot.
@@ -353,7 +365,7 @@ func (s *Screen) restoreBoardVisuals() {
 			continue
 		}
 
-		u := *cell.Unit
+		u := cell.Unit
 
 		w := s.boardCellWidgets[pos]
 		if w == nil {

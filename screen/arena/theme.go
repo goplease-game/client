@@ -55,14 +55,16 @@ var (
 	abilityTargetCellColor = ui.RGBFromHex("D70654")
 	abilityRangeCellColor  = ui.RGBFromHex("7c9493")
 	// pulse colors for selected ability card
-	activeAbilityBgColor       = ui.RGBFromHex("48A111")
-	activeAbilityFgColor       = ui.RGBFromHex("f5df4d")
-	abilitySelectedPulseColor1 = activeAbilityFgColor
-	abilitySelectedPulseColor2 = activeAbilityBgColor
+	activeAbilityBgColor        = ui.RGBFromHex("48A111")
+	activeAbilityFgColor        = ui.RGBFromHex("f5df4d")
+	abilitySelectedPulseColor1  = activeAbilityFgColor
+	abilitySelectedPulseColor2  = activeAbilityBgColor
+	abilityCooldownCounterColor = colornames.White
 )
 
 // Font faces used across the arena package.
 var (
-	toolTipTitleTF = ui.TextFace(28)
-	toolTipTextTF  = ui.TextFace(18)
+	toolTipTitleTF           = ui.TextFace(28)
+	toolTipTextTF            = ui.TextFace(18)
+	abilityCooldownCounterTF = ui.TextFace(40)
 )

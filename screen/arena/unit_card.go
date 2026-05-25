@@ -23,7 +23,7 @@ type UnitCardRefs struct {
 // buildHandCard adds a draggable unit portrait to c.
 // Used for cards in the player's hand panel.
 // Returns refs so the caller can swap the icon image on cursor enter/exit.
-func buildHandCard(c *widget.Container, u ds.Unit) UnitCardRefs {
+func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
 	normalImg := unitImage(u.TemplateID, unitCardSize)
 	hoverImg := ui.TintImage(normalImg, unitCardHoverFgColor)
 
@@ -48,7 +48,7 @@ func buildHandCard(c *widget.Container, u ds.Unit) UnitCardRefs {
 // buildBoardCard adds a unit portrait and HUD badges to a ChildAdder (hex cell or container).
 // The portrait goes to the unit layer; the HP badge goes to the HUD layer.
 // If canMove is true, a walk indicator badge is also added.
-func buildBoardCard(c ChildAdder, u ds.Unit, canMove bool) UnitCardRefs {
+func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 	icon := widget.NewGraphic(
 		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
 		widget.GraphicOpts.WidgetOpts(
@@ -60,13 +60,29 @@ func buildBoardCard(c ChildAdder, u ds.Unit, canMove bool) UnitCardRefs {
 	)
 
 	c.AddToUnitLayer(icon)
-	c.AddToHUDLayer(hpBadge(u.CurrentHP))
+	c.AddToHUDLayer(hpBadge(u.CurrentHP, 40, -6))
 
 	if canMove {
 		c.AddToHUDLayer(walkBadge())
 	}
 
 	return UnitCardRefs{Icon: icon}
+}
+
+// buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
+// Queue cards don't show the walk badge — that's board-only.
+func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
+	icon := widget.NewGraphic(
+		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+	c.AddToUnitLayer(icon)
+	c.AddToHUDLayer(hpBadge(u.CurrentHP, -6, -6))
 }
 
 // walkBadge returns a small container with a walk icon, anchored to the
@@ -81,7 +97,7 @@ func walkBadge() *widget.Container {
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionStart,
 				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: 35, Left: -5},
+				Padding:            &widget.Insets{Top: 35, Left: 48},
 			}),
 		),
 	)
@@ -101,7 +117,7 @@ func walkBadge() *widget.Container {
 
 // hpBadge returns a small container that displays a heart icon with the HP
 // value overlaid, anchored slightly outside the top-left corner of the hex cell.
-func hpBadge(hp int) *widget.Container {
+func hpBadge(hp int, top, left int) *widget.Container {
 	const iconSize = 30
 
 	badge := widget.NewContainer(
@@ -111,7 +127,7 @@ func hpBadge(hp int) *widget.Container {
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionStart,
 				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: -6, Left: -6},
+				Padding:            &widget.Insets{Top: top, Left: left},
 			}),
 		),
 	)

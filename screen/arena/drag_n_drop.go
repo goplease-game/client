@@ -9,7 +9,7 @@ import (
 // dndUnit builds and caches the drag widget for a unit card.
 // It implements the EbitenUI DragAndDrop creator interface.
 type dndUnit struct {
-	unit       ds.Unit
+	unit       *ds.Unit
 	dragWidget *widget.Container // lazily created and reused across drags
 }
 

@@ -26,6 +26,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleWaitingForOpponent()
 	case ws.UnitPlacedAction:
 		s.handleOpponentUnitPlaced(msg.Data)
+	case ws.NewRound:
+		s.handleNewRound(msg.Data)
 	case ws.UnitMovedAction:
 		s.handleUnitMoved(msg.Data)
 	}
@@ -36,7 +38,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 func (s *Screen) handlePlaceUnit() {
 	s.ready = true
 	s.unitPlacedThisTurn = false
-	s.highlightActiveUnit("")
+	s.activeUnitID = ""
+	s.highlightActiveUnit()
 	s.hideAbilityPanel()
 	s.setupUnitPanel()
 
@@ -53,7 +56,8 @@ func (s *Screen) handleEndRound() {
 	s.enableNextActionBtn()
 	s.endTurnBtnPulseActive = true
 	s.setStatus("You can end your turn")
-	s.highlightActiveUnit("")
+	s.activeUnitID = ""
+	s.highlightActiveUnit()
 }
 
 // handleEndTurn is called when the server signals the player may end their turn.
@@ -61,7 +65,8 @@ func (s *Screen) handleEndTurn() {
 	s.setNextActionLabel("END\nTURN")
 	s.enableNextActionBtn()
 	s.endTurnBtnPulseActive = true
-	s.highlightActiveUnit("")
+	s.activeUnitID = ""
+	s.highlightActiveUnit()
 }
 
 // handlePlayUnit is called when it is a specific unit's turn to act.
@@ -72,8 +77,8 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 		log.Fatal("handlePlayUnit unmarshal:", err)
 	}
 
-	unit, ok := s.unitByID(payload.UnitID)
-	if !ok {
+	unit := s.unitByID(payload.UnitID)
+	if unit == nil {
 		log.Fatal("handlePlayUnit: unit not found:", payload.UnitID)
 	}
 
@@ -82,13 +87,16 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 		s.unitPanelIn = false
 	}
 
+	unit.CurrentAP = unit.BaseAP
+
+	s.activeUnitID = payload.UnitID
 	s.activeUnitMoved = false
 	s.deselectUnit()
+	s.highlightActiveUnit()
 	s.showAbilityPanel(unit)
-	s.highlightActiveUnit(payload.UnitID)
 	s.setNextActionLabel("SKIP\nTURN")
 	s.enableNextActionBtn()
-	s.setStatus(fmt.Sprintf("Play unit: %s", unit.Name))
+	s.updateActiveUnitStatusLabel()
 }
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
@@ -111,14 +119,32 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	}
 
 	cellWidget.SetColor(unitEnemyBgColor)
-	buildBoardCard(cellWidget, *payload.Unit, false)
+	buildBoardCard(cellWidget, payload.Unit, false)
 
 	u := *payload.Unit
 	u.Pos = payload.Coord
 	u.IsOpponent = true
 
 	s.board.Cells[payload.Coord].Unit = &u
-	s.addUnitToQueue(payload.Unit.ID)
+	s.addUnitToQueue(&u)
+}
+
+func (s *Screen) handleNewRound(data json.RawMessage) {
+	for _, u := range s.unitsQueue {
+		for id, cd := range u.Cooldowns {
+			if cd > 0 {
+				u.Cooldowns[id] = cd - 1
+			}
+		}
+	}
+
+	if s.activeUnitID == "" {
+		return
+	}
+
+	if u := s.unitByID(s.activeUnitID); u != nil {
+		s.showAbilityPanel(u)
+	}
 }
 
 // handleUnitMoved is called when any unit (friendly or opponent) moves on the board.
@@ -129,8 +155,8 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		log.Fatal("handleUnitMoved unmarshal:", err)
 	}
 
-	u, ok := s.unitByID(payload.UnitID)
-	if !ok {
+	u := s.unitByID(payload.UnitID)
+	if u == nil {
 		log.Printf("[warn] handleUnitMoved: unit %s not found", payload.UnitID)
 		return
 	}

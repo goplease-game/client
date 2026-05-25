@@ -120,6 +120,15 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 				return
 			}
 			s.stopEndTurnPulse()
+
+			if u := s.unitByID(s.activeUnitID); u != nil {
+				if bc := s.boardCellWidget(u); bc != nil {
+					bc.RemoveChildren()
+					buildBoardCard(bc, u, false)
+				}
+			}
+
+			s.setPulseHexTargets(nil)
 			s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 		}),
 	)
@@ -197,5 +206,15 @@ func (s *Screen) setNextActionLabel(label string) {
 func (s *Screen) enableNextActionBtn() {
 	if s.nextActionBtn != nil {
 		s.nextActionBtn.GetWidget().Disabled = false
+	}
+}
+
+// updateNextActionLabel sets the Next button label based on
+// whether the unit has exhausted both movement and AP.
+func (s *Screen) updateNextActionLabel() {
+	if s.activeUnitMoved && s.activeUnitAP() == 0 {
+		s.setNextActionLabel("END\nTURN")
+	} else {
+		s.setNextActionLabel("SKIP\nTURN")
 	}
 }

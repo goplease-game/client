@@ -19,7 +19,7 @@ import (
 // showAbilityPanel builds and attaches an ability card row to the footer
 // for the given unit. Any previously shown panel is removed first.
 // Does nothing if the unit has no abilities.
-func (s *Screen) showAbilityPanel(unit ds.Unit) {
+func (s *Screen) showAbilityPanel(unit *ds.Unit) {
 	s.hideAbilityPanel()
 
 	if len(unit.Abilities) == 0 {
@@ -65,20 +65,26 @@ func (s *Screen) hideAbilityPanel() {
 // tooltip, ability icon, and an optional cooldown badge.
 func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	bgColor := abilityCardBgColor(ab)
+	u := s.unitByID(s.activeUnitID)
+	onCooldown := u != nil && u.Cooldowns[ab.ID] > 0
+	disabled := !onCooldown && u != nil && u.CurrentAP == 0 && !ab.IsPassive
+	blocked := onCooldown || disabled
 
-	normalAbilityImage := abilityImage(string(ab.ID))
-	activeAbilityImage := ui.TintImage(normalAbilityImage, activeAbilityFgColor)
+	iconGraphic := s.buildAbilityIcon(ab)
+	card := s.buildAbilityCardContainer(ab, bgColor, blocked, iconGraphic)
+	card.AddChild(iconGraphic)
 
-	iconGraphic := widget.NewGraphic(
-		widget.GraphicOpts.Image(normalAbilityImage),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
+	switch {
+	case onCooldown:
+		card.AddChild(s.buildCooldownOverlay(u.Cooldowns[ab.ID]))
+	case disabled:
+		card.AddChild(s.buildDisabledOverlay())
+	}
 
+	return card
+}
+
+func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Color, blocked bool, iconGraphic *widget.Graphic) *widget.Container {
 	var card *widget.Container
 	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
@@ -97,35 +103,89 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 				),
 			),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				if blocked {
+					return
+				}
 				card.SetBackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(bgColor, 30)))
 				s.highlightAbilityRange(ab)
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
+				if blocked {
+					return
+				}
 				if s.selectedAbility == nil || s.selectedAbility.ID != ab.ID {
 					card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
-					iconGraphic.Image = normalAbilityImage
 				}
 				s.clearAbilityHighlight()
 			}),
 			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
 				if args.Button == ebiten.MouseButtonLeft && args.Inside {
+					if blocked {
+						return
+					}
 					s.onAbilityCardClicked(ab, card, bgColor)
 					if s.selectedAbility != nil && s.selectedAbility.ID == ab.ID {
-						iconGraphic.Image = activeAbilityImage
+						iconGraphic.Image = ui.TintImage(abilityImage(string(ab.ID)), activeAbilityFgColor)
 						s.selectedAbilityIcon = iconGraphic
 					}
 				}
 			}),
 		),
 	)
-
-	card.AddChild(iconGraphic)
-
-	if ab.Cooldown > 0 {
-		card.AddChild(buildCooldownBadge(ab.Cooldown))
-	}
-
 	return card
+}
+
+func (s *Screen) buildAbilityIcon(ab ability.Ability) *widget.Graphic {
+	return widget.NewGraphic(
+		widget.GraphicOpts.Image(abilityImage(string(ab.ID))),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+}
+
+func (s *Screen) buildCooldownOverlay(remaining int) *widget.Container {
+	overlay := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(
+			color.NRGBA{0x00, 0x00, 0x00, 0x99},
+		)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				StretchHorizontal: true,
+				StretchVertical:   true,
+			}),
+		),
+	)
+	overlay.AddChild(widget.NewText(
+		widget.TextOpts.Text(fmt.Sprintf("%d", remaining), &abilityCooldownCounterTF, abilityCooldownCounterColor),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	))
+
+	return overlay
+}
+
+func (s *Screen) buildDisabledOverlay() *widget.Container {
+	return widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(
+			color.NRGBA{0x00, 0x00, 0x00, 0xbb},
+		)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				StretchHorizontal: true,
+				StretchVertical:   true,
+			}),
+		),
+	)
 }
 
 // abilityCardBgColor returns the background colour for an ability card
@@ -139,35 +199,6 @@ func abilityCardBgColor(ab ability.Ability) color.Color {
 	default:
 		return abilityBgColor
 	}
-}
-
-// buildCooldownBadge returns a small badge anchored to the top-left of an
-// ability card showing the cooldown turn count with a clock icon.
-func buildCooldownBadge(cooldown int) *widget.Container {
-	badge := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(2),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionStart,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: 3, Left: 3},
-			}),
-		),
-	)
-
-	badge.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(asset.Image("turn.png", 12)),
-	))
-
-	tf := ui.TextFace(11)
-	badge.AddChild(widget.NewText(
-		widget.TextOpts.Text(fmt.Sprintf("%d", cooldown), &tf, colornames.White),
-	))
-
-	return badge
 }
 
 // abilityImage loads the icon for the given ability ID at the specified size.

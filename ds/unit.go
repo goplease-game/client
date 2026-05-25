@@ -15,8 +15,9 @@ type Unit struct {
 	CurrentHP     int `json:"current_hp"`
 	CurrentShield int `json:"current_shield"`
 
-	AP int `json:"ap"` // Action Points
-	MP int `json:"mp"` // Move Points
+	BaseAP    int `json:"base_ap"` // Action Points
+	CurrentAP int `json:"current_ap"`
+	MP        int `json:"mp"` // Move Points
 
 	Pos HexCoord `json:"pos"`
 

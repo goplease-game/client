@@ -38,7 +38,7 @@ func (s *Screen) onAbilityCardClicked(ab ability.Ability, card *widget.Container
 	s.selectedAbilityCard = card
 	s.selectedAbilityCardColor = bgColor
 	s.selectedAbilityActiveColor = activeAbilityBgColor
-	s.pushStatus(fmt.Sprintf("Select target to use %s (Press ESC to cancel)", ab.Name))
+	s.setStatus(fmt.Sprintf("Select target to use %s (Press ESC to cancel)", ab.Name))
 }
 
 // onCellClickedWithAbility checks if a selected ability can be applied to coord.
@@ -64,10 +64,7 @@ func (s *Screen) onCellClickedWithAbility(coord ds.HexCoord) bool {
 
 // isValidAbilityTarget checks whether coord is a valid target for ab.
 func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord, cell *ds.BoardCell) bool {
-	caster, ok := s.unitByID(s.activeUnitID)
-	if !ok {
-		return false
-	}
+	caster := s.unitByID(s.activeUnitID)
 
 	// Must be within range.
 	if ab.Range > 0 && HexDistance(caster.Pos, coord) > ab.Range {
@@ -105,6 +102,7 @@ func (s *Screen) cancelAbilitySelection() {
 		)
 		s.selectedAbilityCard = nil
 		s.selectedAbilityCardColor = nil
+		s.selectedAbilityActiveColor = nil
 	}
 
 	if s.selectedAbilityIcon != nil && s.selectedAbility != nil {
@@ -113,9 +111,8 @@ func (s *Screen) cancelAbilitySelection() {
 	}
 
 	s.selectedAbility = nil
-	s.selectedAbilityActiveColor = nil
 	s.clearAbilityHighlight()
-	s.popStatus()
+	s.updateActiveUnitStatusLabel()
 }
 
 // sendUseAbility sends the UseAbility message to the server.
@@ -128,4 +125,22 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 			Target:    target,
 		},
 	})
+
+	u := s.unitByID(s.activeUnitID)
+	if u == nil {
+		return
+	}
+	u.CurrentAP--
+	ab := ability.ByID(abilityID)
+	if ab.Cooldown > 0 {
+		if u.Cooldowns == nil {
+			u.Cooldowns = make(map[ability.ID]int)
+		}
+		u.Cooldowns[abilityID] = ab.Cooldown
+	}
+
+	s.clearAbilityHighlight()
+	s.showAbilityPanel(u)
+	s.updateActiveUnitStatusLabel()
+	s.updateNextActionLabel()
 }

@@ -281,6 +281,8 @@ func (m *MockClient) startNewRound() {
 	gs.ActiveUnit = 0
 	gs.Phase = mock.PlayPhase
 
+	m.send(NewRound)
+
 	if mock.UnitsPerPlacementPhase >= 2 {
 		mock.UnitsPerPlacementPhase--
 	}

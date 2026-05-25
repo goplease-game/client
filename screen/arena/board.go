@@ -96,11 +96,11 @@ func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWi
 func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widget.WidgetOpt {
 	return []widget.WidgetOpt{
 		widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
-			_, ok := args.Data.(ds.Unit)
+			_, ok := args.Data.(*ds.Unit)
 			return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn
 		}),
 		widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
-			unit, ok := args.Data.(ds.Unit)
+			unit, ok := args.Data.(*ds.Unit)
 			if !ok {
 				return
 			}
@@ -111,7 +111,7 @@ func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widge
 
 // onUnitDropped is called when a unit card is successfully dropped onto a safe-zone cell.
 // It marks the cell as occupied, renders the unit card, and notifies the server.
-func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, coord ds.HexCoord) {
+func (s *Screen) onUnitDropped(sc *DropZoneCell, unit *ds.Unit, coord ds.HexCoord) {
 	sc.occupied = true
 	sc.baseColor = unitFriendlyBgColor
 	s.unitPlacedThisTurn = true
@@ -125,7 +125,7 @@ func (s *Screen) onUnitDropped(sc *DropZoneCell, unit ds.Unit, coord ds.HexCoord
 
 // boardCellWidget returns the HexCellWidget for the cell occupied by unit u,
 // or nil if the cell does not exist.
-func (s *Screen) boardCellWidget(u ds.Unit) *ui.HexCellWidget {
+func (s *Screen) boardCellWidget(u *ds.Unit) *ui.HexCellWidget {
 	return s.boardCellWidgets[ds.HexCoord{Q: u.Pos.Q, R: u.Pos.R}]
 }
 
@@ -144,7 +144,7 @@ func (s *Screen) onCellClicked(coord ds.HexCoord) {
 
 	if cell != nil && cell.Unit != nil &&
 		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
-		s.selectUnit(*cell.Unit)
+		s.selectUnit(cell.Unit)
 		return
 	}
 

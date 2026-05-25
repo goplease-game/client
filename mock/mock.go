@@ -120,8 +120,8 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 	}
 
 	activeUnitIdx := NoActiveUnit
-	for i, unitID := range snap.UnitsQueue {
-		if unitID == snap.ActiveUnitID {
+	for i, unit := range snap.UnitsQueue {
+		if unit.ID == snap.ActiveUnitID {
 			activeUnitIdx = i
 			break
 		}
@@ -136,7 +136,7 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 		RoomID:       snap.RoomID,
 		Board:        snap.Board,
 		Players:      [2]*ds.Player{&p1, p2},
-		UnitsQueue:   unitsQueueFromIDs(snap.UnitsQueue, snap.Board),
+		UnitsQueue:   snap.UnitsQueue,
 		CurrentRound: snap.Round,
 		ActiveUnit:   activeUnitIdx,
 		ActivePlayer: 0,
@@ -179,26 +179,6 @@ func unitsNotOnBoard(initial []ds.Unit, onBoard []*ds.Unit) []ds.Unit {
 	}
 
 	return result
-}
-
-// unitsQueueFromIDs rebuilds the queue as []*ds.Unit from the stored IDs,
-// looking up each unit on the board.
-func unitsQueueFromIDs(ids []string, board ds.Board) []*ds.Unit {
-	index := make(map[string]*ds.Unit)
-
-	for _, cell := range board.Cells {
-		if cell != nil && cell.Unit != nil {
-			index[cell.Unit.ID] = cell.Unit
-		}
-	}
-
-	var queue []*ds.Unit
-	for _, id := range ids {
-		if u, ok := index[id]; ok {
-			queue = append(queue, u)
-		}
-	}
-	return queue
 }
 
 func GetGameState() *GameState {
