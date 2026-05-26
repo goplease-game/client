@@ -8,7 +8,7 @@ const (
 	BasicMagicAttack ID = "basic_magic_attack"
 
 	// Tank
-	Phalanx     ID = "phalanx"
+	Fortify     ID = "fortify"
 	Provoke     ID = "provoke"
 	ShieldBash  ID = "shield_bash"
 	UndyingWill ID = "undying_will"
@@ -80,10 +80,10 @@ var Abilities = map[ID]Ability{
 	},
 
 	// --- TANK ---
-	Phalanx: {
+	Fortify: {
 		Type:        Skill,
 		IsPassive:   false,
-		Name:        "Phalanx",
+		Name:        "Fortify",
 		Description: "You and adjacent allies gain +3 Shield. Shield decays by 1 at the start of each turn.",
 		Cooldown:    3,
 		Range:       0,

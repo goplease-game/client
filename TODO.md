@@ -7,9 +7,10 @@ Core (required for release):
 * Practice mode (With bot, without time limit)
     
 
-UX
+UX (in not specific order)
  * When ability doesnt have valid target, simply show "No valid target(s)", instead of activating it
  * Preview ability result before activation
+ * keyboard shortcuts
 
 NEXT:
 * Save/Load game

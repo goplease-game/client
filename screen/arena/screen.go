@@ -92,6 +92,10 @@ type Screen struct {
 	activeUnitMoved bool          // true once the active unit has moved this turn
 	activeMoveAnim  *moveAnim     // non-nil while a movement animation is in progress
 
+	activeFxAnims []*ActiveFxAnim
+	// delayedActions holds pending actions scheduled to run after a fixed number of frames.
+	delayedActions []delayedAction
+
 	// ready is set to true when the server responds with phase unit_placement,
 	// meaning the match has started and the local player may interact.
 	ready bool
@@ -140,6 +144,8 @@ func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	}
 done:
 
+	s.updateDelayedActions()
+
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
@@ -160,6 +166,7 @@ done:
 	s.updatePulse()
 	s.updateDropZoneAnim()
 	s.activeMoveAnim.update()
+	s.updateFxAnims()
 	s.ui.Update()
 
 	if s.pendingScreen != nil {
@@ -175,6 +182,16 @@ done:
 func (s *Screen) Draw(screen *ebiten.Image) {
 	// ui.Draw triggers PostRenderHook which renders hex fills, grid, and overlays.
 	s.ui.Draw(screen)
+
+	for _, fx := range s.activeFxAnims {
+		frame := fx.player.CurrentFrame
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(
+			float64(fx.pos.X)-float64(frame.Bounds().Dx())/2,
+			float64(fx.pos.Y)-float64(frame.Bounds().Dy())/2,
+		)
+		screen.DrawImage(frame, op)
+	}
 
 	// Movement animation is rendered above everything including EbitenUI windows.
 	if s.activeMoveAnim.active() {

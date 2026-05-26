@@ -60,6 +60,8 @@ func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 	)
 
 	c.AddToUnitLayer(icon)
+	u.Graphic = icon
+
 	c.AddToHUDLayer(hpBadge(u.CurrentHP, 40, -6))
 
 	if canMove {

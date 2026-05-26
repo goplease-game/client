@@ -9,6 +9,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
@@ -222,6 +223,7 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 		}),
 		widget.ButtonOpts.ClickedHandler(clickHandler),
 		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
+			sfx.Play("button_hover.ogg")
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.Text().SetFace(&tfHover)
 			button.GetWidget().Render(nil)

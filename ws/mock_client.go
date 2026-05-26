@@ -101,6 +101,7 @@ func (m *MockClient) onReadyToPlay() {
 
 // onUnitPlaced is called after the real player drops a unit onto the board.
 func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
+	time.Sleep(mockDelay)
 	gs := mock.GetGameState()
 
 	unit := mock.PickUnitFromHandByTemplateP1(data.TemplateID)

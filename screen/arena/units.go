@@ -12,6 +12,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -66,6 +67,7 @@ func (s *Screen) buildUnitCard(u *ds.Unit) *widget.Container {
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(unitCardSize, unitCardSize),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				sfx.Play(unitHoverSound)
 				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHoverBgColor))
 				refs.Icon.Image = refs.HoverIcon
 			}),
@@ -102,6 +104,7 @@ func (s *Screen) buildUnitCard(u *ds.Unit) *widget.Container {
 // It removes the unit from the player's hand, updates the board state,
 // adds the unit to the turn queue, and notifies the server.
 func (s *Screen) onUnitPlaced(u *ds.Unit, coord ds.HexCoord) {
+	sfx.Play(unitPlacedSound)
 	s.removeUnitCard(u.ID)
 
 	for i, pu := range s.player.Units {
@@ -348,4 +351,33 @@ func (s *Screen) activeUnitAP() int {
 		return u.CurrentAP
 	}
 	return 0
+}
+
+// hideUnitOnBoard removes the unit portrait from its board cell visually.
+// The unit remains in unitsQueue and board state — only the visual is hidden.
+func (s *Screen) hideUnitOnBoard(unit *ds.Unit) {
+	w := s.boardCellWidgets[unit.Pos]
+	if w == nil {
+		return
+	}
+	w.RemoveChildren()
+}
+
+// showUnitOnBoard redraws the unit portrait on its current board cell.
+func (s *Screen) showUnitOnBoard(unit *ds.Unit) {
+	w := s.boardCellWidgets[unit.Pos]
+	if w == nil {
+		return
+	}
+	w.RemoveChildren()
+	buildBoardCard(w, unit, false)
+}
+
+// unitAtCoord returns the unit at the given hex coord, or nil if the cell is empty.
+func (s *Screen) unitAtCoord(coord ds.HexCoord) *ds.Unit {
+	cell := s.board.Cells[coord]
+	if cell == nil || cell.Unit == nil {
+		return nil
+	}
+	return s.unitByID(cell.Unit.ID)
 }

@@ -117,6 +117,11 @@ func (s *Screen) cancelAbilitySelection() {
 
 // sendUseAbility sends the UseAbility message to the server.
 func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
+	u := s.unitByID(s.activeUnitID)
+	if u == nil {
+		return
+	}
+
 	s.server.Send(ws.OutMessage{
 		Action: ws.UseAbility,
 		Data: ds.UseAbilityPayload{
@@ -126,11 +131,6 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 		},
 	})
 
-	u := s.unitByID(s.activeUnitID)
-	if u == nil {
-		return
-	}
-	u.CurrentAP--
 	ab := ability.ByID(abilityID)
 	if ab.Cooldown > 0 {
 		if u.Cooldowns == nil {
@@ -138,9 +138,14 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 		}
 		u.Cooldowns[abilityID] = ab.Cooldown
 	}
+	u.CurrentAP--
 
 	s.clearAbilityHighlight()
 	s.showAbilityPanel(u)
-	s.updateActiveUnitStatusLabel()
 	s.updateNextActionLabel()
+	s.updateActiveUnitStatusLabel()
+
+	s.playAbilityFx(abilityID, u, target, func() {
+		// TODO: effects from server
+	})
 }

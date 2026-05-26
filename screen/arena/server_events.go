@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -127,6 +128,7 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 
 	s.board.Cells[payload.Coord].Unit = &u
 	s.addUnitToQueue(&u)
+	sfx.Play(unitPlacedSound)
 }
 
 func (s *Screen) handleNewRound(data json.RawMessage) {

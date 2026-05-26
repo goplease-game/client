@@ -1004,12 +1004,12 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "mp": 30,
         "row": -1,
         "col": -1,
         "abilities": [
           "basic_melee_attack",
-          "phalanx",
+          "fortify",
           "provoke",
           "shield_bash",
           "undying_will"
@@ -1030,7 +1030,7 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "mp": 30,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1056,7 +1056,7 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 2,
+        "mp": 20,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1082,7 +1082,7 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 4,
+        "mp": 40,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1108,7 +1108,7 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 2,
+        "mp": 20,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1134,7 +1134,7 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "mp": 30,
         "row": -1,
         "col": -1,
         "abilities": [

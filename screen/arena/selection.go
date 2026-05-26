@@ -2,6 +2,7 @@ package arena
 
 import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -100,7 +101,7 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 // It commits board state, updates cell visuals, and starts the pulse on the destination cell.
 func (s *Screen) finishMove(u *ds.Unit, from ds.HexCoord, to ds.HexCoord) {
 	s.moveUnit(u, to)
-
+	sfx.Play(moveSound)
 	if s.selectedUnitID == u.ID || !u.IsOpponent {
 		s.activeUnitMoved = true
 		s.updateActiveUnitStatusLabel()

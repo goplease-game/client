@@ -4,6 +4,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 )
 
 // dndUnit builds and caches the drag widget for a unit card.
@@ -33,6 +34,7 @@ func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
 		))
 	}
 
+	sfx.Play(unitDragSound)
 	return d.dragWidget, d.unit
 }
 
@@ -56,6 +58,7 @@ func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interfa
 	for _, sc := range d.safeCells {
 		sc.SetHighlight(true)
 	}
+
 	return d.dndUnit.Create(parent)
 }
 

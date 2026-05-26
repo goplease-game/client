@@ -1,6 +1,9 @@
 package ds
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ability"
+import (
+	"github.com/ebitenui/ebitenui/widget"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+)
 
 type Unit struct {
 	ID          string `json:"id"`
@@ -25,6 +28,9 @@ type Unit struct {
 	Cooldowns map[ability.ID]int `json:"cooldowns"`
 
 	IsOpponent bool
+
+	// Graphic reference to the board portrait widget, nil if not on board
+	Graphic *widget.Graphic
 }
 
 // ReachableCells returns all hex cells the unit can reach within its movement points (MP).

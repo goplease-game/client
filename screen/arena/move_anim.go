@@ -5,6 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 )
 
 const moveDuration = 30 // frames
@@ -25,6 +26,7 @@ type moveAnim struct {
 // Horizontal moves (same row, to.Y == from.Y) get the arc;
 // vertical and diagonal moves use a simple ease-in-out.
 func newMoveAnim(img *ebiten.Image, from, to image.Point, onDone func()) *moveAnim {
+	sfx.Play(moveSound)
 	return &moveAnim{
 		img:     img,
 		fromPx:  from,
