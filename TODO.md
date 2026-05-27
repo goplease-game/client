@@ -8,6 +8,7 @@ Core (required for release):
     
 
 UX (in not specific order)
+ * auto end turn
  * When ability doesnt have valid target, simply show "No valid target(s)", instead of activating it
  * Preview ability result before activation
  * keyboard shortcuts

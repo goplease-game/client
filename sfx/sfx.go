@@ -10,11 +10,9 @@ import (
 )
 
 var audioCtx *audio.Context
-var players *[]*audio.Player
 
 func init() {
 	audioCtx = audio.NewContext(44100)
-	players = &[]*audio.Player{}
 }
 
 // Play plays a sound file from the sfx asset directory.
@@ -31,16 +29,6 @@ func Play(name string) {
 		log.Printf("sfx.Play: failed to create player %s: %v", name, err)
 		return
 	}
-	p.Play()
-	*players = append(*players, p)
-}
 
-func Cleanup() {
-	alive := (*players)[:0]
-	for _, p := range *players {
-		if p.IsPlaying() {
-			alive = append(alive, p)
-		}
-	}
-	*players = alive
+	p.Play()
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
@@ -106,6 +107,8 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 				if blocked {
 					return
 				}
+				s.clearAbilityHighlight()
+				sfx.Play(unitHoverSound)
 				card.SetBackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(bgColor, 30)))
 				s.highlightAbilityRange(ab)
 			}),

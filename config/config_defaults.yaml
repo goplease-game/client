@@ -1,6 +1,10 @@
 resolution: 1200x800
 server_addr: localhost:8080
 
+# 0 for immediately
+# -1 for disable
+auto_end_turn: 3s
+
 dev_mode:
   enabled: true
   mock_client: true

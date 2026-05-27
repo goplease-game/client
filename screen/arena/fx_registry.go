@@ -10,6 +10,11 @@ const (
 	fxArrowHit
 	fxSpellCast
 	fxSpellHit
+	fxShieldUp
+	fxProvoke
+	fxShieldAttack
+	fxHit
+	fxBattleCry
 )
 
 var fxRegistry = map[FxName]FxDefiner{
@@ -18,7 +23,7 @@ var fxRegistry = map[FxName]FxDefiner{
 		FrameCount: 6, FrameSize: 512,
 		DisplaySize: 100},
 	fxSwordHit: FxStep{
-		Sprite: "sword_hit", Sound: "sword_hit.ogg",
+		Sprite: "hit", Sound: "sword_hit.ogg",
 		FrameCount: 6, FrameSize: 512,
 		DisplaySize: 100},
 	fxArrowShoot: FxStep{
@@ -36,5 +41,25 @@ var fxRegistry = map[FxName]FxDefiner{
 	fxSpellHit: FxStep{
 		Sprite: "spell_hit", Sound: "spell_hit.ogg",
 		FrameCount: 6, FrameSize: 512,
+		DisplaySize: 100},
+	fxShieldUp: FxStep{
+		Sprite: "shield_up", Sound: "shield_up.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 15,
+		DisplaySize: 120},
+	fxProvoke: FxStep{
+		Sprite: "expanding_waves", Sound: "im_talking_to_you_speech.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 15,
+		DisplaySize: 120},
+	fxShieldAttack: FxStep{
+		Sprite: "shield_attack", Sound: "shield_attack.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 30,
+		DisplaySize: 100},
+	fxHit: FxStep{
+		Sprite: "hit", Sound: "hit.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 30,
+		DisplaySize: 100},
+	fxBattleCry: FxStep{
+		Sprite: "expanding_waves", Sound: "male_brave_scream.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 15,
 		DisplaySize: 100},
 }

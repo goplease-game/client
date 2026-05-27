@@ -204,6 +204,7 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.MinSize(unitCardSize, 54),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				sfx.Play(unitHoverSound)
 				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
 				current := s.unitByID(u.ID)
 				if bc := s.boardCellWidget(current); bc != nil {

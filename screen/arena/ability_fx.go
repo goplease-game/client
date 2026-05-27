@@ -8,6 +8,12 @@ var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.BasicMeleeAttack: {Start: fxSwordAttack, End: fxSwordHit, PlayMode: FxDelayed, Delay: 0.1},
 	ability.BasicRangeAttack: {Start: fxArrowShoot, End: fxArrowHit},
 	ability.BasicMagicAttack: {Start: fxSpellCast, End: fxSpellHit},
+
+	ability.Fortify:    {Start: fxShieldUp, End: fxNone},
+	ability.Provoke:    {Start: fxProvoke, End: fxNone},
+	ability.ShieldBash: {Start: fxShieldAttack, End: fxHit, PlayMode: FxDelayed, Delay: 0.1},
+
+	ability.BattleCry: {Start: fxBattleCry, End: fxNone},
 }
 
 type FxPlayMode int

@@ -24,6 +24,20 @@ spell_hit.ogg
 unit_placed.ogg
  > Notebook_hardback_drop_pickup_desk___01.wav by snapssound -- https://freesound.org/s/530260/ -- License: Attribution 4.0
 
- unit_drag.ogg
+unit_drag.ogg
  > Short Swooshes2.wav by CapsLok -- https://freesound.org/s/181906/ -- License: Creative Commons 0
 
+shield_up.ogg
+ > riot shields testudo by Diasyl -- https://freesound.org/s/792354/ -- License: Creative Commons 0
+
+im_talking_to_you_speech.ogg
+ > Cartoony nonsence talk 01 by unfa -- https://freesound.org/s/273815/ -- License: Creative Commons 0
+
+shield_attack.ogg
+ > shield guard by nekoninja -- https://freesound.org/s/370203/ -- License: Creative Commons 0
+
+hit.ogg
+ > Iron Hits.wav by Mrthenoronha -- https://freesound.org/s/371353/ -- License: Creative Commons 0
+
+male_brave_scream.ogg
+ > Falling screams goofy.m4a by kcassady -- https://freesound.org/s/533765/ -- License: Creative Commons 0
