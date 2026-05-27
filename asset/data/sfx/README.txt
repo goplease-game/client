@@ -41,3 +41,7 @@ hit.ogg
 
 male_brave_scream.ogg
  > Falling screams goofy.m4a by kcassady -- https://freesound.org/s/533765/ -- License: Creative Commons 0
+
+new_round.ogg
+end_turn_attention_bell.ogg
+ > bell raw 44.1Khz.mp3 by fauxpress -- https://freesound.org/s/42098/ -- License: Creative Commons 0

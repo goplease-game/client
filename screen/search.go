@@ -203,17 +203,16 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			log.Fatalf("new game: failed to unmarshal: %v", err)
 		}
 		snap := ds.GameSnapshot{
-			RoomID:       data.RoomID,
-			Board:        data.Board,
-			Player:       *data.Player,
-			OpponentName: data.Opponent,
-			Round:        1,
+			RoomID:          data.RoomID,
+			Board:           data.Board,
+			Player:          *data.Player,
+			OpponentName:    data.Opponent,
+			Round:           1,
+			TurnTimeSeconds: data.TurnTimeSeconds,
 		}
 		return arena.NewScreen(snap, s.server)
 	case ws.ErrorAction:
-		var e struct {
-			Message string `json:"message"`
-		}
+		var e ds.ErrorResponse
 		_ = json.Unmarshal(msg.Data, &e)
 		s.statusLbl.Label = "Error: " + e.Message
 	}

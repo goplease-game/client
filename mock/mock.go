@@ -288,3 +288,13 @@ func PickUnitFromHandByTemplateP1(templateID int) *ds.Unit {
 func AddUnitToQueue(u *ds.Unit) {
 	gameState.UnitsQueue = append(gameState.UnitsQueue, u)
 }
+
+func GetUnitAt(pos ds.HexCoord) *ds.Unit {
+	for _, u := range gameState.UnitsQueue {
+		if u.Pos.Q == pos.Q && u.Pos.R == pos.R {
+			return u
+		}
+	}
+
+	return nil
+}

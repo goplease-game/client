@@ -57,6 +57,8 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 
 	case EndTurnAction:
 		m.onEndTurn()
+	case UseAbility:
+		m.onAbilityUsed(msg.Data.(ds.UseAbilityPayload))
 
 	case CancelMatchAction:
 		m.inbox <- InMessage{Action: MatchCancelledAction}
@@ -133,6 +135,23 @@ func (m *MockClient) onEndTurn() {
 	time.Sleep(mockDelay)
 
 	m.advanceGameLoop()
+}
+
+// onAbilityUsed handles a UseAbility request, applies the resulting state,
+// and sends the updated state back to the client.
+func (m *MockClient) onAbilityUsed(load ds.UseAbilityPayload) {
+	resp, err := mock.HandleAbility(load)
+	if err != nil {
+		m.sendErr(err.Error())
+		return
+	}
+
+	data, err := json.Marshal(resp)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m.send(ApplyState, data)
 }
 
 // ---------------------------------------------------------------------------
@@ -292,8 +311,24 @@ func (m *MockClient) startNewRound() {
 
 	m.advanceGameLoop()
 }
-func (m *MockClient) send(action Action) {
-	m.inbox <- InMessage{Action: action}
+
+func (m *MockClient) send(action Action, dataOpt ...json.RawMessage) {
+	msg := InMessage{Action: action}
+	if len(dataOpt) > 0 {
+		msg.Data = dataOpt[0]
+	}
+
+	m.inbox <- msg
+}
+
+func (m *MockClient) sendErr(e string) {
+	v := ds.ErrorResponse{Message: e}
+	data, err := json.Marshal(v)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m.send(ErrorAction, data)
 }
 
 func (m *MockClient) sendPlayUnit(unitID string) {

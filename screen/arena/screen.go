@@ -61,6 +61,7 @@ type Screen struct {
 	footerRef     *widget.Container
 	queuePanelRef *widget.Container
 	unitPanelRef  *widget.Container
+	statusBarRef  *widget.Container
 	nextActionBtn *widget.Button
 	statusLabel   *widget.Text
 
@@ -106,20 +107,30 @@ type Screen struct {
 
 	// pendingScreen is set when a screen transition should occur on the next Update.
 	pendingScreen game.Screen
+
+	// roundBanner holds the state of the round announcement overlay.
+	// nil when no banner is active.
+	roundBanner *newRoundBannerState
+
+	// timerBar holds the state of the turn timer progress bar.
+	// nil when no timer is active.
+	timerBar        *timerBarState
+	turnTimeSeconds int // 0 = timer disabled
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
 func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
 	s := &Screen{
-		server:       server,
-		board:        snap.Board,
-		roomID:       snap.RoomID,
-		player:       snap.Player,
-		opponentName: snap.OpponentName,
-		unitsQueue:   snap.UnitsQueue,
-		activeUnitID: snap.ActiveUnitID,
-		roundNumber:  snap.Round,
-		unitCards:    make(map[string]*widget.Container),
+		server:          server,
+		board:           snap.Board,
+		roomID:          snap.RoomID,
+		player:          snap.Player,
+		opponentName:    snap.OpponentName,
+		unitsQueue:      snap.UnitsQueue,
+		activeUnitID:    snap.ActiveUnitID,
+		roundNumber:     snap.Round,
+		unitCards:       make(map[string]*widget.Container),
+		turnTimeSeconds: snap.TurnTimeSeconds,
 	}
 
 	initDropPointAnim()
@@ -145,6 +156,7 @@ func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 done:
 
 	s.updateDelayedActions()
+	s.updateNewRoundBanner()
 
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -172,6 +184,8 @@ done:
 	if s.pendingScreen != nil {
 		return s.pendingScreen, nil
 	}
+
+	s.updateTurnTimer()
 	return s, nil
 }
 
@@ -207,6 +221,8 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		s.firstDrawn = true
 		s.server.Send(ws.OutMessage{Action: ws.ReadyToPlay})
 	}
+
+	s.drawRoundBanner(screen)
 }
 
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
@@ -305,6 +321,8 @@ func (s *Screen) setupUI() {
 			if s.devPanelRef != nil {
 				s.devPanelRef.Render(screen)
 			}
+			// Timer bar — rendered above hex layers but below EbitenUI tooltips.
+			s.drawTurnTimer(screen)
 		},
 	}
 }
@@ -323,11 +341,27 @@ func (s *Screen) renderGrid(screen *ebiten.Image) {
 	vector.StrokePath(screen, &path, &vector.StrokeOptions{Width: 1}, &opts)
 }
 
-// setStatus updates the status bar label text.
+// setStatus updates the status bar label text by recreating the widget to force layout centering.
 func (s *Screen) setStatus(text string) {
-	if s.statusLabel != nil {
-		s.statusLabel.Label = text
+	if s.statusBarRef == nil {
+		return
 	}
+
+	// Clear previous text widget to reset cached MinSize dimensions.
+	s.statusBarRef.RemoveChildren()
+
+	tf := ui.TextFace(18)
+	s.statusLabel = widget.NewText(
+		widget.TextOpts.Text(text, &tf, statusBarTextColor),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	s.statusBarRef.AddChild(s.statusLabel)
 }
 
 // updateActiveUnitStatusLabel sets the status bar text based on what the active unit can still do.
@@ -397,4 +431,25 @@ func (s *Screen) restoreBoardVisuals() {
 		w.SetColor(bg)
 		buildBoardCard(w, u, false)
 	}
+}
+
+// updateTurnControls updates the Next button label and status bar
+// based on what the active unit can still do.
+// If the unit has exhausted all actions, the turn ends automatically.
+func (s *Screen) updateTurnControls() {
+	u := s.unitByID(s.activeUnitID)
+	if u == nil {
+		return
+	}
+
+	canMove := !s.activeUnitMoved
+	canAct := u.CurrentAP > 0
+
+	if !canMove && !canAct {
+		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
+		return
+	}
+
+	s.updateNextActionLabel()
+	s.updateActiveUnitStatusLabel()
 }

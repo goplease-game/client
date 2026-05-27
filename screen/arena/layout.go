@@ -67,7 +67,7 @@ func (s *Screen) createFooter() *widget.Container {
 
 // createStatusBar builds the thin bar above the footer that shows game status text.
 func (s *Screen) createStatusBar() *widget.Container {
-	bar := widget.NewContainer(
+	s.statusBarRef = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(statusBarBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
@@ -80,19 +80,9 @@ func (s *Screen) createStatusBar() *widget.Container {
 		),
 	)
 
-	tf := ui.TextFace(18)
-	s.statusLabel = widget.NewText(
-		widget.TextOpts.Text("Waiting for opponent...", &tf, statusBarTextColor),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
+	s.setStatus("Waiting for opponent...")
 
-	bar.AddChild(s.statusLabel)
-	return bar
+	return s.statusBarRef
 }
 
 // buildNextMoveButton creates the Next/End Turn button and stores it in s.nextActionBtn.

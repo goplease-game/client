@@ -15,6 +15,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	fmt.Printf("received: %v\n", msg.Action)
 
 	switch msg.Action {
+	case ws.ErrorAction:
+		s.handleServerError(msg.Data)
 	case ws.PlaceUnitAction:
 		s.handlePlaceUnit()
 	case ws.EndRoundAction:
@@ -49,6 +51,17 @@ func (s *Screen) handlePlaceUnit() {
 	} else {
 		s.setStatus("Deploy a unit to the board")
 	}
+
+	s.startTurnTimer()
+}
+
+func (s *Screen) handleServerError(data json.RawMessage) {
+	var msg ds.ErrorResponse
+	if err := json.Unmarshal(data, &msg); err != nil {
+		log.Fatal("handleServerError unmarshal:", err)
+	}
+
+	s.setStatus("ERROR: " + msg.Message)
 }
 
 // handleEndRound is called when the round ends and the player may finish their turn.
@@ -98,6 +111,8 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.setNextActionLabel("SKIP\nTURN")
 	s.enableNextActionBtn()
 	s.updateActiveUnitStatusLabel()
+
+	s.startTurnTimer()
 }
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
@@ -139,6 +154,9 @@ func (s *Screen) handleNewRound(data json.RawMessage) {
 			}
 		}
 	}
+
+	s.roundNumber++
+	s.showNewRoundBanner(s.roundNumber)
 
 	if s.activeUnitID == "" {
 		return
