@@ -48,3 +48,28 @@ func TintImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
 
 	return result
 }
+
+// TintImageAlpha returns a copy of src with the given alpha applied to all pixels.
+// alpha 0 = fully transparent, 255 = fully opaque.
+func TintImageAlpha(src *ebiten.Image, alpha uint8) *ebiten.Image {
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	result := ebiten.NewImage(w, h)
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			cr, cg, cb, ca := src.At(x, y).RGBA()
+			if ca == 0 {
+				continue
+			}
+			result.Set(x, y, color.NRGBA{
+				R: uint8(cr >> 8),
+				G: uint8(cg >> 8),
+				B: uint8(cb >> 8),
+				A: uint8(uint32(alpha) * ca / 255 >> 8),
+			})
+		}
+	}
+
+	return result
+}

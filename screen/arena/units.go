@@ -382,3 +382,41 @@ func (s *Screen) unitAtCoord(coord ds.HexCoord) *ds.Unit {
 	}
 	return s.unitByID(cell.Unit.ID)
 }
+
+// killUnit marks the unit as dead, removes it from the queue,
+// and updates the board cell to show the dead overlay.
+func (s *Screen) killUnit(u *ds.Unit) {
+	u.IsDead = true
+
+	// Remove from queue.
+	for i, qu := range s.unitsQueue {
+		if qu.ID == u.ID {
+			s.unitsQueue = append(s.unitsQueue[:i], s.unitsQueue[i+1:]...)
+			break
+		}
+	}
+
+	// Update board cell — remove unit card, show dead overlay.
+	w := s.boardCellWidgets[u.Pos]
+	if w == nil {
+		return
+	}
+	w.RemoveChildren()
+
+	// Gray background for dead unit cell.
+	w.SetColor(color.NRGBA{0x55, 0x55, 0x55, 0xff})
+
+	deadImg := asset.Image("dead-head.png", unitIconSize)
+	deadImgFaded := ui.TintImageAlpha(deadImg, 0x99) // 60% opacity
+	w.AddToUnitLayer(widget.NewGraphic(
+		widget.GraphicOpts.Image(deadImgFaded),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	))
+
+	s.rebuildQueuePanel()
+}

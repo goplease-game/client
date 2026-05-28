@@ -28,6 +28,7 @@ type Unit struct {
 	Cooldowns map[ability.ID]int `json:"cooldowns"`
 
 	IsOpponent bool
+	IsDead     bool
 
 	// Graphic reference to the board portrait widget, nil if not on board
 	Graphic *widget.Graphic

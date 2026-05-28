@@ -33,6 +33,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleNewRound(msg.Data)
 	case ws.UnitMovedAction:
 		s.handleUnitMoved(msg.Data)
+	case ws.ApplyState:
+		s.handleApplyState(msg.Data)
 	}
 }
 
@@ -198,4 +200,83 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		s.cellCentrePx(to),
 		func() { s.finishMove(u, from, to) },
 	)
+}
+
+// handleApplyState processes a batch of atomic state mutations from the server.
+// Each ApplyState is applied sequentially to the target unit.
+func (s *Screen) handleApplyState(data json.RawMessage) {
+	var payload []ds.ApplyState
+	if err := json.Unmarshal(data, &payload); err != nil {
+		log.Fatal("handleApplyState unmarshal:", err)
+	}
+
+	for _, st := range payload {
+		target := s.unitByID(st.ToUnitID)
+		if target == nil {
+			log.Printf("handleApplyState: unit %s not found", st.ToUnitID)
+			continue
+		}
+
+		s.applyState(target, st)
+	}
+}
+
+// applyState applies a single atomic state mutation to the target unit.
+func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
+	// --- Movement ---
+	if st.ChangePos != nil {
+		s.moveUnit(target, *st.ChangePos)
+	}
+
+	// --- Delta changes (for floating text / animations) ---
+	if st.ChangeHP != nil {
+		s.showFloatingText(target.Pos, *st.ChangeHP)
+	}
+	if st.ChangeAP != nil {
+		// target.CurrentAP += *st.ChangeAP
+	}
+	if st.ChangeMP != nil {
+		// target.MP += *st.ChangeMP
+	}
+	if st.ChangeShield != nil {
+		// target.CurrentShield += *st.ChangeShield
+	}
+	if st.ChangeAtk != nil {
+		// target.CurrentAtk += *st.ChangeAtk
+	}
+
+	// --- Absolute values (hard sync after animation) ---
+	if st.SetHP != nil {
+		target.CurrentHP = *st.SetHP
+	}
+	if st.SetAP != nil {
+		target.CurrentAP = *st.SetAP
+	}
+	if st.SetMP != nil {
+		target.MP = *st.SetMP
+	}
+	if st.SetShield != nil {
+		target.CurrentShield = *st.SetShield
+	}
+	if st.SetAtk != nil {
+		target.CurrentAtk = *st.SetAtk
+	}
+
+	// --- Status effects ---
+	for _, effect := range st.AddEffects {
+		// TODO: apply status effect
+		log.Printf("applyState: add effect %s to %s", effect, target.ID)
+	}
+	for _, effect := range st.RemoveEffects {
+		// TODO: remove status effect
+		log.Printf("applyState: remove effect %s from %s", effect, target.ID)
+	}
+
+	// --- Death ---
+	if st.IsDead {
+		s.killUnit(target)
+		return
+	}
+
+	s.showUnitOnBoard(target)
 }

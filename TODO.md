@@ -2,10 +2,10 @@ Core (required for release):
 - [ ] Simple effects on ability use
 - [ ] Sound effects
 - [ ] Download abilities from server (Need API)
-- [ ] Timed turns 
+- [x] Timed turns 
 - [ ] AI Bot 
 - [ ] Practice mode (With bot, without time limit)
-    
+- [ ] End game (Win/Lose) screen    
 
 UI/UX improvement (in not specific order, just ideas):
 - [ ] auto end turn

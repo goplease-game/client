@@ -2,6 +2,8 @@ Most icons is from https://game-icons.net/
 
 For now I just keep the list here, to give proper credits, as there different authors
 
+dead-head.png: https://game-icons.net/1x1/delapouite/dead-head.html
+
 Units:
 * bas: https://game-icons.net/1x1/lorc/visored-helm.html
 * grit: https://game-icons.net/1x1/delapouite/dwarf-face.html

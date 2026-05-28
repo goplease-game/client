@@ -116,6 +116,8 @@ type Screen struct {
 	// nil when no timer is active.
 	timerBar        *timerBarState
 	turnTimeSeconds int // 0 = timer disabled
+
+	floatingTexts []*floatingText
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -157,6 +159,7 @@ done:
 
 	s.updateDelayedActions()
 	s.updateNewRoundBanner()
+	s.updateFloatingTexts()
 
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -223,6 +226,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	}
 
 	s.drawRoundBanner(screen)
+	s.drawFloatingTexts(screen)
 }
 
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
