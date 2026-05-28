@@ -2,7 +2,7 @@
   "room_id": "a75e9deb-668a-4b3c-96a5-256657544963",
   "phase": "unit_placement",
   "is_my_turn": true,
-  "turn_time_seconds": 30,
+  "turn_time_seconds": 999,
   "board": {
     "cells": {
       "-1:2": {

@@ -15,6 +15,9 @@ const (
 	fxShieldAttack
 	fxHit
 	fxBattleCry
+	fxSwordSpin
+	fxHandPush
+	fxMarkTarget
 )
 
 var fxRegistry = map[FxName]FxDefiner{
@@ -62,4 +65,16 @@ var fxRegistry = map[FxName]FxDefiner{
 		Sprite: "expanding_waves", Sound: "male_brave_scream.ogg",
 		FrameCount: 6, FrameSize: 512, FPS: 15,
 		DisplaySize: 100},
+	fxSwordSpin: FxStep{
+		Sprite: "sword_spin", Sound: "sword_spin.ogg",
+		FrameCount: 12, FrameSize: 512, FPS: 20,
+		DisplaySize: 100},
+	fxHandPush: FxStep{
+		Sprite: "hand_push", Sound: "hand_attack_whoosh.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 30,
+		DisplaySize: 100},
+	fxMarkTarget: FxStep{
+		Sprite: "apply_mark", Sound: "appy_debuff.ogg",
+		FrameCount: 6, FrameSize: 512, FPS: 15,
+		DisplaySize: 150},
 }

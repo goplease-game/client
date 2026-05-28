@@ -159,8 +159,8 @@ var Abilities = map[ID]Ability{
 		Description: "Deals 3 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 5 damage instead.",
 		Cooldown:    3,
 		Range:       1,
-		TargetMode:  TargetAny,
-		Activation:  SelectAny,
+		TargetMode:  TargetEnemies,
+		Activation:  SelectEnemy,
 		Effects:     Effects(effect.NewAttack(3), effect.NewMove(effect.MovePush, 1)),
 		// TODO Custom handler (Attack(5) if cannot move)
 	},

@@ -13,7 +13,13 @@ var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.Provoke:    {Start: fxProvoke, End: fxNone},
 	ability.ShieldBash: {Start: fxShieldAttack, End: fxHit, PlayMode: FxDelayed, Delay: 0.1},
 
-	ability.BattleCry: {Start: fxBattleCry, End: fxNone},
+	ability.BattleCry:   {Start: fxBattleCry, End: fxNone},
+	ability.IdolihuSpin: {Start: fxSwordSpin, End: fxNone},
+	ability.PowerPush:   {Start: fxHandPush, End: fxHit, PlayMode: FxDelayed, Delay: 0.1},
+
+	ability.PiercingShot:  {Start: fxArrowShoot, End: fxNone},
+	ability.HuntersMark:   {Start: fxNone, End: fxMarkTarget},
+	ability.HamstringShot: {Start: fxArrowShoot, End: fxHit},
 }
 
 type FxPlayMode int
