@@ -10,47 +10,172 @@ import (
 
 const moveDuration = 30 // frames
 
-// moveAnim holds the state of an in-progress unit movement animation.
-// While active, the unit icon is drawn as a floating overlay in Draw,
-// and the board cells are kept empty until onDone is called.
-type moveAnim struct {
-	img     *ebiten.Image // unit icon to draw
-	fromPx  image.Point   // pixel centre of the source cell
-	toPx    image.Point   // pixel centre of the destination cell
-	tick    int           // frames elapsed since the animation started
-	useLift bool          // true for horizontal moves; applies a lift-travel-land arc
-	onDone  func()        // called once when the animation finishes
+// moveUnitAnim creates an action using the unit's current position as the starting point.
+func (s *Screen) moveUnitAnim(u *ds.Unit, to ds.HexCoord) unitMoveAnimAction {
+	return unitMoveAnimAction{
+		anim:   newMoveAnim(unitImage(u.TemplateID), s.cellCentrePx(u.Pos), s.cellCentrePx(to)),
+		unitID: u.ID,
+		from:   u.Pos,
+		to:     to,
+	}
 }
 
-// newMoveAnim creates a moveAnim and decides whether to use the lift arc.
-// Horizontal moves (same row, to.Y == from.Y) get the arc;
-// vertical and diagonal moves use a simple ease-in-out.
-func newMoveAnim(img *ebiten.Image, from, to image.Point, onDone func()) *moveAnim {
-	sfx.Play(moveSound)
-	return &moveAnim{
+type unitMoveAnimAction struct {
+	anim   *unitMoveAnim
+	unitID string
+	from   ds.HexCoord
+	to     ds.HexCoord
+}
+
+// unitMoveAnim holds the state of an in-progress unit movement animation.
+type unitMoveAnim struct {
+	img     *ebiten.Image
+	fromPx  image.Point
+	toPx    image.Point
+	tick    int
+	useLift bool
+}
+
+// newMoveAnim creates a unitMoveAnim and decides whether to use the lift arc.
+func newMoveAnim(img *ebiten.Image, fromPx, toPx image.Point) *unitMoveAnim {
+	return &unitMoveAnim{
 		img:     img,
-		fromPx:  from,
-		toPx:    to,
-		useLift: to.Y == from.Y,
-		onDone:  onDone,
+		fromPx:  fromPx,
+		toPx:    toPx,
+		tick:    0,
+		useLift: fromPx.Y == toPx.Y,
 	}
 }
 
 // active reports whether the animation is still in progress.
 // Safe to call on a nil receiver.
-func (a *moveAnim) active() bool {
+func (a *unitMoveAnim) active() bool {
 	return a != nil && a.tick <= moveDuration
 }
 
-// update advances the animation by one frame and fires onDone when complete.
-func (a *moveAnim) update() {
-	if !a.active() {
+// update advances the animation frame, capping it at moveDuration + 1
+func (a *unitMoveAnim) update() {
+	if a.tick <= moveDuration {
+		a.tick++
+	}
+}
+
+// isDone checks if the animation has safely completed its full duration cycle
+func (a *unitMoveAnim) isDone() bool {
+	return a.tick > moveDuration
+}
+
+func (s *Screen) updateMoveAnimations() {
+	if len(s.unitMoveAnimQueue) == 0 {
 		return
 	}
-	a.tick++
-	if a.tick > moveDuration {
-		a.onDone()
+
+	currentGroup := s.unitMoveAnimQueue[0]
+	allDone := true
+
+	if len(currentGroup) > 0 && currentGroup[0].anim.tick == 0 {
+		sfx.Play(moveSound)
 	}
+
+	for i := range currentGroup {
+		if !currentGroup[i].anim.isDone() {
+			allDone = false
+		}
+		currentGroup[i].anim.update()
+	}
+
+	if allDone {
+		// 1. First loop: ONLY clear the "from" positions for all units in the group.
+		// This ensures we don't accidentally wipe out a newly rendered unit on the next iteration.
+		for _, action := range currentGroup {
+			if fromW := s.boardCellWidgets[action.from]; fromW != nil {
+				s.removePulseWidget(fromW)
+				s.restoreSafeZoneCell(action.from)
+				fromW.SetColor(boardCellBgColor)
+				fromW.RemoveChildren() // Safely clear before anyone lands here
+			}
+		}
+
+		// 2. Second loop: Apply logic updates and render units on their "to" positions.
+		for _, action := range currentGroup {
+			u := s.unitByID(action.unitID)
+			s.moveUnit(u, action.to) // Update unit position logically
+
+			if s.selectedUnitID == u.ID || !u.IsOpponent {
+				s.activeUnitMoved = true
+				s.updateActiveUnitStatusLabel()
+				s.updateNextActionLabel()
+			}
+
+			// Render the unit on its new destination cell widget safely
+			if toW := s.boardCellWidgets[action.to]; toW != nil {
+				targetBg := unitFriendlyBgColor
+				if u.IsOpponent {
+					targetBg = unitEnemyBgColor
+				}
+				toW.SetColor(targetBg)
+				toW.RemoveChildren() // Clear anything old inside the target cell
+
+				buildBoardCard(toW, u, false) // Draw the unit card
+
+				if !u.IsOpponent {
+					s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
+				}
+			}
+		}
+
+		sfx.Play(moveSound)
+		s.unitMoveAnimQueue = s.unitMoveAnimQueue[1:]
+	}
+}
+
+// finishMoveAfterAnim ...
+func (s *Screen) finishMoveAfterAnim(u *ds.Unit, from ds.HexCoord, to ds.HexCoord, silent bool) {
+	if u == nil {
+		return
+	}
+
+	s.moveUnit(u, to)
+
+	if s.selectedUnitID == u.ID || !u.IsOpponent {
+		s.activeUnitMoved = true
+		s.updateActiveUnitStatusLabel()
+		s.updateNextActionLabel()
+	}
+
+	if fromW := s.boardCellWidgets[from]; fromW != nil {
+		s.removePulseWidget(fromW)
+		s.restoreSafeZoneCell(from)
+		fromW.SetColor(boardCellBgColor)
+		fromW.RemoveChildren()
+	}
+
+	if toW := s.boardCellWidgets[to]; toW != nil {
+		targetBg := unitFriendlyBgColor
+		if u.IsOpponent {
+			targetBg = unitEnemyBgColor
+		}
+		toW.SetColor(targetBg)
+		toW.RemoveChildren()
+
+		buildBoardCard(toW, u, false)
+
+		if !u.IsOpponent {
+			s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
+		}
+	}
+}
+
+// addMoveAnim schedules a group of animations to be executed simultaneously.
+func (s *Screen) addMoveAnim(anims ...unitMoveAnimAction) {
+	if len(anims) == 0 {
+		return
+	}
+
+	group := make([]unitMoveAnimAction, len(anims))
+	copy(group, anims)
+
+	s.unitMoveAnimQueue = append(s.unitMoveAnimQueue, group)
 }
 
 const liftPx = 20.0 // pixels the unit rises above the source cell during the arc
@@ -71,8 +196,11 @@ const (
 //  3. Land   (travelEnd → 1):       descend onto destination, no X movement.
 //
 // When useLift is false (diagonal/vertical move), simple ease-in-out on both axes.
-func (a *moveAnim) currentPos() (x, y float64) {
+func (a *unitMoveAnim) currentPos() (x, y float64) {
 	t := float64(a.tick) / float64(moveDuration)
+	if t > 1.0 {
+		t = 1.0
+	}
 
 	fx, fy := float64(a.fromPx.X), float64(a.fromPx.Y)
 	tx, ty := float64(a.toPx.X), float64(a.toPx.Y)

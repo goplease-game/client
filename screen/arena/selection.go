@@ -2,7 +2,6 @@ package arena
 
 import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -80,12 +79,7 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 		w.RemoveChildren()
 	}
 
-	s.activeMoveAnim = newMoveAnim(
-		unitImage(u.TemplateID),
-		s.cellCentrePx(from),
-		s.cellCentrePx(to),
-		func() { s.finishMove(u, from, to, false) },
-	)
+	s.addMoveAnim(s.moveUnitAnim(u, to))
 
 	// Notify the server immediately — it does not need to wait for the animation.
 	s.server.Send(ws.OutMessage{
@@ -95,43 +89,6 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 			Coord:  to,
 		},
 	})
-}
-
-// finishMove is called by the moveAnim onDone callback.
-// It commits board state, updates cell visuals, and starts the pulse on the destination cell.
-func (s *Screen) finishMove(u *ds.Unit, from ds.HexCoord, to ds.HexCoord, silent bool) {
-	s.moveUnit(u, to)
-	if !silent {
-		sfx.Play(moveSound)
-	}
-	if s.selectedUnitID == u.ID || !u.IsOpponent {
-		s.activeUnitMoved = true
-		s.updateActiveUnitStatusLabel()
-		s.updateNextActionLabel()
-	}
-
-	s.activeMoveAnim = nil
-
-	if fromW := s.boardCellWidgets[from]; fromW != nil {
-		s.removePulseWidget(fromW)
-		s.restoreSafeZoneCell(from)
-		fromW.SetColor(boardCellBgColor)
-		fromW.RemoveChildren()
-	}
-
-	if toW := s.boardCellWidgets[to]; toW != nil {
-		targetBg := unitFriendlyBgColor
-		if u.IsOpponent {
-			targetBg = unitEnemyBgColor
-		}
-		toW.SetColor(targetBg)
-		toW.RemoveChildren()
-		buildBoardCard(toW, u, false)
-
-		if !u.IsOpponent {
-			s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
-		}
-	}
 }
 
 // removePulseWidget removes w from the pulse list if present.

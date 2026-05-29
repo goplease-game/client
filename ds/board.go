@@ -12,6 +12,10 @@ type HexCoord struct {
 	R int `json:"r"`
 }
 
+func (c HexCoord) String() string {
+	return fmt.Sprintf("(%d,%d)", c.Q, c.R)
+}
+
 type BoardCell struct {
 	Coord      HexCoord `json:"coord"`
 	Unit       *Unit    `json:"unit"`

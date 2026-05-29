@@ -194,12 +194,7 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		w.RemoveChildren()
 	}
 
-	s.activeMoveAnim = newMoveAnim(
-		unitImage(u.TemplateID),
-		s.cellCentrePx(from),
-		s.cellCentrePx(to),
-		func() { s.finishMove(u, from, to, false) },
-	)
+	s.addMoveAnim(s.moveUnitAnim(u, to))
 }
 
 // handleApplyState processes a batch of atomic state mutations from the server.

@@ -88,10 +88,10 @@ type Screen struct {
 	devPanelMinimized bool
 
 	// Movement and selection state.
-	selectedUnitID  string        // unit currently selected for movement; empty means none
-	reachableCells  []ds.HexCoord // precomputed reachable positions for selectedUnitID
-	activeUnitMoved bool          // true once the active unit has moved this turn
-	activeMoveAnim  *moveAnim     // non-nil while a movement animation is in progress
+	selectedUnitID    string        // unit currently selected for movement; empty means none
+	reachableCells    []ds.HexCoord // precomputed reachable positions for selectedUnitID
+	activeUnitMoved   bool          // true once the active unit has moved this turn
+	unitMoveAnimQueue [][]unitMoveAnimAction
 
 	activeFxAnims []*ActiveFxAnim
 	// delayedActions holds pending actions scheduled to run after a fixed number of frames.
@@ -180,7 +180,7 @@ done:
 
 	s.updatePulse()
 	s.updateDropZoneAnim()
-	s.activeMoveAnim.update()
+	s.updateMoveAnimations()
 	s.updateFxAnims()
 	s.ui.Update()
 
@@ -217,11 +217,15 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	}
 
 	// Movement animation is rendered above everything including EbitenUI windows.
-	if s.activeMoveAnim.active() {
-		x, y := s.activeMoveAnim.currentPos()
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(x, y)
-		screen.DrawImage(s.activeMoveAnim.img, op)
+	if len(s.unitMoveAnimQueue) > 0 {
+		for _, action := range s.unitMoveAnimQueue[0] {
+			x, y := action.anim.currentPos()
+
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(x, y) // Ensure proper type conversion
+
+			screen.DrawImage(action.anim.img, op)
+		}
 	}
 
 	// Send ready_to_play once after the first complete draw so the server

@@ -1,6 +1,7 @@
 package arena
 
 import (
+	"log"
 	"time"
 
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
@@ -87,34 +88,28 @@ func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func(
 	})
 }
 
-// TODO caster with target must move simultaneously
 func playTranslocationFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func()) {
 	sfx.Play("translocation.ogg")
 
 	opp := s.unitAtCoord(target)
+	if opp == nil {
+		log.Fatalf("invalid target for translocation, no unit at %s", target)
+	}
 
 	from := unit.Pos
+	to := opp.Pos
 
-	s.activeMoveAnim = newMoveAnim(
-		unitImage(unit.TemplateID),
-		s.cellCentrePx(from),
-		s.cellCentrePx(target),
-		func() {
-			s.finishMove(unit, from, target, true)
-			s.activeMoveAnim = newMoveAnim(
-				unitImage(opp.TemplateID),
-				s.cellCentrePx(opp.Pos),
-				s.cellCentrePx(from),
-				func() {
-					s.finishMove(opp, opp.Pos, from, true)
+	if w := s.boardCellWidgets[from]; w != nil {
+		w.RemoveChildren()
+	}
+	if w := s.boardCellWidgets[to]; w != nil {
+		w.RemoveChildren()
+	}
 
-					// TODO Visual bug: background color on actor is not updating
-					s.showUnitOnBoard(unit)
-					s.showUnitOnBoard(opp)
-				},
-			)
-		},
-	)
+	casterAnim := s.moveUnitAnim(unit, opp.Pos)
+	targetAnim := s.moveUnitAnim(opp, unit.Pos)
+
+	s.addMoveAnim(casterAnim, targetAnim)
 }
 
 // fxFadeOut gradually hides the unit at the given coord (t: 0=visible, 1=hidden).
