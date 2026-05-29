@@ -13,7 +13,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-var UnitsPerPlacementPhase = 1
+var UnitsPerPlacementPhase = 3
 
 const (
 	totalUnitsPerPlayer = 6
@@ -65,6 +65,7 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 		newUnit := unit
 		newUnit.ID = uuid.NewString()
 		newUnit.OwnerID = MockedPlayerID
+		newUnit.IsOpponent = true
 
 		if unit.Abilities != nil {
 			newUnit.Abilities = make([]ability.ID, len(unit.Abilities))

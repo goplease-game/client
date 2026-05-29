@@ -34,11 +34,13 @@ var (
 	ttTextColor   = colornames.Ghostwhite
 
 	// HUD colours.
-	hpColor            = colornames.Tomato
-	atkColor           = colornames.Orange
-	mpColor            = colornames.Skyblue
-	shieldColor        = colornames.Gold
-	statusBarTextColor = colornames.Gold
+	hpColor                 = colornames.Tomato
+	atkColor                = colornames.Orange
+	mpColor                 = colornames.Skyblue
+	shieldColor             = colornames.Gold
+	statusBarTextColor      = colornames.Gold
+	increasedStatValueColor = ui.RGBFromHex("08CB00")
+	decreasedStatValueColor = ui.RGBFromHex("D70654")
 
 	// Board colours.
 	boardBgColor           = ui.RGBFromHex("607B8F")
@@ -48,12 +50,13 @@ var (
 	unitDropZoneHoverColor = ui.DarkenRGB(unitDropZoneColor, 50)
 
 	// Ability colours.
-	abilitiesPanelBgColor  = ui.DarkenRGB(footerBgColor, 5)
-	basicAttackBgColor     = ui.RGBFromHex("E97F4A")
-	abilityBgColor         = ui.RGBFromHex("8CA9FF")
-	passiveAbilityBgColor  = ui.RGBFromHex("9B8EC7")
-	abilityTargetCellColor = ui.RGBFromHex("D70654")
-	abilityRangeCellColor  = ui.RGBFromHex("7c9493")
+	abilitiesPanelBgColor       = ui.DarkenRGB(footerBgColor, 5)
+	basicAttackBgColor          = ui.RGBFromHex("E97F4A")
+	abilityBgColor              = ui.RGBFromHex("8CA9FF")
+	passiveAbilityBgColor       = ui.RGBFromHex("9B8EC7")
+	abilityEnemyTargetCellColor = ui.RGBFromHex("D70654")
+	abilityAllyTargetCellColor  = ui.RGBFromHex("08CB00")
+	abilityRangeCellColor       = ui.RGBFromHex("7c9493")
 	// pulse colors for selected ability card
 	activeAbilityBgColor        = ui.RGBFromHex("48A111")
 	activeAbilityFgColor        = ui.RGBFromHex("f5df4d")

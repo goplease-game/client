@@ -6,6 +6,7 @@ type StatusAlignment string
 const (
 	DecayingShield StatusType = "decaying_shield"
 	Provoked       StatusType = "provoked"
+	Provoking      StatusType = "provoking"
 	Stun           StatusType = "stun"
 	DecayingAttack StatusType = "decaying_attack"
 	Exposed        StatusType = "exposed"
@@ -21,12 +22,21 @@ const (
 )
 
 type Status struct {
-	Name         string          `json:"name"`
-	Description  string          `json:"description"`
-	Type         StatusType      `json:"type"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Type        StatusType `json:"type"`
+	// Duration -1 - permanent
 	Duration     int             `json:"duration,omitempty"`
 	InitialValue int             `json:"initial_value,omitempty"`
 	Alignment    StatusAlignment `json:"alignment"`
+}
+
+type UnitStatus struct {
+	UnitID   string         `json:"unit_id"`
+	Duration int            `json:"duration"`
+	Value    int            `json:"value"`
+	Status   *Status        `json:"status"`
+	Meta     map[string]any `json:"meta"`
 }
 
 var debuffWardStatus = &Status{
@@ -78,6 +88,15 @@ var provokedStatus = &Status{
 	Alignment:   Negative,
 }
 
+// This status is only informational and has no effect
+var provokingStatus = &Status{
+	Name:        "Provoking",
+	Description: "This unit is provoking other units and will be attacked by them on their turn",
+	Duration:    1,
+	Type:        Provoking,
+	Alignment:   Neutral,
+}
+
 var decayingAttackStatus = &Status{
 	Name:         "Rallied",
 	Description:  "A bonus that increases your attack. It decays by 1 at the end of each turn.",
@@ -90,8 +109,7 @@ var decayingAttackStatus = &Status{
 var decayingShieldStatus = &Status{
 	Name:         "Shield",
 	Description:  "A shield that protect your health. It decays by 1 at the end of each turn.",
-	Duration:     3,
-	InitialValue: 3,
+	InitialValue: 4,
 	Type:         DecayingShield,
 	Alignment:    Positive,
 }

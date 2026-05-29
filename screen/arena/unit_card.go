@@ -3,8 +3,10 @@ package arena
 import (
 	"fmt"
 
+	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
@@ -64,6 +66,10 @@ func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 
 	c.AddToHUDLayer(hpBadge(u.CurrentHP, 40, -6))
 
+	if u.CurrentShield > 0 {
+		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 11, -6))
+	}
+
 	if canMove {
 		c.AddToHUDLayer(walkBadge())
 	}
@@ -84,7 +90,16 @@ func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 		),
 	)
 	c.AddToUnitLayer(icon)
-	c.AddToHUDLayer(hpBadge(u.CurrentHP, -6, -6))
+
+	iconTop := -6
+	iconLeft := -6
+	if u.CurrentShield > 0 {
+		c.AddToHUDLayer(shieldBadge(u.CurrentShield, iconTop, iconLeft))
+		// move HP badge under shield badge
+		iconTop = 23
+	}
+
+	c.AddToHUDLayer(hpBadge(u.CurrentHP, iconTop, iconLeft))
 }
 
 // walkBadge returns a small container with a walk icon, anchored to the
@@ -119,7 +134,7 @@ func walkBadge() *widget.Container {
 
 // hpBadge returns a small container that displays a heart icon with the HP
 // value overlaid, anchored slightly outside the top-left corner of the hex cell.
-func hpBadge(hp int, top, left int) *widget.Container {
+func hpBadge(hp, top, left int) *widget.Container {
 	const iconSize = 30
 
 	badge := widget.NewContainer(
@@ -156,4 +171,98 @@ func hpBadge(hp int, top, left int) *widget.Container {
 	))
 
 	return badge
+}
+
+// shieldBadge returns a small container displaying a shield icon with the shield
+// value overlaid, anchored next to the HP badge at the top of the hex cell.
+func shieldBadge(value, top, left int) *widget.Container {
+	const iconSize = 30
+
+	badge := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(iconSize, iconSize),
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				Padding:            &widget.Insets{Top: top, Left: left},
+			}),
+		),
+	)
+
+	badge.AddChild(widget.NewGraphic(
+		widget.GraphicOpts.Image(asset.Image("shield_o.png", iconSize)),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	))
+
+	tf := ui.TextFaceBold(14)
+	badge.AddChild(widget.NewText(
+		widget.TextOpts.Text(fmt.Sprintf("%d", value), &tf, colornames.White),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	))
+
+	return badge
+}
+
+// buildStatusTooltip builds a tooltip container listing all active status effects on the unit.
+func buildStatusTooltip(u *ds.Unit) *widget.Container {
+	if len(u.Statuses) == 0 {
+		return widget.NewContainer() // empty — tooltip won't show visually
+	}
+
+	c := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(ttBgColor)),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(4),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(8)),
+		)),
+	)
+
+	for _, us := range u.Statuses {
+		if us.Status == nil {
+			continue
+		}
+
+		// Status name colored by alignment.
+		nameColor := ttTextColor
+		switch us.Status.Alignment {
+		case effect.Positive:
+			nameColor = colornames.Palegreen
+		case effect.Negative:
+			nameColor = colornames.Tomato
+		}
+
+		tf := ui.TextFaceBold(14)
+		c.AddChild(widget.NewText(
+			widget.TextOpts.Text(us.Status.Name, &tf, nameColor),
+		))
+
+		// Description.
+		descTF := ui.TextFace(12)
+		c.AddChild(widget.NewText(
+			widget.TextOpts.Text(us.Status.Description, &descTF, ttTextColor),
+			widget.TextOpts.MaxWidth(250),
+		))
+
+		// Duration if not permanent.
+		if us.Duration > 0 {
+			durTF := ui.TextFace(11)
+			c.AddChild(widget.NewText(
+				widget.TextOpts.Text(fmt.Sprintf("Duration: %d turns", us.Duration), &durTF, colornames.Skyblue),
+			))
+		}
+	}
+
+	return c
 }

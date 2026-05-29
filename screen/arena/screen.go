@@ -201,6 +201,12 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 
 	for _, fx := range s.activeFxAnims {
+		if fx.delayFrames > 0 {
+			continue
+		}
+		if fx.player == nil {
+			continue
+		}
 		frame := fx.player.CurrentFrame
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(

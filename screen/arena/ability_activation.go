@@ -8,6 +8,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -67,7 +68,7 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord, cel
 	caster := s.unitByID(s.activeUnitID)
 
 	// Must be within range.
-	if ab.Range > 0 && HexDistance(caster.Pos, coord) > ab.Range {
+	if ab.Range > 0 && hex.Distance(caster.Pos, coord) > ab.Range {
 		return false
 	}
 

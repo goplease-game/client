@@ -5,13 +5,18 @@ import (
 	"log"
 
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 )
 
 var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState, error){
 	ability.BasicMeleeAttack: basicMeleeAttackHandler,
 	ability.BasicRangeAttack: basicRangeAttackHandler,
 	ability.BasicMagicAttack: basicMagicAttackHandler,
+
+	ability.Fortify: fortifyHandler,
+	ability.Provoke: provokeHandler,
 }
 
 // HandleAbility is cooking a response for specific ability. We not dont validation here,
@@ -69,4 +74,58 @@ func basicRangeAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error)
 
 func basicMagicAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return basicMeleeAttackHandler(load)
+}
+
+func fortifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	ab := ability.Abilities[ability.Fortify]
+	ef := effect.StatusByType(effect.DecayingShield)
+
+	st := []ds.ApplyState{
+		{ChangeShield: new(ef.InitialValue), ToUnitID: caster.ID},
+		{SetShield: new(caster.CurrentShield+ef.InitialValue), ToUnitID: caster.ID},
+	}
+
+	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
+
+	for _, c := range cells {
+		if u := GetUnitAt(c); u != nil && !u.IsOpponent {
+			st = append(st, ds.ApplyState{ChangeShield: new(ef.InitialValue), ToUnitID: u.ID})
+			st = append(st, ds.ApplyState{SetShield: new(u.CurrentShield+ef.InitialValue), ToUnitID: u.ID})
+		}
+	}
+
+	return st, nil
+}
+
+func provokeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	ab := ability.Abilities[ability.Provoke]
+
+	st := []ds.ApplyState{{
+		AddStatus: new(ds.StatusWithMeta{Status: effect.Provoking}),
+		ToUnitID:  caster.ID,
+	}}
+
+	ste := new(ds.StatusWithMeta{Status: effect.Provoked, Meta: map[string]any{
+		"provoker": caster.ID,
+	}})
+
+	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
+
+	for _, c := range cells {
+		if u := GetUnitAt(c); u != nil && u.IsOpponent {
+			st = append(st, ds.ApplyState{AddStatus: ste, ToUnitID: u.ID})
+		}
+	}
+
+	return st, nil
 }

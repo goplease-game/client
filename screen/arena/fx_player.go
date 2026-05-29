@@ -152,6 +152,10 @@ func (s *Screen) updateFxAnims() {
 
 		if fx.programFx != nil {
 			t := float64(fx.programTick) / float64(fx.programDuration)
+			if t > 1.0 {
+				t = 1.0
+			}
+
 			fx.programFx(ProgramFxContext{
 				Screen: s,
 				Coord:  fx.coord,
@@ -159,8 +163,9 @@ func (s *Screen) updateFxAnims() {
 				Widget: s.boardCellWidgets[fx.coord],
 				T:      t,
 			})
+
 			fx.programTick++
-			if fx.programTick >= fx.programDuration {
+			if fx.programTick > fx.programDuration {
 				fx.finished = true
 			}
 		} else {

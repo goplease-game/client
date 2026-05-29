@@ -3,6 +3,7 @@ package arena
 import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 )
 
 var hexDirections = [6]ds.HexCoord{
@@ -32,11 +33,11 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 
 	switch ab.Area {
 	case ability.AreaCircle:
-		cells = cellsInRange(caster.Pos, ab.AreaRadius, s.board)
+		cells = hex.CellsInRange(caster.Pos, ab.AreaRadius, s.board)
 	case ability.AreaLine:
 		cells = hexAllLines(caster.Pos, ab.AreaRadius, s.board)
 	default:
-		cells = cellsInRange(caster.Pos, rangeN, s.board)
+		cells = hex.CellsInRange(caster.Pos, rangeN, s.board)
 	}
 
 	s.abilityHighlightCells = cells
@@ -53,7 +54,11 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		case cell == nil || cell.Unit == nil:
 			w.SetColor(abilityRangeCellColor)
 		case s.isValidTarget(ab, caster, *cell.Unit):
-			w.SetColor(abilityTargetCellColor)
+			if cell.Unit.IsOpponent {
+				w.SetColor(abilityEnemyTargetCellColor)
+			} else {
+				w.SetColor(abilityAllyTargetCellColor)
+			}
 		}
 	}
 }

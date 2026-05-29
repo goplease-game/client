@@ -6,7 +6,7 @@ Mono
 Getting proper sound effects is as hard as making a game's client-server protocol and its implementation.
 --
 It is hard to keep track of all attributions, especially during development when assets are swapped frequently.
-So I made this file. I try to keep attribution whenever possible.
+So I made this file and I try to keep attribution whenever possible.
 
 button_hover.ogg
 unit_hover.ogg
@@ -45,3 +45,13 @@ male_brave_scream.ogg
 new_round.ogg
 end_turn_attention_bell.ogg
  > bell raw 44.1Khz.mp3 by fauxpress -- https://freesound.org/s/42098/ -- License: Creative Commons 0
+
+appy_debuff.ogg
+ > Woosh, Ghost, Arrow pass, Fast, Curse, short by julianmateo_ -- https://freesound.org/s/522693/ -- License: Creative Commons 0
+
+teleport_in.ogg
+teleport_out.ogg
+ > Mouth-swoosh-02.wav by newagesoup -- https://freesound.org/s/372519/ -- License: Creative Commons 0
+
+translocation.ogg
+ > Swoosh 2.wav by AudioPapkin -- https://freesound.org/s/432294/ -- License: Creative Commons 0

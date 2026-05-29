@@ -3,6 +3,7 @@ package ds
 import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
 )
 
 type Unit struct {
@@ -26,6 +27,7 @@ type Unit struct {
 
 	Abilities []ability.ID       `json:"abilities"`
 	Cooldowns map[ability.ID]int `json:"cooldowns"`
+	Statuses  map[effect.StatusType]effect.UnitStatus
 
 	IsOpponent bool
 	IsDead     bool
@@ -113,6 +115,11 @@ type UnitPlacedPayload struct {
 	TemplateID int      `json:"template_id"`
 }
 
+type StatusWithMeta struct {
+	Status effect.StatusType `json:"status"`
+	Meta   map[string]any    `json:"meta"`
+}
+
 // ApplyState represents a single, atomic state mutation applied to a unit.
 // Sequential execution of these states forms the visual timeline on the client side.
 type ApplyState struct {
@@ -136,7 +143,7 @@ type ApplyState struct {
 	SetAtk    *int `json:"set_atk,omitempty"`    // Hard set current attack power
 
 	// Statuses and effects
-	IsDead        bool     `json:"is_dead,omitempty"`
-	AddEffects    []string `json:"add_effects,omitempty"`
-	RemoveEffects []string `json:"remove_effects,omitempty"`
+	IsDead       bool               `json:"is_dead,omitempty"`
+	AddStatus    *StatusWithMeta    `json:"add_status,omitempty"`
+	RemoveStatus *effect.StatusType `json:"remove_status,omitempty"`
 }

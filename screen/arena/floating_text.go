@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -22,30 +23,40 @@ type floatingText struct {
 
 // showFloatingText displays an animated floating text above the unit at coord.
 // Positive values show in green, negative in red.
-func (s *Screen) showFloatingText(coord ds.HexCoord, value int) {
+func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color) {
 	w := s.boardCellWidgets[coord]
 	if w == nil {
 		return
 	}
 
-	var text string
-	var c color.Color
-	if value > 0 {
-		text = fmt.Sprintf("+%d", value)
-		c = color.NRGBA{0x44, 0xff, 0x44, 0xff}
-	} else {
-		text = fmt.Sprintf("%d", value)
-		c = color.NRGBA{0xff, 0x44, 0x44, 0xff}
-	}
-
 	centre := s.cellCentrePx(coord)
+
+	// need a little random offset,
+	// so text on nearby unit will not overlap
+	n := rand.Intn(20) + 10
+
 	s.floatingTexts = append(s.floatingTexts, &floatingText{
-		text:     text,
-		color:    c,
-		pos:      image.Point{X: centre.X, Y: centre.Y - ui.HexRadius},
+		text:     txt,
+		color:    col,
+		pos:      image.Point{X: centre.X, Y: centre.Y - ui.HexRadius - n},
 		tick:     0,
 		duration: int(1.2 * 60),
 	})
+}
+
+func (s *Screen) showFloatingStat(coord ds.HexCoord, val int, labelOpt ...string) {
+	col := decreasedStatValueColor
+	txt := fmt.Sprintf("%d", val)
+	if val > 0 {
+		col = increasedStatValueColor
+		txt = "+" + txt
+	}
+
+	if len(labelOpt) > 0 {
+		txt += " " + labelOpt[0]
+	}
+
+	s.showFloatingText(coord, txt, col)
 }
 
 // updateFloatingTexts advances all floating text animations.
@@ -57,6 +68,7 @@ func (s *Screen) updateFloatingTexts() {
 			alive = append(alive, ft)
 		}
 	}
+
 	s.floatingTexts = alive
 }
 

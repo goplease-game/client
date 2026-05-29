@@ -4,17 +4,20 @@ import (
 	"fmt"
 	stdImg "image"
 	"image/color"
+	"log"
 	"path"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"golang.org/x/image/colornames"
 )
 
 // setupUnitPanel builds the hand panel in the footer showing the player's
@@ -198,27 +201,41 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 
 	restoreColor := bgColor
 	var card *widget.Container
+
+	widgetOpts := []widget.WidgetOpt{
+		widget.WidgetOpts.MinSize(unitCardSize, 54),
+		widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+			sfx.Play(unitHoverSound)
+			card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
+			current := s.unitByID(u.ID)
+			if bc := s.boardCellWidget(current); bc != nil {
+				bc.SetColor(unitCardHighlightColor)
+			}
+		}),
+		widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
+			card.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
+			current := s.unitByID(u.ID)
+			if bc := s.boardCellWidget(current); bc != nil {
+				bc.SetColor(restoreColor)
+			}
+		}),
+		widget.WidgetOpts.ToolTip(
+			widget.NewToolTip(
+				widget.ToolTipOpts.Content(buildStatusTooltip(u)),
+				widget.ToolTipOpts.Position(widget.TOOLTIP_POS_WIDGET),
+				widget.ToolTipOpts.Offset(stdImg.Point{X: 0, Y: 8}),
+				widget.ToolTipOpts.AnchorOriginHorizontal(widget.TOOLTIP_ANCHOR_MIDDLE),
+				widget.ToolTipOpts.AnchorOriginVertical(widget.TOOLTIP_ANCHOR_END),
+				widget.ToolTipOpts.ContentOriginHorizontal(widget.TOOLTIP_ANCHOR_MIDDLE),
+				widget.ToolTipOpts.ContentOriginVertical(widget.TOOLTIP_ANCHOR_START),
+			),
+		),
+	}
+
 	card = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(unitCardSize, 54),
-			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
-				sfx.Play(unitHoverSound)
-				card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
-				current := s.unitByID(u.ID)
-				if bc := s.boardCellWidget(current); bc != nil {
-					bc.SetColor(unitCardHighlightColor)
-				}
-			}),
-			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
-				card.SetBackgroundImage(image.NewNineSliceColor(restoreColor))
-				current := s.unitByID(u.ID)
-				if bc := s.boardCellWidget(current); bc != nil {
-					bc.SetColor(restoreColor)
-				}
-			}),
-		),
+		widget.ContainerOpts.WidgetOpts(widgetOpts...),
 	)
 
 	if isActive {
@@ -292,6 +309,7 @@ func unitImage(templateID int, sizeOpt ...int) *ebiten.Image {
 	if len(sizeOpt) > 0 {
 		size = sizeOpt[0]
 	}
+
 	return asset.Image(path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID)), size)
 }
 
@@ -371,7 +389,7 @@ func (s *Screen) showUnitOnBoard(unit *ds.Unit) {
 		return
 	}
 	w.RemoveChildren()
-	buildBoardCard(w, unit, false)
+	buildBoardCard(w, unit, unit.ID == s.activeUnitID && !s.activeUnitMoved)
 }
 
 // unitAtCoord returns the unit at the given hex coord, or nil if the cell is empty.
@@ -419,4 +437,37 @@ func (s *Screen) killUnit(u *ds.Unit) {
 	))
 
 	s.rebuildQueuePanel()
+}
+
+// addUnitStatus adds a status effect to the unit and refreshes its board card.
+func (s *Screen) addUnitStatus(u *ds.Unit, stm ds.StatusWithMeta) {
+	st := effect.StatusByType(stm.Status)
+	if st == nil {
+		log.Printf("addUnitStatus: unknown status type %s", stm.Status)
+		return
+	}
+	if u.Statuses == nil {
+		u.Statuses = make(map[effect.StatusType]effect.UnitStatus)
+	}
+	u.Statuses[stm.Status] = effect.UnitStatus{
+		UnitID:   u.ID,
+		Duration: st.Duration,
+		Value:    st.InitialValue,
+		Status:   st,
+		Meta:     stm.Meta,
+	}
+
+	col := colornames.Gold
+	if st.Alignment == effect.Negative {
+		col = colornames.Red
+	}
+	s.showFloatingText(u.Pos, "+ "+st.Name, col)
+
+	s.showUnitOnBoard(u)
+}
+
+// removeUnitStatus removes a status effect from the unit and refreshes its board card.
+func (s *Screen) removeUnitStatus(u *ds.Unit, statusType effect.StatusType) {
+	delete(u.Statuses, statusType)
+	s.showUnitOnBoard(u)
 }

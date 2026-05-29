@@ -84,7 +84,7 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 		unitImage(u.TemplateID),
 		s.cellCentrePx(from),
 		s.cellCentrePx(to),
-		func() { s.finishMove(u, from, to) },
+		func() { s.finishMove(u, from, to, false) },
 	)
 
 	// Notify the server immediately — it does not need to wait for the animation.
@@ -99,9 +99,11 @@ func (s *Screen) onReachableCellClicked(to ds.HexCoord) {
 
 // finishMove is called by the moveAnim onDone callback.
 // It commits board state, updates cell visuals, and starts the pulse on the destination cell.
-func (s *Screen) finishMove(u *ds.Unit, from ds.HexCoord, to ds.HexCoord) {
+func (s *Screen) finishMove(u *ds.Unit, from ds.HexCoord, to ds.HexCoord, silent bool) {
 	s.moveUnit(u, to)
-	sfx.Play(moveSound)
+	if !silent {
+		sfx.Play(moveSound)
+	}
 	if s.selectedUnitID == u.ID || !u.IsOpponent {
 		s.activeUnitMoved = true
 		s.updateActiveUnitStatusLabel()

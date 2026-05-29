@@ -198,7 +198,7 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 		unitImage(u.TemplateID),
 		s.cellCentrePx(from),
 		s.cellCentrePx(to),
-		func() { s.finishMove(u, from, to) },
+		func() { s.finishMove(u, from, to, false) },
 	)
 }
 
@@ -230,7 +230,7 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 
 	// --- Delta changes (for floating text / animations) ---
 	if st.ChangeHP != nil {
-		s.showFloatingText(target.Pos, *st.ChangeHP)
+		s.showFloatingStat(target.Pos, *st.ChangeHP, "HP")
 	}
 	if st.ChangeAP != nil {
 		// target.CurrentAP += *st.ChangeAP
@@ -239,7 +239,7 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 		// target.MP += *st.ChangeMP
 	}
 	if st.ChangeShield != nil {
-		// target.CurrentShield += *st.ChangeShield
+		s.showFloatingStat(target.Pos, *st.ChangeShield, "Shield")
 	}
 	if st.ChangeAtk != nil {
 		// target.CurrentAtk += *st.ChangeAtk
@@ -262,14 +262,11 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 		target.CurrentAtk = *st.SetAtk
 	}
 
-	// --- Status effects ---
-	for _, effect := range st.AddEffects {
-		// TODO: apply status effect
-		log.Printf("applyState: add effect %s to %s", effect, target.ID)
+	if st.AddStatus != nil {
+		s.addUnitStatus(target, *st.AddStatus)
 	}
-	for _, effect := range st.RemoveEffects {
-		// TODO: remove status effect
-		log.Printf("applyState: remove effect %s from %s", effect, target.ID)
+	if st.RemoveStatus != nil {
+		s.removeUnitStatus(target, *st.RemoveStatus)
 	}
 
 	// --- Death ---
@@ -279,4 +276,5 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 	}
 
 	s.showUnitOnBoard(target)
+	s.rebuildQueuePanel()
 }
