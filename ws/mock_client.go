@@ -9,7 +9,9 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 )
 
-const mockDelay = 800 * time.Millisecond
+const (
+	mockDelay = 800 * time.Millisecond
+)
 
 type MockClient struct {
 	inbox  chan InMessage
@@ -140,13 +142,21 @@ func (m *MockClient) onEndTurn() {
 // onAbilityUsed handles a UseAbility request, applies the resulting state,
 // and sends the updated state back to the client.
 func (m *MockClient) onAbilityUsed(load ds.UseAbilityPayload) {
-	resp, err := mock.HandleAbility(load)
+	states, err := mock.HandleAbility(load)
 	if err != nil {
 		m.sendErr(err.Error())
 		return
 	}
 
-	data, err := json.Marshal(resp)
+	m.sendApplyStates(states...)
+}
+
+func (m *MockClient) sendApplyStates(st ...ds.ApplyState) {
+	if len(st) == 0 {
+		return
+	}
+
+	data, err := json.Marshal(st)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -188,6 +198,29 @@ func (m *MockClient) nextUnitToPlay() *ds.Unit {
 func (m *MockClient) playUnit(unit *ds.Unit) {
 	gs := mock.GetGameState()
 	gs.ActiveUnit++
+
+	states := []ds.ApplyState{}
+	// decrease status duration
+	for t, st := range unit.Statuses {
+		if st.Duration == mock.StatusPermaDuration {
+			continue
+		}
+
+		st.Duration--
+		if st.Duration < 1 {
+			states = append(states, ds.ApplyState{RemoveStatus: new(t), ToUnitID: unit.ID})
+		}
+	}
+
+	// shield always decreased by 1 every turn
+	if unit.CurrentShield > 0 {
+		unit.CurrentShield--
+		states = append(states,
+			ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
+			ds.ApplyState{SetShield: new(unit.CurrentShield), ToUnitID: unit.ID},
+		)
+	}
+	m.sendApplyStates(states...)
 
 	if unit.OwnerID != mock.MockedPlayerID {
 		// Real player's unit — hand control back to the client.

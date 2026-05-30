@@ -1,11 +1,14 @@
 Core (required for release):
-- [ ] Simple effects on ability use
-- [ ] Sound effects
+- [x] Simple effects on ability use
+- [x] Sound effects
 - [ ] Download abilities from server (Need API)
 - [x] Timed turns 
 - [ ] AI Bot 
 - [ ] Practice mode (With bot, without time limit)
-- [ ] End game (Win/Lose) screen    
+- [ ] End game (Win/Lose) screen
+
+Abilities TODO:
+- [ ] Provoke: Test that opponent can only target provoker
 
 UI/UX improvement (in not specific order, just ideas):
 - [ ] auto end turn

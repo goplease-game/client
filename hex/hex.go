@@ -15,6 +15,14 @@ func CellsInRange(from ds.HexCoord, rangeN int, board ds.Board) []ds.HexCoord {
 	return result
 }
 
+// OppositeHex returns the hex coordinate directly opposite to the origin relative to the center.
+func OppositeHex(origin, center ds.HexCoord) ds.HexCoord {
+	return ds.HexCoord{
+		Q: 2*center.Q - origin.Q,
+		R: 2*center.R - origin.R,
+	}
+}
+
 // Distance returns the hex cube distance between two axial coordinates.
 // Equivalent to max(|dq|, |dr|, |dq+dr|).
 func Distance(a, b ds.HexCoord) int {

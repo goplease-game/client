@@ -119,31 +119,3 @@ type StatusWithMeta struct {
 	Status effect.StatusType `json:"status"`
 	Meta   map[string]any    `json:"meta"`
 }
-
-// ApplyState represents a single, atomic state mutation applied to a unit.
-// Sequential execution of these states forms the visual timeline on the client side.
-type ApplyState struct {
-	ToUnitID string `json:"to_unit_id"`
-
-	// Movement
-	ChangePos *HexCoord `json:"change_pos,omitempty"` // New position on the grid
-
-	// Delta changes used to trigger floating text or combat UI animations
-	ChangeHP     *int `json:"change_hp,omitempty"`     // Health delta (e.g., -5, +12)
-	ChangeAP     *int `json:"change_ap,omitempty"`     // Action points delta
-	ChangeMP     *int `json:"change_mp,omitempty"`     // Movement points delta
-	ChangeShield *int `json:"change_shield,omitempty"` // Shield delta
-	ChangeAtk    *int `json:"change_atk,omitempty"`    // Attack power delta
-
-	// Absolute values used for hard state synchronization after the animation plays
-	SetHP     *int `json:"set_hp,omitempty"`     // Hard set current health
-	SetAP     *int `json:"set_ap,omitempty"`     // Hard set current action points
-	SetMP     *int `json:"set_mp,omitempty"`     // Hard set current movement points
-	SetShield *int `json:"set_shield,omitempty"` // Hard set current shield
-	SetAtk    *int `json:"set_atk,omitempty"`    // Hard set current attack power
-
-	// Statuses and effects
-	IsDead       bool               `json:"is_dead,omitempty"`
-	AddStatus    *StatusWithMeta    `json:"add_status,omitempty"`
-	RemoveStatus *effect.StatusType `json:"remove_status,omitempty"`
-}

@@ -162,8 +162,6 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewAttack(3), effect.NewMove(effect.MovePush, 1)),
-		// TODO Custom handler (Attack(5) if cannot move)
 	},
 	Frenzy: {
 		Type:        Skill,

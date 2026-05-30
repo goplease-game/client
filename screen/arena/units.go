@@ -468,6 +468,24 @@ func (s *Screen) addUnitStatus(u *ds.Unit, stm ds.StatusWithMeta) {
 
 // removeUnitStatus removes a status effect from the unit and refreshes its board card.
 func (s *Screen) removeUnitStatus(u *ds.Unit, statusType effect.StatusType) {
-	delete(u.Statuses, statusType)
+	st := effect.StatusByType(statusType)
+	if st != nil {
+		delete(u.Statuses, statusType)
+		s.showFloatingText(u.Pos, "- "+st.Name, colornames.White)
+	}
+
 	s.showUnitOnBoard(u)
+}
+
+// getProvokingUnitID returns the ID of the unit that provoked this unit, or empty string.
+func getProvokingUnitID(u *ds.Unit) string {
+	us, ok := u.Statuses[effect.Provoked]
+	if !ok {
+		return ""
+	}
+	provoker, ok := us.Meta["provoker"].(string)
+	if !ok {
+		return ""
+	}
+	return provoker
 }

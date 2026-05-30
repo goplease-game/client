@@ -92,6 +92,12 @@ func (s *Screen) clearAbilityHighlight() {
 // isValidTarget reports whether target is a valid target for ab cast by caster,
 // based on the ability's TargetMode.
 func (s *Screen) isValidTarget(ab ability.Ability, caster *ds.Unit, target ds.Unit) bool {
+	// If caster is provoked — only the provoker is a valid target.
+	// TODO test this from opponent side
+	if provokerID := getProvokingUnitID(caster); provokerID != "" {
+		return target.IsOpponent && target.ID == provokerID
+	}
+
 	switch ab.TargetMode {
 	case ability.TargetEnemies:
 		return target.IsOpponent != caster.IsOpponent

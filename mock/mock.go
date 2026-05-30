@@ -13,7 +13,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-var UnitsPerPlacementPhase = 3
+var UnitsPerPlacementPhase = 1
 
 const (
 	totalUnitsPerPlayer = 6
@@ -298,4 +298,13 @@ func GetUnitAt(pos ds.HexCoord) *ds.Unit {
 	}
 
 	return nil
+}
+
+func RemoveUnitFromQueue(unitID string) {
+	for i, u := range gameState.UnitsQueue {
+		if u.ID == unitID {
+			gameState.UnitsQueue = append(gameState.UnitsQueue[:i], gameState.UnitsQueue[i+1:]...)
+			break
+		}
+	}
 }

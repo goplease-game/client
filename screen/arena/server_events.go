@@ -219,8 +219,8 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 // applyState applies a single atomic state mutation to the target unit.
 func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 	// --- Movement ---
-	if st.ChangePos != nil {
-		s.moveUnit(target, *st.ChangePos)
+	if st.MoveTo != nil {
+		s.moveUnitForced(target, *st.MoveTo)
 	}
 
 	// --- Delta changes (for floating text / animations) ---

@@ -10,7 +10,9 @@ import (
 
 const moveDuration = 30 // frames
 
-// moveUnitAnim creates an action using the unit's current position as the starting point.
+// moveUnitAnim creates a movement action using the unit's current position as the starting point.
+// Note: This function only constructs the action object; it does NOT play the animation.
+// To play the animation, you must add it to the queue: s.addMoveAnim(s.moveUnitAnim(u, to))
 func (s *Screen) moveUnitAnim(u *ds.Unit, to ds.HexCoord) unitMoveAnimAction {
 	return unitMoveAnimAction{
 		anim:   newMoveAnim(unitImage(u.TemplateID), s.cellCentrePx(u.Pos), s.cellCentrePx(to)),
@@ -176,6 +178,25 @@ func (s *Screen) addMoveAnim(anims ...unitMoveAnimAction) {
 	copy(group, anims)
 
 	s.unitMoveAnimQueue = append(s.unitMoveAnimQueue, group)
+}
+
+// moveUnitForced plays the movement animation immediately without using a lift arc.
+// This is useful for displaying movement animations received from the server or an opponent.
+// If you need scheduled animations (e.g., to support simultaneous animations), see moveUnitAnim and addMoveAnim.
+func (s *Screen) moveUnitForced(u *ds.Unit, to ds.HexCoord) {
+	act := unitMoveAnimAction{
+		anim: &unitMoveAnim{
+			img:     unitImage(u.TemplateID),
+			fromPx:  s.cellCentrePx(u.Pos),
+			toPx:    s.cellCentrePx(to),
+			useLift: false,
+		},
+		unitID: u.ID,
+		from:   u.Pos,
+		to:     to,
+	}
+
+	s.unitMoveAnimQueue = append(s.unitMoveAnimQueue, []unitMoveAnimAction{act})
 }
 
 const liftPx = 20.0 // pixels the unit rises above the source cell during the arc
