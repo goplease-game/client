@@ -2,7 +2,7 @@ package effect
 
 var statusByType = map[StatusType]*Status{
 	DecayingShield: decayingShieldStatus,
-	DecayingAttack: decayingAttackStatus,
+	Rallied:        ralliedStatus,
 	Provoked:       provokedStatus,
 	Provoking:      provokingStatus,
 	Stun:           stunStatus,

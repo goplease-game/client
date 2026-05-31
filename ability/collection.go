@@ -1,7 +1,5 @@
 package ability
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
-
 const (
 	BasicMeleeAttack ID = "basic_melee_attack"
 	BasicRangeAttack ID = "basic_range_attack"
@@ -44,6 +42,15 @@ const (
 	BottomlessVial ID = "bottomless_vial"
 )
 
+// Damage hint format:
+// - ATK       — base attack damage
+// - ATK+2     — base attack plus flat bonus
+// - 3         — flat damage value
+// - 2/3       — two distinct possible values
+// - 2–5       — damage range
+
+const CurrentATK = "ATK"
+
 var Abilities = map[ID]Ability{
 	BasicMeleeAttack: {
 		Type:        Skill,
@@ -54,7 +61,7 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		Effects:     Effects(effect.NewBasicAttack()),
+		DamageHint:  CurrentATK,
 	},
 	BasicRangeAttack: {
 		Type:        Skill,
@@ -65,7 +72,7 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		Effects:     Effects(effect.NewBasicAttack()),
+		DamageHint:  CurrentATK,
 	},
 	BasicMagicAttack: {
 		Type:        Skill,
@@ -76,7 +83,7 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		Effects:     Effects(effect.NewBasicAttack()),
+		DamageHint:  CurrentATK,
 	},
 
 	// --- TANK ---
@@ -91,7 +98,6 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetAlliesAndSelf,
 		Area:        AreaCircle,
 		AreaRadius:  2,
-		Effects:     Effects(effect.NewStatusEffect(effect.DecayingShield)),
 	},
 	Provoke: {
 		Type:        Skill,
@@ -104,7 +110,6 @@ var Abilities = map[ID]Ability{
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  2,
-		Effects:     Effects(effect.NewStatusEffect(effect.Provoked)),
 	},
 	ShieldBash: {
 		Type:        Skill,
@@ -115,7 +120,6 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewStatusEffect(effect.Stun)),
 	},
 	UndyingWill: {
 		Type:        Skill,
@@ -124,8 +128,6 @@ var Abilities = map[ID]Ability{
 		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 3 Shield.",
 		Cooldown:    5,
 		Range:       0,
-		// TODO
-		//Effects:     ...
 	},
 
 	// --- WARRIOR ---
@@ -133,13 +135,12 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Battle Cry",
-		Description: "Grants +3 Attack to nearby allies. Bonus decays by 1 at the start of each turn.",
+		Description: "Grants +1 Attack to nearby allies for 2 turns",
 		Cooldown:    3,
 		TargetMode:  TargetAllies,
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  2,
-		Effects:     Effects(effect.NewStatusEffect(effect.DecayingAttack)),
 	},
 	IdolihuSpin: {
 		Type:        Skill,
@@ -151,24 +152,24 @@ var Abilities = map[ID]Ability{
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  1,
-		Effects:     Effects(effect.NewBasicAttack()),
+		DamageHint:  CurrentATK,
 	},
 	PowerPush: {
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Power Push",
-		Description: "Deals 3 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 5 damage instead.",
+		Description: "Deals 2 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 3 damage instead.",
 		Cooldown:    3,
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
+		DamageHint:  "2/3",
 	},
 	Frenzy: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Frenzy",
 		Description: "Gains +2 Attack if there are 2 or more enemies within 2 cells.",
-		// TODO event bus
 	},
 
 	// --- RANGER ---
@@ -182,7 +183,7 @@ var Abilities = map[ID]Ability{
 		Activation:  SelectAny,
 		Area:        AreaLine,
 		AreaRadius:  4,
-		Effects:     Effects(effect.NewBasicAttack()),
+		DamageHint:  CurrentATK,
 	},
 	HuntersMark: {
 		Type:        Skill,
@@ -193,7 +194,6 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewStatusEffect(effect.Exposed)),
 	},
 	HamstringShot: {
 		Type:        Skill,
@@ -204,7 +204,7 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewAttack(2), effect.NewStatusEffect(effect.Hamstrung)),
+		DamageHint:  "2",
 	},
 	CoverFire: {
 		Type:        Skill,
@@ -212,8 +212,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Cover Fire",
 		Description: "Once per turn, counter-attacks the first enemy that strikes an ally within your range, dealing 3 flat damage.",
 		Range:       3,
-		// TODO EventHandler
-		//Effects:     nil,
+		DamageHint:  "3",
 	},
 
 	// --- ROGUE ---
@@ -225,7 +224,6 @@ var Abilities = map[ID]Ability{
 		Cooldown:    3,
 		Range:       4,
 		Activation:  SelectFreeCell,
-		Effects:     Effects(effect.NewMoveTo(), effect.NewStatusEffect(effect.Sharpened)),
 	},
 	GangUp: {
 		Type:        Skill,
@@ -236,7 +234,7 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     nil, // TODO AbilityHandler
+		DamageHint:  "ATK/ATK+2",
 	},
 	Eliminate: {
 		Type:        Skill,
@@ -247,7 +245,7 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewAttack(3)), // TODO
+		DamageHint:  "3",
 	},
 	Opportunity: {
 		Type:        Skill,
@@ -256,7 +254,7 @@ var Abilities = map[ID]Ability{
 		Description: "Once per turn, attacks an adjacent enemy when an ally hits them with a melee attack.",
 		Cooldown:    0,
 		Range:       1,
-		Effects:     nil, // TODO
+		DamageHint:  CurrentATK,
 	},
 
 	// --- MAGE ---
@@ -269,7 +267,6 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		TargetMode:  TargetAny,
 		Activation:  SelectAnyUnit,
-		Effects:     Effects(effect.NewMoveSwap()),
 	},
 	TimeWarp: {
 		Type:        Spell,
@@ -280,7 +277,6 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAlly,
-		Effects:     nil, // TODO
 	},
 	Purge: {
 		ID:          "",
@@ -292,14 +288,12 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		Effects:     Effects(effect.NewDispelPositive()),
 	},
 	ArcaneChaos: {
 		Type:        Spell,
 		IsPassive:   true,
 		Name:        "Arcane Chaos",
 		Description: "At the end of your turn, gain bonuses based on actions taken during the turn:\n- If you did not move: gain +1 Movement Range next turn\n- If no enemies were within 3 tiles: gain +1 Attack Range next turn\n- If you took no damage: restore 1 HP next turn\n- If you took damage: gain 1 Shield\n\nIf 3 or more conditions are met, also gain +1 Attack next turn.",
-		Effects:     nil, // TODO
 	},
 
 	// --- SUPPORT ---
@@ -312,7 +306,6 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,
-		Effects:     Effects(effect.NewHeal(4)),
 	},
 	Equalize: {
 		Type:        Spell,
@@ -324,7 +317,6 @@ var Abilities = map[ID]Ability{
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  3,
-		Effects:     nil, // TODO
 	},
 	Purify: {
 		Type:        Skill,
@@ -335,17 +327,11 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,
-		Effects: Effects(
-			effect.NewDispelNegative(),
-			effect.NewHeal(2),
-			effect.NewStatusEffect(effect.DebuffWard),
-		),
 	},
 	BottomlessVial: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Bottomless Vial",
 		Description: "The first time each turn July loses HP, her maximum HP permanently increases by 1.",
-		Effects:     nil, // TODO
 	},
 }

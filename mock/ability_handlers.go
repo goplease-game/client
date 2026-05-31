@@ -17,8 +17,11 @@ var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState
 	ability.BasicRangeAttack: basicRangeAttackHandler,
 	ability.BasicMagicAttack: basicMagicAttackHandler,
 
-	ability.Fortify:   fortifyHandler,
-	ability.Provoke:   provokeHandler,
+	ability.Fortify:    fortifyHandler,
+	ability.Provoke:    provokeHandler,
+	ability.ShieldBash: shieldBashHandler,
+
+	ability.BattleCry: battleCryHandler,
 	ability.PowerPush: powerPushHandler,
 }
 
@@ -107,10 +110,18 @@ func provokeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
+func shieldBashHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	st := ds.NewUnitStates(ds.ApplyState{AddStatus: new(ds.StatusWithMeta{Status: effect.Stun})})
+	st.ToUnitID(target.ID)
+	return st, nil
+}
+
 func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	caster, target := mustAbilityActors(load)
 
-	dealDmg := 3
+	dealDmg := 2
 	var canMove bool
 	// skipping pos validation of caster & target, hacking is welcome
 	pos := hex.OppositeHex(caster.Pos, target.Pos)
@@ -123,11 +134,39 @@ func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	if canMove {
 		st.Add(ds.ApplyState{MoveTo: new(pos)})
 	} else {
-		dealDmg = 5
+		dealDmg = 1
 	}
 
 	st.Add(dealDamageToUnit(target, dealDmg)...)
 	st.ToUnitID(target.ID)
+
+	// set new pos in gs
+	target.Pos = pos
+
+	return st, nil
+}
+
+func battleCryHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	ab := ability.Abilities[ability.BattleCry]
+	ef := effect.StatusByType(effect.Rallied)
+
+	st := []ds.ApplyState{}
+	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
+
+	for _, c := range cells {
+		if u := GetUnitAt(c); u != nil && !u.IsOpponent {
+			u.CurrentAtk += ef.InitialValue
+			st = append(st, ds.ApplyState{AddStatus: new(ds.StatusWithMeta{Status: effect.Rallied}), ToUnitID: u.ID})
+			st = append(st, ds.ApplyState{ChangeAtk: new(ef.InitialValue), ToUnitID: u.ID})
+			st = append(st, ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID})
+		}
+	}
+
 	return st, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	stdImg "image"
 	"image/color"
 	"path"
+	"strings"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -224,11 +225,21 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 		widget.TextOpts.MaxWidth(350),
 	))
 
+	if ab.DamageHint != "" {
+		if u := s.unitByID(s.activeUnitID); u != nil {
+			val := strings.ReplaceAll(ab.DamageHint, ability.CurrentATK, fmt.Sprintf("%d", u.CurrentAtk))
+			c.AddChild(buildToolTipRow("Damage: "+val, colornames.Orange))
+		}
+	}
 	if ab.Cooldown > 0 {
 		c.AddChild(buildToolTipRow(fmt.Sprintf("Cooldown: %d", ab.Cooldown), colornames.Skyblue))
 	}
 	if ab.Range > 0 {
-		c.AddChild(buildToolTipRow(fmt.Sprintf("Range: %d", ab.Range), colornames.Palegreen))
+		label := "Melee"
+		if ab.Range > 1 {
+			label = fmt.Sprintf("Range: %d", ab.Range)
+		}
+		c.AddChild(buildToolTipRow(label, colornames.Palegreen))
 	}
 	if ab.IsPassive {
 		c.AddChild(buildToolTipRow("Passive", colornames.Plum))
@@ -236,6 +247,25 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 
 	return c
 }
+
+// abilityDamageString returns a human-readable damage string for the ability tooltip.
+//func (s *Screen) abilityDamageString(ab ability.Ability) string {
+//	for _, eff := range ab.Effects {
+//		if eff.Damage == nil {
+//			continue
+//		}
+//		switch eff.Damage.Source {
+//		case effect.DamageSourceUnitAttack:
+//			if u := s.unitByID(s.activeUnitID); u != nil {
+//				return fmt.Sprintf("Damage: %d", u.CurrentAtk)
+//			}
+//			return "Damage: ATK"
+//		case effect.DamageSourceValue:
+//			return fmt.Sprintf("Damage: %d", eff.Damage.Value)
+//		}
+//	}
+//	return ""
+//}
 
 // buildToolTipRow returns a horizontal row container with a single coloured text label.
 // Used to display ability stats (cooldown, range, passive) in tooltips.

@@ -18,11 +18,12 @@ type floatingText struct {
 	color    color.Color
 	pos      image.Point // starting pixel position (unit centre)
 	tick     int
-	duration int // total duration in frames
+	duration int         // total duration in frames
+	delay    int         // frames to wait before animation starts
+	coord    ds.HexCoord // used to stagger multiple texts on same unit
 }
 
 // showFloatingText displays an animated floating text above the unit at coord.
-// Positive values show in green, negative in red.
 func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color) {
 	w := s.boardCellWidgets[coord]
 	if w == nil {
@@ -30,10 +31,15 @@ func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color
 	}
 
 	centre := s.cellCentrePx(coord)
-
-	// need a little random offset,
-	// so text on nearby unit will not overlap
 	n := rand.Intn(20) + 10
+
+	// Stagger texts on the same unit — each one waits for the previous to finish.
+	delay := 0
+	for _, ft := range s.floatingTexts {
+		if ft.coord == coord {
+			delay += 20 // 20 frames between each text on same unit
+		}
+	}
 
 	s.floatingTexts = append(s.floatingTexts, &floatingText{
 		text:     txt,
@@ -41,6 +47,8 @@ func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color
 		pos:      image.Point{X: centre.X, Y: centre.Y - ui.HexRadius - n},
 		tick:     0,
 		duration: int(1.2 * 60),
+		delay:    delay,
+		coord:    coord,
 	})
 }
 
@@ -63,12 +71,16 @@ func (s *Screen) showFloatingStat(coord ds.HexCoord, val int, labelOpt ...string
 func (s *Screen) updateFloatingTexts() {
 	alive := s.floatingTexts[:0]
 	for _, ft := range s.floatingTexts {
+		if ft.delay > 0 {
+			ft.delay--
+			alive = append(alive, ft)
+			continue
+		}
 		ft.tick++
 		if ft.tick < ft.duration {
 			alive = append(alive, ft)
 		}
 	}
-
 	s.floatingTexts = alive
 }
 
@@ -80,15 +92,17 @@ func (s *Screen) drawFloatingTexts(screen *ebiten.Image) {
 
 	tf := ui.TextFace(24)
 	for _, ft := range s.floatingTexts {
+		if ft.delay > 0 {
+			continue // still waiting
+		}
+
 		t := float64(ft.tick) / float64(ft.duration)
 
-		// Fade out in the last 30% of the animation.
 		alpha := float32(1.0)
 		if t > 0.7 {
 			alpha = float32(1.0 - (t-0.7)/0.3)
 		}
 
-		// Float upward — moves up by 40px over the full duration.
 		offsetY := -40.0 * t
 
 		op := &text.DrawOptions{}
@@ -96,7 +110,6 @@ func (s *Screen) drawFloatingTexts(screen *ebiten.Image) {
 		op.ColorScale.ScaleWithColor(ft.color)
 		op.ColorScale.ScaleAlpha(alpha)
 
-		// Measure to centre horizontally.
 		w, _ := text.Measure(ft.text, tf, 0)
 		op.GeoM.Translate(-w/2, 0)
 

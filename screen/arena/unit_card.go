@@ -80,8 +80,15 @@ func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 // buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
 // Queue cards don't show the walk badge — that's board-only.
 func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
+	var img *ebiten.Image
+	if u.IsStunned() {
+		img = asset.Image(unitStunnedPic, unitIconSize)
+	} else {
+		img = unitImage(u.TemplateID, unitIconSize)
+	}
+
 	icon := widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
+		widget.GraphicOpts.Image(img),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,

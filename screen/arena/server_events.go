@@ -237,7 +237,7 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 		s.showFloatingStat(target.Pos, *st.ChangeShield, "Shield")
 	}
 	if st.ChangeAtk != nil {
-		// target.CurrentAtk += *st.ChangeAtk
+		s.showFloatingStat(target.Pos, *st.ChangeAtk, "ATK")
 	}
 
 	// --- Absolute values (hard sync after animation) ---

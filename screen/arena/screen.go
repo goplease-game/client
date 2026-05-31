@@ -23,6 +23,8 @@ const (
 	unitCardSize    = 64 // unit card size in the hand and queue panel
 	unitIconSize    = 54 // unit portrait size rendered on the board hex
 
+	unitStunnedPic = "knockout.png"
+
 	headerH = 80
 	statusH = 32
 	footerH = 90

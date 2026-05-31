@@ -50,14 +50,13 @@ type Ability struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Cooldown    int    `json:"cooldown"`
+	DamageHint  string `json:"damage_hint"`
 
 	Range      int            `json:"range"`
 	TargetMode TargetMode     `json:"target_mode"`
 	Activation ActivationType `json:"activation"`
 	Area       AreaType       `json:"area"`
 	AreaRadius int            `json:"area_radius"`
-
-	Effects []effect.Effect `json:"effects"`
 }
 
 func ByID(id ID) Ability {

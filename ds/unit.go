@@ -36,6 +36,12 @@ type Unit struct {
 	Graphic *widget.Graphic
 }
 
+func (u Unit) IsStunned() bool {
+	_, ok := u.Statuses[effect.Stun]
+
+	return ok
+}
+
 // ReachableCells returns all hex cells the unit can reach within its movement points (MP).
 // Movement is calculated using a breadth-first search over the hex grid, where each step
 // to a neighboring cell costs 1 MP.

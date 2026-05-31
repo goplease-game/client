@@ -8,7 +8,7 @@ const (
 	Provoked       StatusType = "provoked"
 	Provoking      StatusType = "provoking"
 	Stun           StatusType = "stun"
-	DecayingAttack StatusType = "decaying_attack"
+	Rallied        StatusType = "rallied"
 	Exposed        StatusType = "exposed"
 	Hamstrung      StatusType = "hamstrung"
 	Sharpened      StatusType = "sharpened"
@@ -97,12 +97,12 @@ var provokingStatus = &Status{
 	Alignment:   Neutral,
 }
 
-var decayingAttackStatus = &Status{
+var ralliedStatus = &Status{
 	Name:         "Rallied",
-	Description:  "A bonus that increases your attack. It decays by 1 at the end of each turn.",
-	Duration:     3,
-	InitialValue: 3,
-	Type:         DecayingAttack,
+	Description:  "Attack increased by 1",
+	Duration:     2,
+	InitialValue: 1,
+	Type:         Rallied,
 	Alignment:    Positive,
 }
 
