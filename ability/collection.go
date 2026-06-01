@@ -42,7 +42,7 @@ const (
 	BottomlessVial ID = "bottomless_vial"
 )
 
-// Damage hint format:
+// Damage hint format (ATK will be replaced with unit.CurrentAtk):
 // - ATK       — base attack damage
 // - ATK+2     — base attack plus flat bonus
 // - ATK/ATK+2 — base attack or base attack with bonus
@@ -126,7 +126,7 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Undying Will",
-		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 3 Shield.",
+		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 5 Shield.",
 		Cooldown:    5,
 		Range:       0,
 	},
@@ -170,7 +170,8 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Frenzy",
-		Description: "Gains +2 Attack if there are 2 or more enemies within 2 cells.",
+		Description: "Gains +1 Attack if there are 2 or more enemies within 2 cells.",
+		AreaRadius:  2,
 	},
 
 	// --- RANGER ---
@@ -312,7 +313,7 @@ var Abilities = map[ID]Ability{
 		IsPassive:   false,
 		Name:        "Equalize",
 		Description: "Equalizes the HP of all allied units within 3 tiles, setting each to the average HP of the affected units.",
-		Cooldown:    4,
+		Cooldown:    3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  Instant,
 		Area:        AreaCircle,
@@ -323,7 +324,7 @@ var Abilities = map[ID]Ability{
 		IsPassive:   false,
 		Name:        "Purify",
 		Description: "Removes all negative status effects from the target ally or self, restores 2 HP, and grants immunity to new debuffs for 1 turn.",
-		Cooldown:    3,
+		Cooldown:    2,
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,

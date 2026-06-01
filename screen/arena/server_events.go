@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"golang.org/x/image/colornames"
 )
 
 // handleServerMessage dispatches an incoming server message to the appropriate handler.
@@ -39,7 +41,11 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	case ws.ApplyState:
 		s.handleApplyState(msg.Data)
 	case ws.UseAbility:
-		s.handleUseAbility(msg.Data)
+		var payload ds.UseAbilityPayload
+		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+			log.Fatal("handleUseAbility unmarshal:", err)
+		}
+		s.handleUseAbility(payload)
 	}
 }
 
@@ -235,25 +241,21 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 	}
 }
 
-// handleApplyState processes a batch of atomic state mutations from the server.
-// Each ApplyState is applied sequentially to the target unit.
-func (s *Screen) handleUseAbility(data json.RawMessage) {
-	var payload ds.UseAbilityPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
-		log.Fatal("handleUseAbility unmarshal:", err)
-	}
-
-	unit := s.unitByID(payload.UnitID)
+func (s *Screen) handleUseAbility(load ds.UseAbilityPayload) {
+	unit := s.unitByID(load.UnitID)
 	if unit == nil {
-		log.Fatalf("handleUseAbility: unit %s not found", payload.UnitID)
+		log.Fatalf("handleUseAbility: unit %s not found", load.UnitID)
 	}
 
 	pending := &pendingVisuals{}
 	s.pendingVisuals = pending
-	s.playAbilityFx(payload.AbilityID, unit, payload.Target, func() {
+	s.playAbilityFx(load.AbilityID, unit, load.Target, func() {
 		pending.fxDone = true
 		s.tryFlushPendingVisuals(pending)
 	})
+
+	ab := ability.ByID(load.AbilityID)
+	unit.Cooldowns[ab.ID] = ab.Cooldown
 }
 
 // applyStateImmediate applies data mutations to the unit (no visuals).
@@ -316,7 +318,16 @@ func (s *Screen) applyStateVisuals(target *ds.Unit, st ds.ApplyState) {
 	if st.ChangeAP != nil {
 		s.showFloatingStat(target.Pos, *st.ChangeAP, "AP")
 	}
+	if st.UseAbility != nil {
+		pl := *st.UseAbility
+		ab := ability.ByID(pl.AbilityID)
+		s.showFloatingText(target.Pos, ab.Name, colornames.Gold)
+		s.handleUseAbility(pl)
+	}
 
 	s.showUnitOnBoard(target)
 	s.rebuildQueuePanel()
+	if target.ID == s.activeUnitID {
+		s.showAbilityPanel(target)
+	}
 }

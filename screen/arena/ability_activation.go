@@ -75,6 +75,9 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord, cel
 	unit := (*ds.Unit)(nil)
 	if cell != nil {
 		unit = cell.Unit
+		if unit.IsDead {
+			unit = nil
+		}
 	}
 
 	switch ab.Activation {

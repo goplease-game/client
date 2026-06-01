@@ -8,13 +8,14 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
+	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 // abilityComposerRegistry maps ability IDs to custom fx composers.
 // Use for abilities that require complex multi-step visual sequences
 // that cannot be expressed with a simple Start/End AbilityFx declaration.
 var abilityComposerRegistry = map[ability.ID]AbilityFxComposer{
-	ability.ShadowStep:    playShadowStepFx, // TODO fade-in-out
+	ability.ShadowStep:    playShadowStepFx,
 	ability.Translocation: playTranslocationFx,
 }
 
@@ -111,6 +112,8 @@ func (s *Screen) abilityFxComposer(abFx AbilityFx, abilityID ability.ID, unit *d
 func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func()) {
 	unitImg := unitImage(unit.TemplateID, unitIconSize)
 
+	s.clearAbilityHighlight()
+	s.setPulseHexTargets(nil)
 	s.hideUnitOnBoard(unit)
 	sfx.Play("teleport_out.ogg")
 
@@ -131,6 +134,10 @@ func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func(
 				programDuration: int(0.5 * 60),
 				onDone: func() {
 					s.showUnitOnBoard(unit)
+					// Restore pulse on new cell.
+					if w := s.boardCellWidgets[unit.Pos]; w != nil {
+						s.setPulseHexTargets([]*ui.HexCellWidget{w})
+					}
 					onDone()
 				},
 			})
@@ -179,7 +186,7 @@ func fxUnitFadeZoomOut(unitImg *ebiten.Image) ProgramFx {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-w/2, -h/2)
 		op.GeoM.Scale(scale, scale)
-		//op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
+		op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
 		op.ColorScale.ScaleAlpha(alpha)
 
 		ctx.Screen.drawOnTop(unitImg, op)
@@ -202,7 +209,7 @@ func fxUnitFadeZoomIn(unitImg *ebiten.Image) ProgramFx {
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(-w/2, -h/2)
 		op.GeoM.Scale(scale, scale)
-		//op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
+		op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
 		op.ColorScale.ScaleAlpha(alpha)
 
 		ctx.Screen.drawOnTop(unitImg, op)

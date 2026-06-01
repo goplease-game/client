@@ -36,7 +36,34 @@ type Unit struct {
 	Graphic *widget.Graphic
 }
 
-func (u Unit) IsStunned() bool {
+func (u Unit) HasAbility(id ability.ID) bool {
+	for _, abID := range u.Abilities {
+		if abID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (u *Unit) HasStatus(t status.Type) bool {
+	_, ok := u.Statuses[t]
+	return ok
+}
+
+func (u *Unit) AddStatus(value status.Value) {
+	if u.Statuses == nil {
+		u.Statuses = make(map[status.Type]status.Value)
+	}
+
+	u.Statuses[value.Status.Type] = value
+}
+
+func (u *Unit) RemoveStatus(t status.Type) {
+	delete(u.Statuses, t)
+}
+
+func (u *Unit) IsStunned() bool {
 	_, ok := u.Statuses[status.Stun]
 
 	return ok

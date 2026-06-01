@@ -9,9 +9,10 @@ var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.BasicRangeAttack: {Start: fxArrowShoot, End: fxArrowHit},
 	ability.BasicMagicAttack: {Start: fxSpellCast, End: fxSpellHit},
 
-	ability.Fortify:    {Start: fxShieldUp, End: fxNone},
-	ability.Provoke:    {Start: fxProvoke, End: fxNone},
-	ability.ShieldBash: {Start: fxShieldAttack, End: fxHit, PlayMode: FxDelayed, Delay: 0.1},
+	ability.Fortify:     {Start: fxShieldUp, End: fxNone},
+	ability.Provoke:     {Start: fxProvoke, End: fxNone},
+	ability.ShieldBash:  {Start: fxShieldAttack, End: fxHit, PlayMode: FxDelayed, Delay: 0.1},
+	ability.UndyingWill: {Start: fxHeal, End: fxNone},
 
 	ability.BattleCry:   {Start: fxBattleCry, End: fxNone},
 	ability.IdolihuSpin: {Start: fxSwordSpin, End: fxSwordHit},

@@ -1,6 +1,8 @@
 package arena
 
 import (
+	"image"
+
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
@@ -96,6 +98,7 @@ func (s FxStep) Define() FxDefinition {
 type ProgramFxContext struct {
 	Screen *Screen
 	Coord  ds.HexCoord
+	Px     image.Point       // screen pixel position
 	Unit   *ds.Unit          // unit at coord, nil if empty
 	Widget *ui.HexCellWidget // cell widget at coord
 	T      float64           // progress 0.0 to 1.0

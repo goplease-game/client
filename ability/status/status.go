@@ -3,6 +3,8 @@ package status
 type Type string
 type Alignment string
 
+const Permanent = -1
+
 const (
 	DecayingShield Type = "decaying_shield"
 	Provoked       Type = "provoked"
@@ -14,6 +16,7 @@ const (
 	Sharpened      Type = "sharpened"
 	DebuffWard     Type = "debuff_ward"
 	TemporalAnchor Type = "temporal_anchor"
+	Frenzied       Type = "frenzied"
 )
 
 const (
@@ -144,4 +147,12 @@ var temporalAnchorStatus = &Status{
 	Description: "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
 	Type:        TemporalAnchor,
 	Alignment:   Positive,
+}
+
+var frenziedStatus = &Status{
+	Name:        "Frenzied",
+	Description: "You are frenzied because 2 or more opponents are nearby. Grants +1 Attack while active.",
+	Type:        Frenzied,
+	Alignment:   Positive,
+	Duration:    Permanent,
 }

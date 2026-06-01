@@ -376,6 +376,8 @@ func (s *Screen) activeUnitAP() int {
 // The unit remains in unitsQueue and board state — only the visual is hidden.
 func (s *Screen) hideUnitOnBoard(unit *ds.Unit) {
 	w := s.boardCellWidgets[unit.Pos]
+	log.Printf("hideUnitOnBoard: pos=%v widget=%v", unit.Pos, w != nil)
+
 	if w == nil {
 		return
 	}
@@ -424,9 +426,8 @@ func (s *Screen) killUnit(u *ds.Unit) {
 	w.SetColor(unitKilledBgColor)
 
 	deadImg := asset.Image(unitKilledPic, unitIconSize)
-	deadImgFaded := ui.TintImageAlpha(deadImg, 0x99) // 60% opacity
 	w.AddToUnitLayer(widget.NewGraphic(
-		widget.GraphicOpts.Image(deadImgFaded),
+		widget.GraphicOpts.Image(deadImg),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -467,7 +468,7 @@ func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, metaOpt *map[
 	}
 	s.showFloatingText(u.Pos, "+ "+st.Name, col)
 
-	s.showUnitOnBoard(u)
+	// s.showUnitOnBoard(u)
 }
 
 // removeUnitStatus removes a status effect from the unit and refreshes its board card.
@@ -478,7 +479,7 @@ func (s *Screen) removeUnitStatus(u *ds.Unit, statusType status.Type) {
 		s.showFloatingText(u.Pos, "- "+st.Name, colornames.White)
 	}
 
-	s.showUnitOnBoard(u)
+	//s.showUnitOnBoard(u)
 }
 
 // getProvokingUnitID returns the ID of the unit that provoked this unit, or empty string.

@@ -11,6 +11,7 @@ var statuses = map[Type]*Status{
 	Sharpened:      sharpenedStatus,
 	DebuffWard:     debuffWardStatus,
 	TemporalAnchor: temporalAnchorStatus,
+	Frenzied:       frenziedStatus,
 }
 
 // ByType returns the Status definition for the given Type, or nil if not found.

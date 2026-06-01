@@ -156,6 +156,7 @@ func (s *Screen) updateFxAnims() {
 			fx.programFx(ProgramFxContext{
 				Screen: s,
 				Coord:  fx.coord,
+				Px:     fx.pos,
 				Unit:   s.unitAtCoord(fx.coord),
 				Widget: s.boardCellWidgets[fx.coord],
 				T:      t,

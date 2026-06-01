@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 )
@@ -128,6 +129,9 @@ func (m *MockClient) onUnitMoved(data ds.UnitMovedPayload) {
 	}
 	mock.PlaceUnitAt(unit, data.Coord)
 	unit.Pos = data.Coord
+
+	states := mock.ApplyOnMoveHandlers(unit)
+	m.sendApplyStates(states...)
 }
 
 // onEndTurn is the core game-loop driver.
@@ -148,8 +152,15 @@ func (m *MockClient) onAbilityUsed(load ds.UseAbilityPayload) {
 		return
 	}
 
-	if len(states) > 0 {
-		m.sendApplyStates(states...)
+	m.sendApplyStates(states...)
+
+	for _, s := range states {
+		if s.MoveTo != nil || s.IsDead {
+			u := mock.GetUnitByID(s.ToUnitID)
+			onMoveStates := mock.ApplyOnMoveHandlers(u)
+			m.sendApplyStates(onMoveStates...)
+			break
+		}
 	}
 }
 
@@ -205,7 +216,7 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	states := []ds.ApplyState{}
 	// decrease status duration
 	for t, st := range unit.Statuses {
-		if st.Duration == mock.StatusPermanentDuration {
+		if st.Duration == status.Permanent {
 			continue
 		}
 
@@ -245,6 +256,9 @@ func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 		m.inbox <- InMessage{Action: Action(act.Action), Data: act.JSON}
 		time.Sleep(mockDelay)
 	}
+
+	states := mock.ApplyOnMoveHandlers(unit)
+	m.sendApplyStates(states...)
 }
 
 // runPlacementPhase handles the end-of-queue placement step:

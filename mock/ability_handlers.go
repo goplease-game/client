@@ -37,7 +37,9 @@ var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState
 	ability.TimeWarp:      timeWarpHandler,
 	ability.Purge:         purgeHandler,
 
-	ability.Heal: healHandler,
+	ability.Heal:     healHandler,
+	ability.Equalize: equalizeHandler,
+	ability.Purify:   purifyHandler,
 }
 
 // HandleAbility is cooking a response for specific ability. We don't validation here,
@@ -211,20 +213,98 @@ func purgeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
+func purifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	st := ds.NewUnitStates()
+	for statusType, v := range target.Statuses {
+		if v.IsNegative() {
+			st.Add(removeStatusFromUnit(target, statusType))
+		}
+	}
+	st.Add(healUnit(target, 2)...)
+	st.Add(applyStatusToUnit(target, status.DebuffWard))
+
+	return st, nil
+}
+
 func healHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	_, target := mustAbilityActors(load)
 
-	value := 4
-	target.CurrentHP += value
-	if target.CurrentHP > target.BaseHP {
-		value = value - (target.CurrentHP - target.BaseHP)
-		target.CurrentHP = target.BaseHP
+	st := healUnit(target, 4)
+	return st, nil
+}
+
+func equalizeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
 	}
-	st := ds.NewUnitStates(
-		ds.ApplyState{ChangeHP: new(value)},
-		ds.ApplyState{SetHP: new(target.CurrentHP)},
-	)
-	st.ToUnitID(target.ID)
+
+	ab := ability.ByID(ability.Equalize)
+
+	var sumHP int
+	var units []*ds.Unit
+
+	st := ds.NewUnitStates()
+
+	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
+	for _, c := range cells {
+		if u := GetUnitAt(c); u != nil && !u.IsOpponent {
+			units = append(units, u)
+			sumHP += u.CurrentHP
+		}
+	}
+
+	count := len(units)
+	if count <= 1 {
+		return st, nil
+	}
+
+	eq := sumHP / count
+	remainder := sumHP - eq*count
+
+	for _, u := range units {
+		if u.CurrentHP == eq {
+			continue
+		}
+
+		changeBy := eq - u.CurrentHP
+		u.CurrentHP = eq
+
+		st.Add(
+			ds.ApplyState{
+				ChangeHP: new(changeBy),
+				ToUnitID: u.ID,
+			},
+			ds.ApplyState{
+				SetHP:    new(u.CurrentHP),
+				ToUnitID: u.ID,
+			},
+		)
+	}
+
+	if remainder > 0 {
+		for i := 0; i < remainder; i++ {
+			u := units[i%count]
+			u.CurrentHP++
+
+			for j, v := range st {
+				if v.ToUnitID != u.ID {
+					continue
+				}
+
+				if v.SetHP != nil {
+					v.SetHP = new(u.CurrentHP)
+				}
+				if v.ChangeHP != nil {
+					*v.ChangeHP += 1
+				}
+
+				st[j] = v
+			}
+		}
+	}
 
 	return st, nil
 }
@@ -303,6 +383,8 @@ func shadowStepHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
 	}
+
+	PlaceUnitAt(caster, load.Target)
 
 	ef := status.ByType(status.Sharpened)
 	caster.CurrentAtk += ef.InitialValue
@@ -397,13 +479,40 @@ func dealDamageToUnit(u *ds.Unit, val int) ds.ApplyStates {
 		ds.ApplyState{SetHP: new(u.CurrentHP)},
 	)
 
-	// TODO onDeath / onHPReduced triggers
-	if u.CurrentHP == 0 {
+	if u.CurrentHP <= 0 {
 		u.IsDead = true
-		RemoveUnitFromQueue(u.ID)
-		st.Add(ds.ApplyState{IsDead: true})
+		st.Add(applyOnDeathHandlers(u)...)
+
+		if u.IsDead {
+			RemoveUnitFromQueue(u.ID)
+			st.Add(ds.ApplyState{IsDead: true})
+		}
 	}
 
+	st.ToUnitID(u.ID)
+
+	return st
+}
+
+func healUnit(u *ds.Unit, val int) ds.ApplyStates {
+	if u.CurrentHP == u.BaseHP {
+		return ds.ApplyStates{}
+	}
+
+	u.CurrentHP += val
+	if u.CurrentHP > u.BaseHP {
+		val = val - (u.CurrentHP - u.BaseHP)
+		u.CurrentHP = u.BaseHP
+	}
+
+	if val == 0 {
+		return ds.ApplyStates{}
+	}
+
+	st := ds.NewUnitStates(
+		ds.ApplyState{ChangeHP: new(val)},
+		ds.ApplyState{SetHP: new(u.CurrentHP)},
+	)
 	st.ToUnitID(u.ID)
 
 	return st
@@ -415,22 +524,19 @@ func applyStatusToUnit(u *ds.Unit, st status.Type, metaOpt ...map[string]any) (s
 		log.Printf("applyStatusToUnit: unknown status type %s", st)
 		return
 	}
-	if u.Statuses == nil {
-		u.Statuses = make(map[status.Type]status.Value)
-	}
 
 	var meta map[string]any
 	if metaOpt != nil {
 		meta = metaOpt[0]
 	}
 
-	u.Statuses[st] = status.Value{
+	u.AddStatus(status.Value{
 		UnitID:   u.ID,
 		Duration: ste.Duration,
 		Value:    ste.InitialValue,
 		Status:   ste,
 		Meta:     meta,
-	}
+	})
 
 	return ds.ApplyState{
 		AddStatus:     new(st),
