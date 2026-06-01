@@ -36,6 +36,8 @@ var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState
 	ability.Translocation: translocationHandler,
 	ability.TimeWarp:      timeWarpHandler,
 	ability.Purge:         purgeHandler,
+
+	ability.Heal: healHandler,
 }
 
 // HandleAbility is cooking a response for specific ability. We don't validation here,
@@ -209,6 +211,24 @@ func purgeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
+func healHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	value := 4
+	target.CurrentHP += value
+	if target.CurrentHP > target.BaseHP {
+		value = value - (target.CurrentHP - target.BaseHP)
+		target.CurrentHP = target.BaseHP
+	}
+	st := ds.NewUnitStates(
+		ds.ApplyState{ChangeHP: new(value)},
+		ds.ApplyState{SetHP: new(target.CurrentHP)},
+	)
+	st.ToUnitID(target.ID)
+
+	return st, nil
+}
+
 func idolihuSpinHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
@@ -347,10 +367,10 @@ func dealDamageToUnit(u *ds.Unit, val int) ds.ApplyStates {
 			shieldRemoved = u.CurrentShield
 			u.CurrentShield = 0
 			val = val - shieldRemoved
-
 		} else {
 			shieldRemoved = val
 			u.CurrentShield -= val
+			val = 0
 		}
 	}
 

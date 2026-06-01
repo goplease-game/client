@@ -191,6 +191,7 @@ func (m *MockClient) nextUnitToPlay() *ds.Unit {
 	if gs.ActiveUnit < 0 || gs.ActiveUnit >= len(gs.UnitsQueue) {
 		return nil
 	}
+
 	return gs.UnitsQueue[gs.ActiveUnit]
 }
 
@@ -225,12 +226,10 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	m.sendApplyStates(states...)
 
 	if unit.OwnerID != mock.MockedPlayerID {
-		// Real player's unit — hand control back to the client.
 		m.sendPlayUnit(unit.ID)
 		return
 	}
 
-	// Mock unit: simulate movement if possible.
 	m.simulateMockUnitTurn(unit)
 
 	// Continue the loop after a short pause.
@@ -240,24 +239,12 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 
 // simulateMockUnitTurn moves the mock unit to a random reachable cell.
 func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
-	cells := unit.ReachableCells(mock.GetGameState().Board)
-	if len(cells) == 0 {
-		log.Printf("[mock] unit %s has no reachable cells, skipping", unit.ID)
-		return
-	}
+	actions := mock.SimulateUnitTurn(unit)
 
-	pos := mock.RandomReachableCell(*unit)
-	mock.PlaceUnitAt(unit, pos)
-	unit.Pos = pos
-
-	data, err := json.Marshal(ds.UnitMovedPayload{
-		UnitID: unit.ID,
-		Coord:  pos,
-	})
-	if err != nil {
-		log.Fatal(err)
+	for _, act := range actions {
+		m.inbox <- InMessage{Action: Action(act.Action), Data: act.JSON}
+		time.Sleep(mockDelay)
 	}
-	m.inbox <- InMessage{Action: UnitMovedAction, Data: data}
 }
 
 // runPlacementPhase handles the end-of-queue placement step:
@@ -268,8 +255,11 @@ func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 func (m *MockClient) runPlacementPhase() {
 	gs := mock.GetGameState()
 
-	p1Done := gs.Players[0].UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase
-	p2Done := gs.Players[1].UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase
+	p1 := gs.Players[0]
+	p2 := gs.Players[1]
+
+	p1Done := p1.UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase || len(p1.Units) == 0
+	p2Done := p2.UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase || len(p2.Units) == 0
 
 	if p1Done && p2Done {
 		m.startNewRound()

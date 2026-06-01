@@ -13,6 +13,9 @@ import (
 // handleServerMessage dispatches an incoming server message to the appropriate handler.
 func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	fmt.Printf("received: %v\n", msg.Action)
+	if msg.Data != nil {
+		fmt.Printf("JSON: %s\n", string(msg.Data))
+	}
 
 	switch msg.Action {
 	case ws.ErrorAction:
@@ -35,6 +38,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleUnitMoved(msg.Data)
 	case ws.ApplyState:
 		s.handleApplyState(msg.Data)
+	case ws.UseAbility:
+		s.handleUseAbility(msg.Data)
 	}
 }
 
@@ -228,6 +233,27 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 			s.applyStateVisuals(target, st)
 		}
 	}
+}
+
+// handleApplyState processes a batch of atomic state mutations from the server.
+// Each ApplyState is applied sequentially to the target unit.
+func (s *Screen) handleUseAbility(data json.RawMessage) {
+	var payload ds.UseAbilityPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		log.Fatal("handleUseAbility unmarshal:", err)
+	}
+
+	unit := s.unitByID(payload.UnitID)
+	if unit == nil {
+		log.Fatalf("handleUseAbility: unit %s not found", payload.UnitID)
+	}
+
+	pending := &pendingVisuals{}
+	s.pendingVisuals = pending
+	s.playAbilityFx(payload.AbilityID, unit, payload.Target, func() {
+		pending.fxDone = true
+		s.tryFlushPendingVisuals(pending)
+	})
 }
 
 // applyStateImmediate applies data mutations to the unit (no visuals).

@@ -223,6 +223,7 @@ func GetRandomUnoccupiedOpponentSafeZoneCell() ds.HexCoord {
 
 func PlaceUnitAt(u *ds.Unit, coord ds.HexCoord) {
 	if cell := gameState.Board.Cells[coord]; cell != nil {
+		u.Pos = coord
 		cell.Unit = u
 	}
 }
