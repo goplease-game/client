@@ -5,12 +5,12 @@ import (
 	"log"
 
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 )
 
-const StatusPermaDuration = -1
+const StatusPermanentDuration = -1
 
 var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState, error){
 	ability.BasicMeleeAttack: basicMeleeAttackHandler,
@@ -21,11 +21,24 @@ var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState
 	ability.Provoke:    provokeHandler,
 	ability.ShieldBash: shieldBashHandler,
 
-	ability.BattleCry: battleCryHandler,
-	ability.PowerPush: powerPushHandler,
+	ability.BattleCry:   battleCryHandler,
+	ability.IdolihuSpin: idolihuSpinHandler,
+	ability.PowerPush:   powerPushHandler,
+
+	ability.PiercingShot:  piercingShotHandler,
+	ability.HuntersMark:   huntersMarkHandler,
+	ability.HamstringShot: hamstringShotHandler,
+
+	ability.ShadowStep: shadowStepHandler,
+	ability.GangUp:     gangUpHandler,
+	ability.Eliminate:  eliminateHandler,
+
+	ability.Translocation: translocationHandler,
+	ability.TimeWarp:      timeWarpHandler,
+	ability.Purge:         purgeHandler,
 }
 
-// HandleAbility is cooking a response for specific ability. We not dont validation here,
+// HandleAbility is cooking a response for specific ability. We don't validation here,
 // because it is just a mock implementation, so you can hack whatever you want.
 func HandleAbility(data ds.UseAbilityPayload) (resp []ds.ApplyState, err error) {
 	_, ok := ability.Abilities[data.AbilityID]
@@ -65,7 +78,7 @@ func fortifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	}
 
 	ab := ability.Abilities[ability.Fortify]
-	ef := effect.StatusByType(effect.DecayingShield)
+	ef := status.ByType(status.DecayingShield)
 
 	st := []ds.ApplyState{}
 
@@ -90,31 +103,25 @@ func provokeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 
 	ab := ability.Abilities[ability.Provoke]
 
-	st := []ds.ApplyState{{
-		AddStatus: new(ds.StatusWithMeta{Status: effect.Provoking}),
-		ToUnitID:  caster.ID,
-	}}
-
-	ste := new(ds.StatusWithMeta{Status: effect.Provoked, Meta: map[string]any{
-		"provoker": caster.ID,
-	}})
+	sts := ds.NewUnitStates()
+	sts.Add(applyStatusToUnit(caster, status.Provoking))
 
 	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
-
 	for _, c := range cells {
 		if u := GetUnitAt(c); u != nil && u.IsOpponent {
-			st = append(st, ds.ApplyState{AddStatus: ste, ToUnitID: u.ID})
+			sts.Add(applyStatusToUnit(u, status.Provoked, map[string]any{"provoker": caster.ID}))
 		}
 	}
 
-	return st, nil
+	return sts, nil
 }
 
 func shieldBashHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	_, target := mustAbilityActors(load)
 
-	st := ds.NewUnitStates(ds.ApplyState{AddStatus: new(ds.StatusWithMeta{Status: effect.Stun})})
-	st.ToUnitID(target.ID)
+	st := ds.NewUnitStates()
+	st.Add(applyStatusToUnit(target, status.Stun))
+
 	return st, nil
 }
 
@@ -122,26 +129,125 @@ func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	caster, target := mustAbilityActors(load)
 
 	dealDmg := 2
-	var canMove bool
+	st := ds.NewUnitStates()
+
 	// skipping pos validation of caster & target, hacking is welcome
 	pos := hex.OppositeHex(caster.Pos, target.Pos)
 	cell, _ := gameState.Board.Cells[pos]
 	if cell != nil && cell.Unit == nil {
-		canMove = true
-	}
-
-	st := ds.NewUnitStates()
-	if canMove {
 		st.Add(ds.ApplyState{MoveTo: new(pos)})
+		target.Pos = pos
 	} else {
-		dealDmg = 1
+		dealDmg += 1
 	}
 
 	st.Add(dealDamageToUnit(target, dealDmg)...)
 	st.ToUnitID(target.ID)
 
-	// set new pos in gs
-	target.Pos = pos
+	return st, nil
+}
+
+func gangUpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster, target := mustAbilityActors(load)
+
+	dealDmg := caster.CurrentAtk
+	pos := hex.OppositeHex(caster.Pos, target.Pos)
+	cell, _ := gameState.Board.Cells[pos]
+	if cell != nil && cell.Unit != nil && !cell.Unit.IsOpponent {
+		dealDmg += 2
+	}
+
+	st := dealDamageToUnit(target, dealDmg)
+	return st, nil
+}
+
+func eliminateHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster, target := mustAbilityActors(load)
+
+	dealDmg := 3
+	st := dealDamageToUnit(target, dealDmg)
+	if target.IsDead {
+		st.Add(
+			ds.ApplyState{ChangeAP: new(1), ToUnitID: caster.ID},
+			ds.ApplyState{SetAP: new(1), ToUnitID: caster.ID},
+		)
+	}
+
+	return st, nil
+}
+
+func translocationHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster, target := mustAbilityActors(load)
+
+	from := caster.Pos
+	to := target.Pos
+
+	caster.Pos = to
+	target.Pos = from
+
+	return nil, nil
+}
+
+func timeWarpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	st := ds.NewUnitStates(applyStatusToUnit(target, status.TemporalAnchor))
+
+	return st, nil
+}
+
+func purgeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	st := ds.NewUnitStates()
+	for statusType, v := range target.Statuses {
+		if v.IsPositive() {
+			st.Add(removeStatusFromUnit(target, statusType))
+		}
+	}
+
+	return st, nil
+}
+
+func idolihuSpinHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	ab := ability.Abilities[ability.IdolihuSpin]
+	st := ds.NewUnitStates()
+	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
+
+	for _, c := range cells {
+		if u := GetUnitAt(c); u != nil && u.IsOpponent {
+			ste := dealDamageToUnit(u, caster.CurrentAtk)
+			ste.ToUnitID(u.ID)
+			st = append(st, ste...)
+		}
+	}
+
+	return st, nil
+}
+
+func piercingShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	flatAtk := 2
+	ab := ability.Abilities[ability.PiercingShot]
+	st := ds.NewUnitStates()
+	cells := lineAreaCells(caster.Pos, ab.AreaRadius)
+
+	for _, c := range cells {
+		if c.Unit != nil && c.Unit.IsOpponent {
+			ste := dealDamageToUnit(c.Unit, flatAtk)
+			ste.ToUnitID(c.Unit.ID)
+			st = append(st, ste...)
+		}
+	}
 
 	return st, nil
 }
@@ -153,19 +259,58 @@ func battleCryHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	}
 
 	ab := ability.Abilities[ability.BattleCry]
-	ef := effect.StatusByType(effect.Rallied)
+	ef := status.ByType(status.Rallied)
 
-	st := []ds.ApplyState{}
+	st := ds.NewUnitStates()
 	cells := hex.CellsInRange(caster.Pos, ab.AreaRadius, gameState.Board)
 
 	for _, c := range cells {
 		if u := GetUnitAt(c); u != nil && !u.IsOpponent {
 			u.CurrentAtk += ef.InitialValue
-			st = append(st, ds.ApplyState{AddStatus: new(ds.StatusWithMeta{Status: effect.Rallied}), ToUnitID: u.ID})
-			st = append(st, ds.ApplyState{ChangeAtk: new(ef.InitialValue), ToUnitID: u.ID})
-			st = append(st, ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID})
+			st.Add(
+				applyStatusToUnit(u, status.Rallied),
+				ds.ApplyState{ChangeAtk: new(ef.InitialValue), ToUnitID: u.ID},
+				ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID},
+			)
 		}
 	}
+
+	return st, nil
+}
+
+func shadowStepHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	caster := GetUnitByID(load.UnitID)
+	if caster == nil {
+		log.Fatalf("invalid ability caster: %s", load.UnitID)
+	}
+
+	ef := status.ByType(status.Sharpened)
+	caster.CurrentAtk += ef.InitialValue
+
+	st := ds.NewUnitStates()
+	st.Add(
+		applyStatusToUnit(caster, status.Sharpened),
+		ds.ApplyState{ChangeAtk: new(ef.InitialValue)},
+		ds.ApplyState{SetAtk: new(caster.CurrentAtk)},
+	)
+	st.ToUnitID(caster.ID)
+
+	return st, nil
+}
+
+func huntersMarkHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	st := ds.NewUnitStates(applyStatusToUnit(target, status.Exposed))
+	return st, nil
+}
+
+func hamstringShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+	_, target := mustAbilityActors(load)
+
+	dmg := 2
+	st := dealDamageToUnit(target, dmg)
+	st.Add(applyStatusToUnit(target, status.Hamstrung))
 
 	return st, nil
 }
@@ -184,19 +329,42 @@ func mustAbilityActors(load ds.UseAbilityPayload) (from *ds.Unit, to *ds.Unit) {
 	return
 }
 
-func dealDamageToUnit(u *ds.Unit, val int) []ds.ApplyState {
+// dealDamageToUnit applies val damage to the unit, accounting for shield absorption.
+// Shield absorbs damage first and any excess damage carries over to HP.
+// If HP reaches zero, the unit is marked as dead and removed from the queue.
+// Returns a slice of ApplyState mutations to be sent to the client for visual feedback.
+func dealDamageToUnit(u *ds.Unit, val int) ds.ApplyStates {
 	st := ds.NewUnitStates()
+
+	eff, ok := u.Statuses[status.Exposed]
+	if ok {
+		val += eff.Value
+	}
+
+	var shieldRemoved int
 	if u.CurrentShield > 0 {
-		var shieldRemoved int
 		if u.CurrentShield < val {
 			shieldRemoved = u.CurrentShield
 			u.CurrentShield = 0
 			val = val - shieldRemoved
-			st.Add(
-				ds.ApplyState{ChangeShield: new(-shieldRemoved)},
-				ds.ApplyState{SetShield: new(0)},
-			)
+
+		} else {
+			shieldRemoved = val
+			u.CurrentShield -= val
 		}
+	}
+
+	if shieldRemoved > 0 {
+		st.Add(
+			ds.ApplyState{ChangeShield: new(-shieldRemoved)},
+			ds.ApplyState{SetShield: new(u.CurrentShield)},
+		)
+		st.ToUnitID(u.ID)
+	}
+
+	// shield fully absorbed the damage
+	if val == 0 {
+		return st
 	}
 
 	if u.CurrentHP < val {
@@ -219,4 +387,73 @@ func dealDamageToUnit(u *ds.Unit, val int) []ds.ApplyState {
 	st.ToUnitID(u.ID)
 
 	return st
+}
+
+func applyStatusToUnit(u *ds.Unit, st status.Type, metaOpt ...map[string]any) (state ds.ApplyState) {
+	ste := status.ByType(st)
+	if ste == nil {
+		log.Printf("applyStatusToUnit: unknown status type %s", st)
+		return
+	}
+	if u.Statuses == nil {
+		u.Statuses = make(map[status.Type]status.Value)
+	}
+
+	var meta map[string]any
+	if metaOpt != nil {
+		meta = metaOpt[0]
+	}
+
+	u.Statuses[st] = status.Value{
+		UnitID:   u.ID,
+		Duration: ste.Duration,
+		Value:    ste.InitialValue,
+		Status:   ste,
+		Meta:     meta,
+	}
+
+	return ds.ApplyState{
+		AddStatus:     new(st),
+		AddStatusMeta: &meta,
+		ToUnitID:      u.ID,
+	}
+}
+
+func removeStatusFromUnit(u *ds.Unit, st status.Type) (state ds.ApplyState) {
+	ste := status.ByType(st)
+	if ste == nil {
+		log.Printf("applyStatusToUnit: unknown status type %s", st)
+		return
+	}
+
+	delete(u.Statuses, st)
+
+	return ds.ApplyState{
+		RemoveStatus: new(st),
+		ToUnitID:     u.ID,
+	}
+}
+
+// lineAreaCells returns all board cells in all 6 directions from `from` up to `length` steps.
+// Used for AreaLine abilities like PiercingShot.
+func lineAreaCells(from ds.HexCoord, radius int) []*ds.BoardCell {
+	dirs := []ds.HexCoord{
+		{Q: 1, R: 0}, {Q: -1, R: 0},
+		{Q: 0, R: 1}, {Q: 0, R: -1},
+		{Q: 1, R: -1}, {Q: -1, R: 1},
+	}
+
+	var result []*ds.BoardCell
+	for _, dir := range dirs {
+		cur := from
+		for i := 0; i < radius; i++ {
+			cur = ds.HexCoord{Q: cur.Q + dir.Q, R: cur.R + dir.R}
+			cell, ok := gameState.Board.Cells[cur]
+			if !ok {
+				break
+			}
+			result = append(result, cell)
+		}
+	}
+	return result
 }

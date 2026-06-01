@@ -146,7 +146,10 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 	s.updateNextActionLabel()
 	s.updateActiveUnitStatusLabel()
 
+	pending := &pendingVisuals{}
+	s.pendingVisuals = pending
 	s.playAbilityFx(abilityID, u, target, func() {
-		// TODO: effects from server
+		pending.fxDone = true
+		s.tryFlushPendingVisuals(pending)
 	})
 }

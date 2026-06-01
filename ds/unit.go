@@ -3,7 +3,7 @@ package ds
 import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 )
 
 type Unit struct {
@@ -27,7 +27,7 @@ type Unit struct {
 
 	Abilities []ability.ID       `json:"abilities"`
 	Cooldowns map[ability.ID]int `json:"cooldowns"`
-	Statuses  map[effect.StatusType]effect.UnitStatus
+	Statuses  map[status.Type]status.Value
 
 	IsOpponent bool
 	IsDead     bool
@@ -37,7 +37,7 @@ type Unit struct {
 }
 
 func (u Unit) IsStunned() bool {
-	_, ok := u.Statuses[effect.Stun]
+	_, ok := u.Statuses[status.Stun]
 
 	return ok
 }
@@ -119,9 +119,4 @@ type PlayUnitPayload struct {
 type UnitPlacedPayload struct {
 	Coord      HexCoord `json:"coord"`
 	TemplateID int      `json:"template_id"`
-}
-
-type StatusWithMeta struct {
-	Status effect.StatusType `json:"status"`
-	Meta   map[string]any    `json:"meta"`
 }

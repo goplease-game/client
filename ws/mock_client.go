@@ -148,7 +148,9 @@ func (m *MockClient) onAbilityUsed(load ds.UseAbilityPayload) {
 		return
 	}
 
-	m.sendApplyStates(states...)
+	if len(states) > 0 {
+		m.sendApplyStates(states...)
+	}
 }
 
 func (m *MockClient) sendApplyStates(st ...ds.ApplyState) {
@@ -202,7 +204,7 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	states := []ds.ApplyState{}
 	// decrease status duration
 	for t, st := range unit.Statuses {
-		if st.Duration == mock.StatusPermaDuration {
+		if st.Duration == mock.StatusPermanentDuration {
 			continue
 		}
 

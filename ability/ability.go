@@ -1,9 +1,5 @@
 package ability
 
-import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
-)
-
 type ID string
 
 type Type int
@@ -66,10 +62,6 @@ func ByID(id ID) Ability {
 	}
 
 	return s
-}
-
-func Effects(e ...effect.Effect) []effect.Effect {
-	return e
 }
 
 func (a Ability) IsBasicAttack() bool {

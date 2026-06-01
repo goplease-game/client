@@ -1,42 +1,67 @@
-package effect
+package status
 
-type StatusType string
-type StatusAlignment string
+type Type string
+type Alignment string
 
 const (
-	DecayingShield StatusType = "decaying_shield"
-	Provoked       StatusType = "provoked"
-	Provoking      StatusType = "provoking"
-	Stun           StatusType = "stun"
-	Rallied        StatusType = "rallied"
-	Exposed        StatusType = "exposed"
-	Hamstrung      StatusType = "hamstrung"
-	Sharpened      StatusType = "sharpened"
-	DebuffWard     StatusType = "debuff_ward"
+	DecayingShield Type = "decaying_shield"
+	Provoked       Type = "provoked"
+	Provoking      Type = "provoking"
+	Stun           Type = "stun"
+	Rallied        Type = "rallied"
+	Exposed        Type = "exposed"
+	Hamstrung      Type = "hamstrung"
+	Sharpened      Type = "sharpened"
+	DebuffWard     Type = "debuff_ward"
+	TemporalAnchor Type = "temporal_anchor"
 )
 
 const (
-	Positive StatusAlignment = "positive"
-	Negative StatusAlignment = "negative"
-	Neutral  StatusAlignment = "neutral"
+	Positive Alignment = "positive"
+	Negative Alignment = "negative"
+	Neutral  Alignment = "neutral"
 )
 
 type Status struct {
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Type        StatusType `json:"type"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Type        Type   `json:"type"`
 	// Duration -1 - permanent
-	Duration     int             `json:"duration,omitempty"`
-	InitialValue int             `json:"initial_value,omitempty"`
-	Alignment    StatusAlignment `json:"alignment"`
+	Duration     int       `json:"duration,omitempty"`
+	InitialValue int       `json:"initial_value,omitempty"`
+	Alignment    Alignment `json:"alignment"`
 }
 
-type UnitStatus struct {
+type Value struct {
 	UnitID   string         `json:"unit_id"`
 	Duration int            `json:"duration"`
 	Value    int            `json:"value"`
 	Status   *Status        `json:"status"`
 	Meta     map[string]any `json:"meta"`
+}
+
+func (e Value) IsPositive() bool {
+	if e.Status == nil {
+		return false
+	}
+
+	return e.Status.Alignment == Positive
+}
+
+func (e Value) IsNegative() bool {
+	if e.Status == nil {
+		return false
+	}
+
+	return e.Status.Alignment == Negative
+}
+
+func (e Value) IsNeutral() bool {
+	if e.Status == nil {
+		return false
+	}
+
+	return e.Status.Alignment == Neutral
 }
 
 var debuffWardStatus = &Status{
@@ -49,16 +74,16 @@ var debuffWardStatus = &Status{
 
 var sharpenedStatus = &Status{
 	Name:         "Sharpened",
-	Description:  "Increases attack by 2 until the end of the next turn.",
+	Description:  "Increases attack by 1 until the end of the next turn.",
 	Duration:     1,
-	InitialValue: 2,
+	InitialValue: 1,
 	Type:         Sharpened,
 	Alignment:    Positive,
 }
 
 var hamstrungStatus = &Status{
 	Name:        "Hamstrung",
-	Description: "Movement is reduced to 1 tile per turn.",
+	Description: "Movement is reduced to 1 tile.",
 	Duration:    1,
 	Type:        Hamstrung,
 	Alignment:   Negative,
@@ -112,4 +137,11 @@ var decayingShieldStatus = &Status{
 	InitialValue: 4,
 	Type:         DecayingShield,
 	Alignment:    Positive,
+}
+
+var temporalAnchorStatus = &Status{
+	Name:        "Temporal Anchor",
+	Description: "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
+	Type:        TemporalAnchor,
+	Alignment:   Positive,
 }

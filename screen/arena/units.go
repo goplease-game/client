@@ -11,7 +11,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
@@ -421,10 +421,9 @@ func (s *Screen) killUnit(u *ds.Unit) {
 	}
 	w.RemoveChildren()
 
-	// Gray background for dead unit cell.
-	w.SetColor(color.NRGBA{0x55, 0x55, 0x55, 0xff})
+	w.SetColor(unitKilledBgColor)
 
-	deadImg := asset.Image("dead-head.png", unitIconSize)
+	deadImg := asset.Image(unitKilledPic, unitIconSize)
 	deadImgFaded := ui.TintImageAlpha(deadImg, 0x99) // 60% opacity
 	w.AddToUnitLayer(widget.NewGraphic(
 		widget.GraphicOpts.Image(deadImgFaded),
@@ -440,25 +439,30 @@ func (s *Screen) killUnit(u *ds.Unit) {
 }
 
 // addUnitStatus adds a status effect to the unit and refreshes its board card.
-func (s *Screen) addUnitStatus(u *ds.Unit, stm ds.StatusWithMeta) {
-	st := effect.StatusByType(stm.Status)
+func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, metaOpt *map[string]any) {
+	st := status.ByType(statusType)
 	if st == nil {
-		log.Printf("addUnitStatus: unknown status type %s", stm.Status)
+		log.Printf("addUnitStatus: unknown status type %s", statusType)
 		return
 	}
 	if u.Statuses == nil {
-		u.Statuses = make(map[effect.StatusType]effect.UnitStatus)
+		u.Statuses = make(map[status.Type]status.Value)
 	}
-	u.Statuses[stm.Status] = effect.UnitStatus{
+
+	var meta map[string]any
+	if metaOpt != nil {
+		meta = *metaOpt
+	}
+	u.Statuses[statusType] = status.Value{
 		UnitID:   u.ID,
 		Duration: st.Duration,
 		Value:    st.InitialValue,
 		Status:   st,
-		Meta:     stm.Meta,
+		Meta:     meta,
 	}
 
 	col := colornames.Gold
-	if st.Alignment == effect.Negative {
+	if st.Alignment == status.Negative {
 		col = colornames.Red
 	}
 	s.showFloatingText(u.Pos, "+ "+st.Name, col)
@@ -467,8 +471,8 @@ func (s *Screen) addUnitStatus(u *ds.Unit, stm ds.StatusWithMeta) {
 }
 
 // removeUnitStatus removes a status effect from the unit and refreshes its board card.
-func (s *Screen) removeUnitStatus(u *ds.Unit, statusType effect.StatusType) {
-	st := effect.StatusByType(statusType)
+func (s *Screen) removeUnitStatus(u *ds.Unit, statusType status.Type) {
+	st := status.ByType(statusType)
 	if st != nil {
 		delete(u.Statuses, statusType)
 		s.showFloatingText(u.Pos, "- "+st.Name, colornames.White)
@@ -479,7 +483,7 @@ func (s *Screen) removeUnitStatus(u *ds.Unit, statusType effect.StatusType) {
 
 // getProvokingUnitID returns the ID of the unit that provoked this unit, or empty string.
 func getProvokingUnitID(u *ds.Unit) string {
-	us, ok := u.Statuses[effect.Provoked]
+	us, ok := u.Statuses[status.Provoked]
 	if !ok {
 		return ""
 	}

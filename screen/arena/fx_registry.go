@@ -1,9 +1,5 @@
 package arena
 
-import (
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-)
-
 type FxName int
 
 const (
@@ -22,8 +18,6 @@ const (
 	fxSwordSpin
 	fxHandPush
 	fxMarkTarget
-	fxTeleportStart
-	fxTeleportEnd
 	fxTimeWarp
 	fxPurge
 	fxHeal
@@ -87,16 +81,6 @@ var fxRegistry = map[FxName]FxDefiner{
 		Sprite: "apply_mark", Sound: "appy_debuff.ogg",
 		FrameCount: 6, FrameSize: 512, FPS: 15,
 		DisplaySize: 100},
-	fxTeleportStart: FxStep{
-		ProgramFx: func(ctx ProgramFxContext) {
-			sfx.Play("teleport_out.ogg")
-		},
-	},
-	fxTeleportEnd: FxStep{
-		ProgramFx: func(ctx ProgramFxContext) {
-			sfx.Play("teleport_in.ogg")
-		},
-	},
 	fxTimeWarp: FxStep{
 		Sprite: "power_up", Sound: "time_warp.ogg",
 		FrameCount: 6, FrameSize: 512, FPS: 10,

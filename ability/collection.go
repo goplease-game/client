@@ -45,11 +45,12 @@ const (
 // Damage hint format:
 // - ATK       — base attack damage
 // - ATK+2     — base attack plus flat bonus
+// - ATK/ATK+2 — base attack or base attack with bonus
 // - 3         — flat damage value
 // - 2/3       — two distinct possible values
 // - 2–5       — damage range
 
-const CurrentATK = "ATK"
+const HintCurrentATK = "ATK"
 
 var Abilities = map[ID]Ability{
 	BasicMeleeAttack: {
@@ -61,7 +62,7 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		DamageHint:  CurrentATK,
+		DamageHint:  HintCurrentATK,
 	},
 	BasicRangeAttack: {
 		Type:        Skill,
@@ -72,7 +73,7 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		DamageHint:  CurrentATK,
+		DamageHint:  HintCurrentATK,
 	},
 	BasicMagicAttack: {
 		Type:        Skill,
@@ -83,7 +84,7 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		Activation:  SelectEnemy,
 		TargetMode:  TargetEnemies,
-		DamageHint:  CurrentATK,
+		DamageHint:  HintCurrentATK,
 	},
 
 	// --- TANK ---
@@ -152,7 +153,7 @@ var Abilities = map[ID]Ability{
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  1,
-		DamageHint:  CurrentATK,
+		DamageHint:  HintCurrentATK,
 	},
 	PowerPush: {
 		Type:        Skill,
@@ -177,13 +178,13 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Piercing Shot",
-		Description: "Fires a piercing shot that deals attack damage to all enemies in a straight line.",
+		Description: "Fires a piercing shot that deals 2 damage to each enemy in a straight line.",
 		Cooldown:    3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectAny,
 		Area:        AreaLine,
 		AreaRadius:  4,
-		DamageHint:  CurrentATK,
+		DamageHint:  "2",
 	},
 	HuntersMark: {
 		Type:        Skill,
@@ -201,7 +202,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Hamstring Shot",
 		Description: "Deals 2 damage and reduces target's Move Range to 1 for next turn.",
 		Cooldown:    3,
-		Range:       3,
+		Range:       4,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 		DamageHint:  "2",
@@ -220,7 +221,7 @@ var Abilities = map[ID]Ability{
 		Type:        Spell,
 		IsPassive:   false,
 		Name:        "Shadow Step",
-		Description: "Teleport to target cell and gain +2 Attack until the end of your next turn.",
+		Description: "Teleport to target cell and gain +1 Attack until the end of your next turn.",
 		Cooldown:    3,
 		Range:       4,
 		Activation:  SelectFreeCell,
@@ -254,7 +255,7 @@ var Abilities = map[ID]Ability{
 		Description: "Once per turn, attacks an adjacent enemy when an ally hits them with a melee attack.",
 		Cooldown:    0,
 		Range:       1,
-		DamageHint:  CurrentATK,
+		DamageHint:  HintCurrentATK,
 	},
 
 	// --- MAGE ---
@@ -272,14 +273,13 @@ var Abilities = map[ID]Ability{
 		Type:        Spell,
 		IsPassive:   false,
 		Name:        "Time Warp",
-		Description: "Target ally or self gains +1 AP. At the end of that unit’s turn, their HP, Shield, and position are restored to their state at the start of that turn.",
+		Description: "Target ally or self gains +1 AP at the start of their next turn. At the end of that turn, their HP, Shield, and position are restored to their state at the start of the turn.",
 		Cooldown:    5,
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
-		Activation:  SelectAlly,
+		Activation:  SelectAllyOrSelf,
 	},
 	Purge: {
-		ID:          "",
 		Type:        Spell,
 		IsPassive:   false,
 		Name:        "Purge",

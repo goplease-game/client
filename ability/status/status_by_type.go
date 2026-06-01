@@ -1,6 +1,6 @@
-package effect
+package status
 
-var statusByType = map[StatusType]*Status{
+var statuses = map[Type]*Status{
 	DecayingShield: decayingShieldStatus,
 	Rallied:        ralliedStatus,
 	Provoked:       provokedStatus,
@@ -10,13 +10,10 @@ var statusByType = map[StatusType]*Status{
 	Exposed:        exposedStatus,
 	Sharpened:      sharpenedStatus,
 	DebuffWard:     debuffWardStatus,
+	TemporalAnchor: temporalAnchorStatus,
 }
 
-func NewStatus(t StatusType) *Status {
-	return statusByType[t]
-}
-
-// StatusByType returns the Status definition for the given StatusType, or nil if not found.
-func StatusByType(t StatusType) *Status {
-	return statusByType[t]
+// ByType returns the Status definition for the given Type, or nil if not found.
+func ByType(t Type) *Status {
+	return statuses[t]
 }

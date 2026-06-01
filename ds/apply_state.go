@@ -1,6 +1,6 @@
 package ds
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
+import "github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 
 // ApplyState represents a single, atomic state mutation applied to a unit.
 // Sequential execution of these states forms the visual timeline on the client side.
@@ -29,9 +29,10 @@ type ApplyState struct {
 	SetAtk    *int `json:"set_atk,omitempty"`
 
 	// Statuses and effects
-	IsDead       bool               `json:"is_dead,omitempty"`
-	AddStatus    *StatusWithMeta    `json:"add_status,omitempty"`
-	RemoveStatus *effect.StatusType `json:"remove_status,omitempty"`
+	IsDead        bool            `json:"is_dead,omitempty"`
+	AddStatus     *status.Type    `json:"add_status,omitempty"`
+	AddStatusMeta *map[string]any `json:"add_status_meta,omitempty"`
+	RemoveStatus  *status.Type    `json:"remove_status,omitempty"`
 }
 
 // ApplyStates represents a collection of atomic state mutations bound to a single unit.

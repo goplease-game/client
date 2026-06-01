@@ -13,7 +13,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-var UnitsPerPlacementPhase = 3
+var UnitsPerPlacementPhase = 1
 
 const (
 	totalUnitsPerPlayer = 6

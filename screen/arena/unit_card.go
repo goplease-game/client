@@ -6,7 +6,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/effect"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
@@ -244,9 +244,9 @@ func buildStatusTooltip(u *ds.Unit) *widget.Container {
 		// Status name colored by alignment.
 		nameColor := ttTextColor
 		switch us.Status.Alignment {
-		case effect.Positive:
+		case status.Positive:
 			nameColor = colornames.Palegreen
-		case effect.Negative:
+		case status.Negative:
 			nameColor = colornames.Tomato
 		}
 

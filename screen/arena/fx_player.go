@@ -34,19 +34,16 @@ type ActiveFxAnim struct {
 }
 
 func (s *Screen) playAbilityFx(abilityID ability.ID, unit *ds.Unit, target ds.HexCoord, onDone func()) {
-	// Custom composer takes priority.
 	if composer, ok := abilityComposerRegistry[abilityID]; ok {
 		composer(s, unit, target, onDone)
 		return
 	}
 
-	// Simple ability fx.
-	if ab, ok := abilityFxRegistry[abilityID]; ok {
-		s.abilityFxComposer(ab, unit, target, onDone)
+	if abFx, ok := abilityFxRegistry[abilityID]; ok {
+		s.abilityFxComposer(abFx, abilityID, unit, target, onDone)
 		return
 	}
 
-	// No fx defined — proceed immediately.
 	onDone()
 }
 

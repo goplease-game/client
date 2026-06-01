@@ -24,6 +24,7 @@ const (
 	unitIconSize    = 54 // unit portrait size rendered on the board hex
 
 	unitStunnedPic = "knockout.png"
+	unitKilledPic  = "dead-head.png"
 
 	headerH = 80
 	statusH = 32
@@ -119,7 +120,10 @@ type Screen struct {
 	timerBar        *timerBarState
 	turnTimeSeconds int // 0 = timer disabled
 
-	floatingTexts []*floatingText
+	floatingTexts  []*floatingText
+	pendingVisuals *pendingVisuals
+	// pendingDrawOps holds draw operations queued by ProgramFx to be executed in Draw.
+	pendingDrawOps []pendingDrawOp
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -224,7 +228,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 			x, y := action.anim.currentPos()
 
 			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(x, y) // Ensure proper type conversion
+			op.GeoM.Translate(x, y)
 
 			screen.DrawImage(action.anim.img, op)
 		}
@@ -239,6 +243,11 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 
 	s.drawRoundBanner(screen)
 	s.drawFloatingTexts(screen)
+
+	for _, d := range s.pendingDrawOps {
+		screen.DrawImage(d.img, d.op)
+	}
+	s.pendingDrawOps = nil
 }
 
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
@@ -468,4 +477,14 @@ func (s *Screen) updateTurnControls() {
 
 	s.updateNextActionLabel()
 	s.updateActiveUnitStatusLabel()
+}
+
+type pendingDrawOp struct {
+	img *ebiten.Image
+	op  *ebiten.DrawImageOptions
+}
+
+// drawOnTop queues an image to be drawn on top of everything in the next Draw call.
+func (s *Screen) drawOnTop(img *ebiten.Image, op *ebiten.DrawImageOptions) {
+	s.pendingDrawOps = append(s.pendingDrawOps, pendingDrawOp{img: img, op: op})
 }

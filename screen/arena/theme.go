@@ -48,6 +48,7 @@ var (
 	boardGridColor         = color.RGBA{0x45, 0x63, 0x7a, 255}
 	unitDropZoneColor      = ui.RGBFromHex("A7E399")
 	unitDropZoneHoverColor = ui.DarkenRGB(unitDropZoneColor, 50)
+	unitKilledBgColor      = ui.RGBFromHex("BFA28C")
 
 	// Ability colours.
 	abilitiesPanelBgColor       = ui.DarkenRGB(footerBgColor, 5)

@@ -2,10 +2,11 @@ package arena
 
 import (
 	"log"
-	"time"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 )
 
@@ -22,69 +23,118 @@ type AbilityFxComposer func(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone
 // abilityFxComposer plays the Start and End fx of an AbilityFx
 // according to its PlayMode. Called by playAbilityFx for abilities
 // declared in abilityFxRegistry.
-func (s *Screen) abilityFxComposer(ab AbilityFx, unit *ds.Unit, target ds.HexCoord, onDone func()) {
+func (s *Screen) abilityFxComposer(abFx AbilityFx, abilityID ability.ID, unit *ds.Unit, target ds.HexCoord, onDone func()) {
 	casterCtx := FxContext{Px: s.cellCentrePx(unit.Pos), Coord: unit.Pos}
-	targetCtx := FxContext{Px: s.cellCentrePx(target), Coord: target}
 
-	if ab.Start == fxNone {
-		if ab.End != fxNone {
-			s.playFxAt(ab.End, targetCtx, onDone)
-		} else {
-			onDone()
+	// Determine End targets — AOE plays on all valid targets, single target plays on target.
+	abDef := ability.ByID(abilityID)
+	isAOE := abDef.Area != ""
+
+	// playEnd plays the End fx on all valid targets (AOE) or single target.
+	// Calls afterDone when all End fx have finished.
+	playEnd := func(afterDone func()) {
+		if abFx.End == fxNone {
+			afterDone()
+			return
 		}
+
+		if isAOE {
+			targets := s.abilityTargets(abDef, unit)
+			if len(targets) == 0 {
+				afterDone()
+				return
+			}
+			remaining := len(targets)
+			done := func() {
+				remaining--
+				if remaining == 0 {
+					afterDone()
+				}
+			}
+			for _, t := range targets {
+				s.playFxAt(abFx.End, FxContext{Px: s.cellCentrePx(t), Coord: t}, done)
+			}
+		} else {
+			s.playFxAt(abFx.End, FxContext{Px: s.cellCentrePx(target), Coord: target}, afterDone)
+		}
+	}
+
+	if abFx.Start == fxNone {
+		playEnd(onDone)
 		return
 	}
 
-	if ab.End == fxNone {
-		s.playFxAt(ab.Start, casterCtx, onDone)
-		return
-	}
-
-	switch ab.PlayMode {
+	switch abFx.PlayMode {
 	case FxSequential:
-		s.playFxAt(ab.Start, casterCtx, func() {
-			s.playFxAt(ab.End, targetCtx, onDone)
+		s.playFxAt(abFx.Start, casterCtx, func() {
+			playEnd(onDone)
 		})
 
 	case FxParallel:
-		remaining := 2
-		done := func() {
-			remaining--
-			if remaining == 0 {
+		startFinished := false
+		endFinished := false
+		checkDone := func() {
+			if startFinished && endFinished {
 				onDone()
 			}
 		}
-		s.playFxAt(ab.Start, casterCtx, done)
-		s.playFxAt(ab.End, targetCtx, done)
+		s.playFxAt(abFx.Start, casterCtx, func() {
+			startFinished = true
+			checkDone()
+		})
+		playEnd(func() {
+			endFinished = true
+			checkDone()
+		})
 
 	case FxDelayed:
-		remaining := 2
-		done := func() {
-			remaining--
-			if remaining == 0 {
+		startFinished := false
+		endFinished := false
+		checkDone := func() {
+			if startFinished && endFinished {
 				onDone()
 			}
 		}
-		s.playFxAt(ab.Start, casterCtx, done)
-		s.scheduleDelayed(ab.Delay, func() {
-			s.playFxAt(ab.End, targetCtx, done)
+		s.playFxAt(abFx.Start, casterCtx, func() {
+			startFinished = true
+			checkDone()
+		})
+		s.scheduleDelayed(abFx.Delay, func() {
+			playEnd(func() {
+				endFinished = true
+				checkDone()
+			})
 		})
 	}
 }
 
 func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func()) {
+	unitImg := unitImage(unit.TemplateID, unitIconSize)
+
 	s.hideUnitOnBoard(unit)
-	s.playFxAt(fxTeleportStart, FxContext{
-		Px:    s.cellCentrePx(unit.Pos),
-		Coord: unit.Pos,
-	}, func() {
-		s.moveUnit(unit, target)
-		time.Sleep(1 * time.Second)
-		s.showUnitOnBoard(unit)
-		s.playFxAt(fxTeleportEnd, FxContext{
-			Px:    s.cellCentrePx(target),
-			Coord: target,
-		}, onDone)
+	sfx.Play("teleport_out.ogg")
+
+	s.activeFxAnims = append(s.activeFxAnims, &ActiveFxAnim{
+		pos:             s.cellCentrePx(unit.Pos),
+		coord:           unit.Pos,
+		programFx:       fxUnitFadeZoomOut(unitImg),
+		programDuration: int(0.5 * 60),
+		onDone: func() {
+			s.moveUnit(unit, target)
+			unit.Pos = target
+			sfx.Play("teleport_in.ogg")
+
+			s.activeFxAnims = append(s.activeFxAnims, &ActiveFxAnim{
+				pos:             s.cellCentrePx(target),
+				coord:           target,
+				programFx:       fxUnitFadeZoomIn(unitImg),
+				programDuration: int(0.5 * 60),
+				onDone: func() {
+					s.showUnitOnBoard(unit)
+					onDone()
+				},
+			})
+		},
 	})
 }
 
@@ -112,18 +162,72 @@ func playTranslocationFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone fu
 	s.addMoveAnim(casterAnim, targetAnim)
 }
 
-// fxFadeOut gradually hides the unit at the given coord (t: 0=visible, 1=hidden).
-func fxFadeOut(ctx ProgramFxContext) {
-	if ctx.Widget == nil {
-		return
+// fxUnitFadeZoomOut animates the unit icon fading out and shrinking.
+// Draws the icon directly onto screen each frame.
+func fxUnitFadeZoomOut(unitImg *ebiten.Image) ProgramFx {
+	return func(ctx ProgramFxContext) {
+		if unitImg == nil {
+			return
+		}
+		t := ctx.T
+		alpha := float32(1.0 - t)
+		scale := 1.0 - 0.5*t
+
+		w := float64(unitImg.Bounds().Dx())
+		h := float64(unitImg.Bounds().Dy())
+
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-w/2, -h/2)
+		op.GeoM.Scale(scale, scale)
+		//op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
+		op.ColorScale.ScaleAlpha(alpha)
+
+		ctx.Screen.drawOnTop(unitImg, op)
 	}
-	//ctx.Widget.SetUnitFade(uint8(255 * ctx.T))
 }
 
-// fxFadeIn gradually reveals the unit at the given coord (t: 0=hidden, 1=visible).
-func fxFadeIn(ctx ProgramFxContext) {
-	if ctx.Widget == nil {
-		return
+// fxUnitFadeZoomIn animates the unit icon fading in and growing.
+func fxUnitFadeZoomIn(unitImg *ebiten.Image) ProgramFx {
+	return func(ctx ProgramFxContext) {
+		if unitImg == nil {
+			return
+		}
+		t := ctx.T
+		alpha := float32(t)
+		scale := 0.5 + 0.5*t
+
+		w := float64(unitImg.Bounds().Dx())
+		h := float64(unitImg.Bounds().Dy())
+
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-w/2, -h/2)
+		op.GeoM.Scale(scale, scale)
+		//op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
+		op.ColorScale.ScaleAlpha(alpha)
+
+		ctx.Screen.drawOnTop(unitImg, op)
 	}
-	//ctx.Widget.SetUnitFade(uint8(255 * (1.0 - ctx.T)))
+}
+
+// abilityTargets returns all valid target coords for the given ability cast by unit.
+func (s *Screen) abilityTargets(ab ability.Ability, unit *ds.Unit) []ds.HexCoord {
+	var cells []ds.HexCoord
+
+	switch ab.Area {
+	case ability.AreaCircle:
+		cells = hex.CellsInRange(unit.Pos, ab.AreaRadius, s.board)
+	case ability.AreaLine:
+		cells = hexAllLines(unit.Pos, ab.AreaRadius, s.board)
+	default:
+		cells = hex.CellsInRange(unit.Pos, ab.Range, s.board)
+	}
+
+	var targets []ds.HexCoord
+	for _, pos := range cells {
+		cell := s.board.Cells[pos]
+		if cell != nil && cell.Unit != nil && s.isValidTarget(ab, unit, *cell.Unit) {
+			targets = append(targets, pos)
+		}
+	}
+	return targets
 }

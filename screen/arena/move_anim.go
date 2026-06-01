@@ -131,43 +131,6 @@ func (s *Screen) updateMoveAnimations() {
 	}
 }
 
-// finishMoveAfterAnim ...
-func (s *Screen) finishMoveAfterAnim(u *ds.Unit, from ds.HexCoord, to ds.HexCoord, silent bool) {
-	if u == nil {
-		return
-	}
-
-	s.moveUnit(u, to)
-
-	if s.selectedUnitID == u.ID || !u.IsOpponent {
-		s.activeUnitMoved = true
-		s.updateActiveUnitStatusLabel()
-		s.updateNextActionLabel()
-	}
-
-	if fromW := s.boardCellWidgets[from]; fromW != nil {
-		s.removePulseWidget(fromW)
-		s.restoreSafeZoneCell(from)
-		fromW.SetColor(boardCellBgColor)
-		fromW.RemoveChildren()
-	}
-
-	if toW := s.boardCellWidgets[to]; toW != nil {
-		targetBg := unitFriendlyBgColor
-		if u.IsOpponent {
-			targetBg = unitEnemyBgColor
-		}
-		toW.SetColor(targetBg)
-		toW.RemoveChildren()
-
-		buildBoardCard(toW, u, false)
-
-		if !u.IsOpponent {
-			s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
-		}
-	}
-}
-
 // addMoveAnim schedules a group of animations to be executed simultaneously.
 func (s *Screen) addMoveAnim(anims ...unitMoveAnimAction) {
 	if len(anims) == 0 {

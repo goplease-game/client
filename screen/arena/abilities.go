@@ -105,7 +105,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 				),
 			),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
-				if blocked {
+				if blocked || s.selectedAbility != nil {
 					return
 				}
 				s.clearAbilityHighlight()
@@ -114,13 +114,13 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 				s.highlightAbilityRange(ab)
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
-				if blocked {
+				if blocked || s.selectedAbility != nil {
 					return
 				}
 				if s.selectedAbility == nil || s.selectedAbility.ID != ab.ID {
 					card.SetBackgroundImage(image.NewNineSliceColor(bgColor))
+					s.clearAbilityHighlight()
 				}
-				s.clearAbilityHighlight()
 			}),
 			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
 				if args.Button == ebiten.MouseButtonLeft && args.Inside {
@@ -136,6 +136,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 			}),
 		),
 	)
+
 	return card
 }
 
@@ -227,7 +228,7 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 
 	if ab.DamageHint != "" {
 		if u := s.unitByID(s.activeUnitID); u != nil {
-			val := strings.ReplaceAll(ab.DamageHint, ability.CurrentATK, fmt.Sprintf("%d", u.CurrentAtk))
+			val := strings.ReplaceAll(ab.DamageHint, ability.HintCurrentATK, fmt.Sprintf("%d", u.CurrentAtk))
 			c.AddChild(buildToolTipRow("Damage: "+val, colornames.Orange))
 		}
 	}
@@ -247,25 +248,6 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 
 	return c
 }
-
-// abilityDamageString returns a human-readable damage string for the ability tooltip.
-//func (s *Screen) abilityDamageString(ab ability.Ability) string {
-//	for _, eff := range ab.Effects {
-//		if eff.Damage == nil {
-//			continue
-//		}
-//		switch eff.Damage.Source {
-//		case effect.DamageSourceUnitAttack:
-//			if u := s.unitByID(s.activeUnitID); u != nil {
-//				return fmt.Sprintf("Damage: %d", u.CurrentAtk)
-//			}
-//			return "Damage: ATK"
-//		case effect.DamageSourceValue:
-//			return fmt.Sprintf("Damage: %d", eff.Damage.Value)
-//		}
-//	}
-//	return ""
-//}
 
 // buildToolTipRow returns a horizontal row container with a single coloured text label.
 // Used to display ability stats (cooldown, range, passive) in tooltips.

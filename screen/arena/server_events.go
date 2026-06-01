@@ -205,47 +205,46 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		log.Fatal("handleApplyState unmarshal:", err)
 	}
 
+	// Apply state data immediately (HP, AP, statuses etc).
 	for _, st := range payload {
 		target := s.unitByID(st.ToUnitID)
 		if target == nil {
-			log.Printf("handleApplyState: unit %s not found", st.ToUnitID)
 			continue
 		}
+		s.applyStateImmediate(target, st)
+	}
 
-		s.applyState(target, st)
+	// Visual feedback waits for fx to finish.
+	if s.pendingVisuals != nil {
+		s.pendingVisuals.applyStates = payload
+		s.pendingVisuals.serverDone = true
+		s.tryFlushPendingVisuals(s.pendingVisuals)
+		return
+	}
+
+	// No pending fx — show visuals immediately.
+	for _, st := range payload {
+		if target := s.unitByID(st.ToUnitID); target != nil {
+			s.applyStateVisuals(target, st)
+		}
 	}
 }
 
-// applyState applies a single atomic state mutation to the target unit.
-func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
+// applyStateImmediate applies data mutations to the unit (no visuals).
+// Called as soon as ApplyState arrives from the server.
+func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	// --- Movement ---
 	if st.MoveTo != nil {
 		s.moveUnitForced(target, *st.MoveTo)
 	}
 
-	// --- Delta changes (for floating text / animations) ---
-	if st.ChangeHP != nil {
-		s.showFloatingStat(target.Pos, *st.ChangeHP, "HP")
-	}
-	if st.ChangeAP != nil {
-		// target.CurrentAP += *st.ChangeAP
-	}
-	if st.ChangeMP != nil {
-		// target.MP += *st.ChangeMP
-	}
-	if st.ChangeShield != nil {
-		s.showFloatingStat(target.Pos, *st.ChangeShield, "Shield")
-	}
-	if st.ChangeAtk != nil {
-		s.showFloatingStat(target.Pos, *st.ChangeAtk, "ATK")
-	}
-
-	// --- Absolute values (hard sync after animation) ---
+	// --- Absolute values ---
 	if st.SetHP != nil {
 		target.CurrentHP = *st.SetHP
 	}
 	if st.SetAP != nil {
 		target.CurrentAP = *st.SetAP
+		s.showAbilityPanel(target)
 	}
 	if st.SetMP != nil {
 		target.MP = *st.SetMP
@@ -257,8 +256,9 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 		target.CurrentAtk = *st.SetAtk
 	}
 
+	// --- Status effects ---
 	if st.AddStatus != nil {
-		s.addUnitStatus(target, *st.AddStatus)
+		s.addUnitStatus(target, *st.AddStatus, st.AddStatusMeta)
 	}
 	if st.RemoveStatus != nil {
 		s.removeUnitStatus(target, *st.RemoveStatus)
@@ -267,7 +267,28 @@ func (s *Screen) applyState(target *ds.Unit, st ds.ApplyState) {
 	// --- Death ---
 	if st.IsDead {
 		s.killUnit(target)
-		return
+	}
+}
+
+// applyStateVisuals shows floating text and refreshes board card.
+// Called only after fx animation has finished.
+func (s *Screen) applyStateVisuals(target *ds.Unit, st ds.ApplyState) {
+	if st.IsDead {
+		return // death visuals handled in killUnit
+	}
+
+	// --- Floating text for delta changes ---
+	if st.ChangeHP != nil {
+		s.showFloatingStat(target.Pos, *st.ChangeHP, "HP")
+	}
+	if st.ChangeShield != nil {
+		s.showFloatingStat(target.Pos, *st.ChangeShield, "Shield")
+	}
+	if st.ChangeAtk != nil {
+		s.showFloatingStat(target.Pos, *st.ChangeAtk, "ATK")
+	}
+	if st.ChangeAP != nil {
+		s.showFloatingStat(target.Pos, *st.ChangeAP, "AP")
 	}
 
 	s.showUnitOnBoard(target)
