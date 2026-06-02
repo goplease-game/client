@@ -12,7 +12,7 @@ import (
 
 const StatusPermanentDuration = -1
 
-var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState, error){
+var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) (ds.ApplyStates, error){
 	ability.BasicMeleeAttack: basicMeleeAttackHandler,
 	ability.BasicRangeAttack: basicRangeAttackHandler,
 	ability.BasicMagicAttack: basicMagicAttackHandler,
@@ -44,7 +44,7 @@ var abilityHandlers = map[ability.ID]func(ds.UseAbilityPayload) ([]ds.ApplyState
 
 // HandleAbility is cooking a response for specific ability. We don't validation here,
 // because it is just a mock implementation, so you can hack whatever you want.
-func HandleAbility(data ds.UseAbilityPayload) (resp []ds.ApplyState, err error) {
+func HandleAbility(data ds.UseAbilityPayload) (resp ds.ApplyStates, err error) {
 	_, ok := ability.Abilities[data.AbilityID]
 	if !ok {
 		err = fmt.Errorf("[mock] invalid ability: %s", data.AbilityID)
@@ -57,25 +57,34 @@ func HandleAbility(data ds.UseAbilityPayload) (resp []ds.ApplyState, err error) 
 		return
 	}
 
-	return handler(data)
+	resp, err = handler(data)
+	if err != nil {
+		return
+	}
+
+	unit := GetUnitByID(data.UnitID)
+	ab := ability.ByID(data.AbilityID)
+	unit.SetCooldown(ab.ID, ab.Cooldown)
+
+	return
 }
 
-func basicMeleeAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func basicMeleeAttackHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	st := dealDamageToUnit(caster, target, caster.CurrentAtk)
 	return st, nil
 }
 
-func basicRangeAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func basicRangeAttackHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	return basicMeleeAttackHandler(load)
 }
 
-func basicMagicAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func basicMagicAttackHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	return basicMeleeAttackHandler(load)
 }
 
-func fortifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func fortifyHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -99,7 +108,7 @@ func fortifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func provokeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func provokeHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -120,7 +129,7 @@ func provokeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return sts, nil
 }
 
-func shieldBashHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func shieldBashHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := ds.NewUnitStates()
@@ -129,7 +138,7 @@ func shieldBashHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func powerPushHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	dealDmg := 2
@@ -148,7 +157,7 @@ func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func gangUpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func gangUpHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	dealDmg := caster.CurrentAtk
@@ -162,7 +171,7 @@ func gangUpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func eliminateHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func eliminateHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	dealDmg := 3
@@ -177,7 +186,7 @@ func eliminateHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func translocationHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func translocationHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	from := caster.Pos
@@ -189,7 +198,7 @@ func translocationHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return nil, nil
 }
 
-func timeWarpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func timeWarpHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := ds.NewUnitStates(applyStatusToUnit(target, status.TemporalAnchor))
@@ -197,7 +206,7 @@ func timeWarpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func purgeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func purgeHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := ds.NewUnitStates()
@@ -210,7 +219,7 @@ func purgeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func purifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func purifyHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := ds.NewUnitStates()
@@ -225,14 +234,14 @@ func purifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func healHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func healHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := healUnit(target, 5)
 	return st, nil
 }
 
-func equalizeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func equalizeHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -306,7 +315,7 @@ func equalizeHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func idolihuSpinHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func idolihuSpinHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -325,7 +334,7 @@ func idolihuSpinHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func piercingShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func piercingShotHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -345,7 +354,7 @@ func piercingShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func battleCryHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func battleCryHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -371,7 +380,7 @@ func battleCryHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func shadowStepHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func shadowStepHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster := GetUnitByID(load.UnitID)
 	if caster == nil {
 		log.Fatalf("invalid ability caster: %s", load.UnitID)
@@ -392,14 +401,14 @@ func shadowStepHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	return st, nil
 }
 
-func huntersMarkHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func huntersMarkHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	_, target := mustAbilityActors(load)
 
 	st := ds.NewUnitStates(applyStatusToUnit(target, status.Exposed))
 	return st, nil
 }
 
-func hamstringShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
+func hamstringShotHandler(load ds.UseAbilityPayload) (ds.ApplyStates, error) {
 	caster, target := mustAbilityActors(load)
 
 	dmg := 2

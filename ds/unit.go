@@ -50,6 +50,19 @@ func (u *Unit) AbilityReady(id ability.ID) bool {
 	return !(u.Cooldowns[id] > 0)
 }
 
+func (u *Unit) SetCooldown(id ability.ID, cd int) {
+	if u.Cooldowns == nil {
+		u.Cooldowns = make(map[ability.ID]int)
+	}
+
+	if cd == 0 {
+		delete(u.Cooldowns, id)
+		return
+	}
+
+	u.Cooldowns[id] = cd
+}
+
 func (u *Unit) HasStatus(t status.Type) bool {
 	_, ok := u.Statuses[t]
 	return ok

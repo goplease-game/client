@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
@@ -213,7 +214,7 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	gs := mock.GetGameState()
 	gs.ActiveUnit++
 
-	states := []ds.ApplyState{}
+	states := ds.NewUnitStates()
 	// decrease status duration
 	for t, st := range unit.Statuses {
 		if st.Duration == status.Permanent {
@@ -223,7 +224,7 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 		st.Duration--
 		if st.Duration < 1 {
 			unit.RemoveStatus(t)
-			states = append(states, ds.ApplyState{RemoveStatus: new(t), ToUnitID: unit.ID})
+			states.Add(ds.ApplyState{RemoveStatus: new(t), ToUnitID: unit.ID})
 		}
 	}
 	for id, cd := range unit.Cooldowns {
@@ -236,12 +237,23 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	// shield always decreased by 1 every turn
 	if unit.CurrentShield > 0 {
 		unit.CurrentShield--
-		states = append(states,
+		states.Add(
 			ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
 			ds.ApplyState{SetShield: new(unit.CurrentShield), ToUnitID: unit.ID},
 		)
 	}
+
+	// reduce cooldowns
+	for abID, cd := range unit.Cooldowns {
+		if cd > 0 {
+			cd--
+			unit.SetCooldown(abID, cd)
+			states.Add(ds.ApplyState{SetCooldown: new(map[ability.ID]int{abID: cd}), ToUnitID: unit.ID})
+		}
+	}
+
 	m.sendApplyStates(states...)
+	m.sendApplyStates(mock.ApplyOnTurnStartHandlers(unit)...)
 
 	if unit.OwnerID != mock.MockedPlayerID {
 		m.sendPlayUnit(unit.ID)

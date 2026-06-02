@@ -289,6 +289,11 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	if st.SetAtk != nil {
 		target.CurrentAtk = *st.SetAtk
 	}
+	if st.SetCooldown != nil {
+		for abID, cd := range *st.SetCooldown {
+			target.Cooldowns[abID] = cd
+		}
+	}
 
 	// --- Status effects ---
 	if st.AddStatus != nil {

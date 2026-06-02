@@ -33,7 +33,7 @@ const (
 	Translocation ID = "translocation"
 	TimeWarp      ID = "time_warp"
 	Purge         ID = "purge"
-	ArcaneChaos   ID = "arcane_chaos"
+	FocusField    ID = "focus_field"
 
 	// support
 	Heal           ID = "heal"
@@ -291,11 +291,12 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 	},
-	ArcaneChaos: {
+	FocusField: {
 		Type:        Spell,
 		IsPassive:   true,
-		Name:        "Arcane Chaos",
-		Description: "At the end of your turn, gain bonuses based on actions taken during the turn:\n- If you did not move: gain +1 Movement Range next turn\n- If no enemies were within 3 tiles: gain +1 Attack Range next turn\n- If you took no damage: restore 1 HP next turn\n- If you took damage: gain 1 Shield\n\nIf 3 or more conditions are met, also gain +1 Attack next turn.",
+		Name:        "Focus Field",
+		Description: "All friendly units starting their turn next to Mist have their cooldowns reduced by 1  (excluding passive abilities).",
+		Range:       1,
 	},
 
 	// --- SUPPORT ---

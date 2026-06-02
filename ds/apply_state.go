@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 )
 
@@ -30,6 +31,8 @@ type ApplyState struct {
 	SetMP     *int `json:"set_mp,omitempty"`
 	SetShield *int `json:"set_shield,omitempty"`
 	SetAtk    *int `json:"set_atk,omitempty"`
+
+	SetCooldown *map[ability.ID]int `json:"set_cooldown,omitempty"`
 
 	// Statuses and effects
 	IsDead        bool            `json:"is_dead,omitempty"`

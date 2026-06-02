@@ -18,6 +18,7 @@ func init() {
 type onDeathHandler func(u *ds.Unit) ds.ApplyStates
 type onMoveHandler func(u *ds.Unit) ds.ApplyStates
 type onDamageReceivedHandler func(source, target *ds.Unit) ds.ApplyStates
+type onTurnStarHandler func(unit *ds.Unit) ds.ApplyStates
 
 var onDeathHandlers = []onDeathHandler{
 	useUndyingWillAbility,
@@ -28,6 +29,10 @@ var onMoveHandlers = []onMoveHandler{
 }
 
 var onDamageReceivedHandlers []onDamageReceivedHandler
+
+var onTurnStarHandlers = []onMoveHandler{
+	useFocusFieldAbility,
+}
 
 func applyOnDeathHandlers(u *ds.Unit) (st ds.ApplyStates) {
 	for _, handler := range onDeathHandlers {
@@ -48,6 +53,14 @@ func ApplyOnMoveHandlers(u *ds.Unit) (st ds.ApplyStates) {
 func applyOnDamageReceivedHandlers(source, target *ds.Unit) (st ds.ApplyStates) {
 	for _, handler := range onDamageReceivedHandlers {
 		st.Add(handler(source, target)...)
+	}
+
+	return
+}
+
+func ApplyOnTurnStartHandlers(unit *ds.Unit) (st ds.ApplyStates) {
+	for _, handler := range onTurnStarHandlers {
+		st.Add(handler(unit)...)
 	}
 
 	return
@@ -172,6 +185,49 @@ func useOpportunityAbility(source, target *ds.Unit) (st ds.ApplyStates) {
 	return
 }
 
+func useFocusFieldAbility(unit *ds.Unit) (st ds.ApplyStates) {
+	id := ability.FocusField
+	ab := ability.ByID(id)
+
+	unitsWithFocusField := findAlliesInRangeWithAbility(unit, ab.Range, id)
+	for _, u := range unitsWithFocusField {
+		if u.ID == unit.ID { // cannot have focus field to yourself
+			continue
+		}
+
+		var cdApplied bool
+		for abID, cd := range unit.Cooldowns {
+			if ability.ByID(abID).IsPassive {
+				continue
+			}
+
+			if cd > 0 {
+				cd--
+				if cd == 0 {
+					delete(unit.Cooldowns, abID)
+				} else {
+					unit.Cooldowns[abID] = cd
+				}
+
+				cdApplied = true
+				st.Add(ds.ApplyState{SetCooldown: new(map[ability.ID]int{abID: cd}), ToUnitID: unit.ID})
+			}
+		}
+
+		if cdApplied {
+			st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
+				UnitID:    u.ID,
+				AbilityID: id,
+				Target:    unit.Pos,
+			}), ToUnitID: unit.ID})
+		}
+
+		return // trigger only once
+	}
+
+	return
+}
+
 // TODO apply status to display how much max HP increased
 func useBottomlessVialAbility(_, target *ds.Unit) (st ds.ApplyStates) {
 	id := ability.BottomlessVial
@@ -224,4 +280,17 @@ func findEnemiesInRangeWithAbility(u *ds.Unit, radius int, abID ability.ID) []*d
 	}
 
 	return enemies
+}
+
+func findAlliesInRangeWithAbility(u *ds.Unit, radius int, abID ability.ID) []*ds.Unit {
+	units := []*ds.Unit{}
+
+	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	for _, c := range cells {
+		if unit := GetUnitAt(c); unit != nil && unit.OwnerID == u.OwnerID && unit.HasAbility(abID) {
+			units = append(units, unit)
+		}
+	}
+
+	return units
 }

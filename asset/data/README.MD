@@ -18,7 +18,7 @@ Abilities:
  * ranged attack: https://game-icons.net/1x1/lorc/high-shot.html
  * magic attack: https://game-icons.net/1x1/lorc/crystal-wand.html
  * bas
-   * phalax: https://game-icons.net/1x1/lorc/shield-echoes.html
+   * fortify: https://game-icons.net/1x1/lorc/shield-echoes.html
    * provoke: https://game-icons.net/1x1/lorc/shouting.html
    * bash: https://game-icons.net/1x1/delapouite/shield-bash.html
    * will: https://game-icons.net/1x1/lorc/aura.html
@@ -41,7 +41,7 @@ Abilities:
   * translocation: https://game-icons.net/1x1/lorc/body-swapping.html
   * time warp: https://game-icons.net/1x1/lorc/dodging.html
   * purge: https://game-icons.net/1x1/lorc/internal-injury.html
-  * chaos: https://game-icons.net/1x1/lorc/flower-twirl.html
+  * focus: https://game-icons.net/1x1/lorc/flower-twirl.html
 * july:
   * heal: https://game-icons.net/1x1/zeromancer/heart-plus.html
   * equalize: https://game-icons.net/1x1/delapouite/lovers.html
