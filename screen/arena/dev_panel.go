@@ -10,6 +10,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
+	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
@@ -87,7 +88,7 @@ func (s *Screen) buildDevPanelHeader(panel *widget.Container) *widget.Container 
 	))
 
 	var toggleBtn *widget.Button
-	tfBtn := ui.TextFace(11)
+	tfBtn := ui.TextFace(12)
 	toggleBtn = widget.NewButton(
 		widget.ButtonOpts.Text("+", &tfBtn, &widget.ButtonTextColor{
 			Idle:  colornames.White,
@@ -133,6 +134,8 @@ func (s *Screen) buildDevPanelBody() *widget.Container {
 		),
 	)
 
+	body.AddChild(s.buildScenarioSection())
+	body.AddChild(buildDivider())
 	body.AddChild(s.buildSaveSection())
 	body.AddChild(buildDivider())
 	body.AddChild(s.buildLoadSection())
@@ -150,8 +153,8 @@ func (s *Screen) buildSaveSection() *widget.Container {
 		)),
 	)
 
-	tf := ui.TextFace(11)
-	tfSmall := ui.TextFace(10)
+	tf := ui.TextFace(12)
+	tfSmall := ui.TextFace(12)
 
 	section.AddChild(widget.NewText(
 		widget.TextOpts.Text("Save state", &tf, colornames.Lightgray),
@@ -225,7 +228,7 @@ func (s *Screen) buildLoadSection() *widget.Container {
 		)),
 	)
 
-	tf := ui.TextFace(11)
+	tf := ui.TextFace(12)
 	section.AddChild(widget.NewText(
 		widget.TextOpts.Text("Load state", &tf, colornames.Lightgray),
 	))
@@ -249,7 +252,7 @@ func (s *Screen) rebuildLoadList() {
 	}
 	s.devLoadList.RemoveChildren()
 
-	tf := ui.TextFace(10)
+	tf := ui.TextFace(12)
 	for _, name := range mock.ListStates() {
 		n := name // capture loop variable for closure
 		btn := widget.NewButton(
@@ -293,4 +296,68 @@ func buildDivider() *widget.Container {
 			widget.WidgetOpts.MinSize(devPanelW-16, 1),
 		),
 	)
+}
+
+// buildScenarioSection builds the scenarios section with a list of available scenarios.
+func (s *Screen) buildScenarioSection() *widget.Container {
+	section := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(4),
+		)),
+	)
+
+	tf := ui.TextFace(12)
+	section.AddChild(widget.NewText(
+		widget.TextOpts.Text("Scenarios", &tf, colornames.Lightgray),
+	))
+
+	s.devScenarioList = widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(2),
+		)),
+	)
+	s.rebuildScenarioList()
+
+	section.AddChild(s.devScenarioList)
+	return section
+}
+
+// rebuildScenarioList populates the scenario list from registered scenarios.
+func (s *Screen) rebuildScenarioList() {
+	if s.devScenarioList == nil {
+		return
+	}
+	s.devScenarioList.RemoveChildren()
+
+	tf := ui.TextFace(12)
+	for name := range scenario.Scenarios {
+		n := name // capture loop variable
+		btn := widget.NewButton(
+			widget.ButtonOpts.Text(string(n), &tf, &widget.ButtonTextColor{
+				Idle:  colornames.White,
+				Hover: colornames.Yellow,
+			}),
+			widget.ButtonOpts.Image(&widget.ButtonImage{
+				Idle:    image.NewNineSliceColor(color.NRGBA{0x22, 0x33, 0x44, 0xff}),
+				Hover:   image.NewNineSliceColor(color.NRGBA{0x33, 0x55, 0x66, 0xff}),
+				Pressed: image.NewNineSliceColor(color.NRGBA{0x11, 0x22, 0x33, 0xff}),
+			}),
+			widget.ButtonOpts.WidgetOpts(
+				widget.WidgetOpts.MinSize(devPanelW-16, 22),
+			),
+			widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+				s.loadScenario(n)
+			}),
+		)
+		s.devScenarioList.AddChild(btn)
+	}
+}
+
+// loadScenario loads the named scenario and transitions to a fresh Screen.
+func (s *Screen) loadScenario(name scenario.Name) {
+	snap := mock.LoadScenario(name)
+	s.setStatus("Dev: scenario " + string(name))
+	s.pendingScreen = NewScreen(snap, s.server)
 }

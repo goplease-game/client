@@ -11,9 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
 )
 
-var UnitsPerPlacementPhase = 3
+var UnitsPerPlacementPhase = 1
 
 const (
 	totalUnitsPerPlayer = 6
@@ -145,6 +146,53 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 
 	fmt.Printf("[mock] new game state loaded from %s\n", name)
 	return gameState
+}
+
+func LoadScenario(name scenario.Name) ds.GameSnapshot {
+	sc := scenario.Load(name)
+
+	if sc.P1 == nil {
+		sc.P1 = &ds.Player{}
+	}
+	if sc.P2 == nil {
+		sc.P2 = &ds.Player{}
+	}
+
+	// find active unit index
+	var activeUnit int
+	if sc.ActiveUnitID != "" {
+		for i := range sc.Queue {
+			if sc.Queue[i].ID == sc.ActiveUnitID {
+				activeUnit = i
+			}
+		}
+	}
+
+	// server state - keep as is
+	gameState = &GameState{
+		RoomID:       sc.ID,
+		Board:        sc.Board,
+		Players:      [2]*ds.Player{sc.P1, sc.P2},
+		UnitsQueue:   sc.Queue,
+		CurrentRound: 1,
+		ActiveUnit:   activeUnit,
+		ActivePlayer: 0,
+	}
+
+	sc2 := scenario.Copy(sc)
+
+	snap := ds.GameSnapshot{
+		RoomID:          sc2.ID,
+		Board:           sc2.Board,
+		Player:          *sc2.P1,
+		OpponentName:    "Richard To Blame",
+		UnitsQueue:      sc2.Queue,
+		ActiveUnitID:    sc2.ActiveUnitID,
+		Round:           1,
+		TurnTimeSeconds: 0,
+	}
+
+	return snap
 }
 
 // loadInitialUnits reads new_game.json and returns the full unit list

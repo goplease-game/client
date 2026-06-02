@@ -5,6 +5,7 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
@@ -106,7 +107,13 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 			widget.WidgetOpts.MinSize(size, size),
 		),
 		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+
+			if config.Get().DevMode.Enabled {
+				printD("NEXT TURN PRESSED")
+			}
 			if !s.ready {
+				printD("NOT READY")
+
 				return
 			}
 			s.stopEndTurnPulse()

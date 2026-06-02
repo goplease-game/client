@@ -7,6 +7,7 @@ import (
 
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 )
@@ -69,10 +70,6 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Handlers
-// ---------------------------------------------------------------------------
-
 func (m *MockClient) onNewGame() {
 	data, err := mock.LoadData("new_game.json")
 	if err != nil {
@@ -107,6 +104,10 @@ func (m *MockClient) onReadyToPlay() {
 
 // onUnitPlaced is called after the real player drops a unit onto the board.
 func (m *MockClient) onUnitPlaced(data ds.UnitPlacedPayload) {
+	if config.Get().DevMode.Enabled {
+		println("[mock] unit placed at:", data.Coord.String())
+	}
+
 	time.Sleep(mockDelay)
 	gs := mock.GetGameState()
 

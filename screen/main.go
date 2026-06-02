@@ -9,6 +9,9 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/mock"
+	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
+	"github.com/ognev-dev/goplease-ebitengine-client/screen/arena"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -146,8 +149,9 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		log.Fatal(err)
 	}
 
-	tutButton, err := mainMenuButton("How to play", 16, func(args *widget.ButtonClickedEventArgs) {
-		println("I DON'T KNOW HOW TO PLAY")
+	tutButton, err := mainMenuButton("Practice", 16, func(args *widget.ButtonClickedEventArgs) {
+		snap := mock.LoadScenario(scenario.Default)
+		s.nextScreen = arena.NewScreen(snap, s.server)
 	})
 	if err != nil {
 		log.Fatal(err)

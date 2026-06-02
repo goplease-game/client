@@ -10,12 +10,15 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"golang.org/x/image/colornames"
 )
 
 const (
@@ -88,7 +91,11 @@ type Screen struct {
 	devPanelRef       *widget.Container
 	devPanelBody      *widget.Container
 	devLoadList       *widget.Container
+	devScenarioList   *widget.Container
 	devPanelMinimized bool
+
+	// if dev mode enabled you can see hex coords by holding Alt
+	showDevCoordinates bool
 
 	// Movement and selection state.
 	selectedUnitID    string        // unit currently selected for movement; empty means none
@@ -182,6 +189,12 @@ done:
 		if s.selectedAbility != nil {
 			s.cancelAbilitySelection()
 		}
+	}
+
+	if config.Get().DevMode.Enabled {
+		s.showDevCoordinates = ebiten.IsKeyPressed(ebiten.KeyAlt)
+	} else {
+		s.showDevCoordinates = false
 	}
 
 	s.updatePulse()
@@ -341,6 +354,11 @@ func (s *Screen) setupUI() {
 			for _, cell := range s.sortedCells {
 				cell.RenderFXLayer(screen)
 			}
+
+			if s.showDevCoordinates {
+				s.drawCellCoordinates(screen)
+			}
+
 			// ...
 			// Dev panel rendered on top of hex layer.
 			if s.devPanelRef != nil {
@@ -487,4 +505,27 @@ type pendingDrawOp struct {
 // drawOnTop queues an image to be drawn on top of everything in the next Draw call.
 func (s *Screen) drawOnTop(img *ebiten.Image, op *ebiten.DrawImageOptions) {
 	s.pendingDrawOps = append(s.pendingDrawOps, pendingDrawOp{img: img, op: op})
+}
+
+func (s *Screen) drawCellCoordinates(screen *ebiten.Image) {
+	for coord, w := range s.boardCellWidgets {
+		rect := w.GetWidget().Rect
+
+		centerX := float64(rect.Min.X + rect.Dx()/2)
+		centerY := float64(rect.Min.Y + rect.Dy()/2)
+
+		face := ui.TextFace(16)
+
+		op := &text.DrawOptions{}
+		op.ColorScale.ScaleWithColor(colornames.Black)
+		op.GeoM.Translate(centerX-16, centerY-6)
+
+		text.Draw(screen, coord.String(), face, op)
+	}
+}
+
+func printD(str string, args ...any) {
+	if config.Get().DevMode.Enabled {
+		fmt.Printf(str+"\n", args...)
+	}
 }

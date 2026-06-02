@@ -126,6 +126,7 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.updateActiveUnitStatusLabel()
 
 	s.startTurnTimer()
+	s.ready = true
 }
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
