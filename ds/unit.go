@@ -36,7 +36,7 @@ type Unit struct {
 	Graphic *widget.Graphic
 }
 
-func (u Unit) HasAbility(id ability.ID) bool {
+func (u *Unit) HasAbility(id ability.ID) bool {
 	for _, abID := range u.Abilities {
 		if abID == id {
 			return true
@@ -44,6 +44,10 @@ func (u Unit) HasAbility(id ability.ID) bool {
 	}
 
 	return false
+}
+
+func (u *Unit) AbilityReady(id ability.ID) bool {
+	return !(u.Cooldowns[id] > 0)
 }
 
 func (u *Unit) HasStatus(t status.Type) bool {
@@ -72,7 +76,7 @@ func (u *Unit) IsStunned() bool {
 // ReachableCells returns all hex cells the unit can reach within its movement points (MP).
 // Movement is calculated using a breadth-first search over the hex grid, where each step
 // to a neighboring cell costs 1 MP.
-func (u Unit) ReachableCells(board Board) []HexCoord {
+func (u *Unit) ReachableCells(board Board) []HexCoord {
 	type node struct {
 		pos  HexCoord
 		cost int

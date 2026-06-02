@@ -63,7 +63,7 @@ func HandleAbility(data ds.UseAbilityPayload) (resp []ds.ApplyState, err error) 
 func basicMeleeAttackHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	caster, target := mustAbilityActors(load)
 
-	st := dealDamageToUnit(target, caster.CurrentAtk)
+	st := dealDamageToUnit(caster, target, caster.CurrentAtk)
 	return st, nil
 }
 
@@ -135,19 +135,16 @@ func powerPushHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	dealDmg := 2
 	st := ds.NewUnitStates()
 
-	// skipping pos validation of caster & target, hacking is welcome
 	pos := hex.OppositeHex(caster.Pos, target.Pos)
 	cell, _ := gameState.Board.Cells[pos]
 	if cell != nil && cell.Unit == nil {
-		st.Add(ds.ApplyState{MoveTo: new(pos)})
+		st.Add(ds.ApplyState{MoveTo: new(pos), ToUnitID: target.ID})
 		target.Pos = pos
 	} else {
 		dealDmg += 1
 	}
 
-	st.Add(dealDamageToUnit(target, dealDmg)...)
-	st.ToUnitID(target.ID)
-
+	st.Add(dealDamageToUnit(caster, target, dealDmg)...)
 	return st, nil
 }
 
@@ -161,7 +158,7 @@ func gangUpHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 		dealDmg += 2
 	}
 
-	st := dealDamageToUnit(target, dealDmg)
+	st := dealDamageToUnit(caster, target, dealDmg)
 	return st, nil
 }
 
@@ -169,7 +166,7 @@ func eliminateHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	caster, target := mustAbilityActors(load)
 
 	dealDmg := 3
-	st := dealDamageToUnit(target, dealDmg)
+	st := dealDamageToUnit(caster, target, dealDmg)
 	if target.IsDead {
 		st.Add(
 			ds.ApplyState{ChangeAP: new(1), ToUnitID: caster.ID},
@@ -231,7 +228,7 @@ func purifyHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 func healHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	_, target := mustAbilityActors(load)
 
-	st := healUnit(target, 4)
+	st := healUnit(target, 5)
 	return st, nil
 }
 
@@ -321,9 +318,7 @@ func idolihuSpinHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 
 	for _, c := range cells {
 		if u := GetUnitAt(c); u != nil && u.IsOpponent {
-			ste := dealDamageToUnit(u, caster.CurrentAtk)
-			ste.ToUnitID(u.ID)
-			st = append(st, ste...)
+			st = append(st, dealDamageToUnit(caster, u, caster.CurrentAtk)...)
 		}
 	}
 
@@ -343,9 +338,7 @@ func piercingShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 
 	for _, c := range cells {
 		if c.Unit != nil && c.Unit.IsOpponent {
-			ste := dealDamageToUnit(c.Unit, flatAtk)
-			ste.ToUnitID(c.Unit.ID)
-			st = append(st, ste...)
+			st = append(st, dealDamageToUnit(caster, c.Unit, flatAtk)...)
 		}
 	}
 
@@ -392,10 +385,9 @@ func shadowStepHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 	st := ds.NewUnitStates()
 	st.Add(
 		applyStatusToUnit(caster, status.Sharpened),
-		ds.ApplyState{ChangeAtk: new(ef.InitialValue)},
-		ds.ApplyState{SetAtk: new(caster.CurrentAtk)},
+		ds.ApplyState{ChangeAtk: new(ef.InitialValue), ToUnitID: caster.ID},
+		ds.ApplyState{SetAtk: new(caster.CurrentAtk), ToUnitID: caster.ID},
 	)
-	st.ToUnitID(caster.ID)
 
 	return st, nil
 }
@@ -408,10 +400,10 @@ func huntersMarkHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
 }
 
 func hamstringShotHandler(load ds.UseAbilityPayload) ([]ds.ApplyState, error) {
-	_, target := mustAbilityActors(load)
+	caster, target := mustAbilityActors(load)
 
 	dmg := 2
-	st := dealDamageToUnit(target, dmg)
+	st := dealDamageToUnit(caster, target, dmg)
 	st.Add(applyStatusToUnit(target, status.Hamstrung))
 
 	return st, nil
@@ -435,33 +427,36 @@ func mustAbilityActors(load ds.UseAbilityPayload) (from *ds.Unit, to *ds.Unit) {
 // Shield absorbs damage first and any excess damage carries over to HP.
 // If HP reaches zero, the unit is marked as dead and removed from the queue.
 // Returns a slice of ApplyState mutations to be sent to the client for visual feedback.
-func dealDamageToUnit(u *ds.Unit, val int) ds.ApplyStates {
-	st := ds.NewUnitStates()
+func dealDamageToUnit(source, target *ds.Unit, val int) (st ds.ApplyStates) {
+	defer func() {
+		if len(st) > 0 {
+			st.Add(applyOnDamageReceivedHandlers(source, target)...)
+		}
+	}()
 
-	eff, ok := u.Statuses[status.Exposed]
+	eff, ok := target.Statuses[status.Exposed]
 	if ok {
 		val += eff.Value
 	}
 
 	var shieldRemoved int
-	if u.CurrentShield > 0 {
-		if u.CurrentShield < val {
-			shieldRemoved = u.CurrentShield
-			u.CurrentShield = 0
+	if target.CurrentShield > 0 {
+		if target.CurrentShield < val {
+			shieldRemoved = target.CurrentShield
+			target.CurrentShield = 0
 			val = val - shieldRemoved
 		} else {
 			shieldRemoved = val
-			u.CurrentShield -= val
+			target.CurrentShield -= val
 			val = 0
 		}
 	}
 
 	if shieldRemoved > 0 {
 		st.Add(
-			ds.ApplyState{ChangeShield: new(-shieldRemoved)},
-			ds.ApplyState{SetShield: new(u.CurrentShield)},
+			ds.ApplyState{ChangeShield: new(-shieldRemoved), ToUnitID: target.ID},
+			ds.ApplyState{SetShield: new(target.CurrentShield), ToUnitID: target.ID},
 		)
-		st.ToUnitID(u.ID)
 	}
 
 	// shield fully absorbed the damage
@@ -469,27 +464,25 @@ func dealDamageToUnit(u *ds.Unit, val int) ds.ApplyStates {
 		return st
 	}
 
-	if u.CurrentHP < val {
-		val = u.CurrentHP
+	if target.CurrentHP < val {
+		val = target.CurrentHP
 	}
 
-	u.CurrentHP -= val
+	target.CurrentHP -= val
 	st.Add(
-		ds.ApplyState{ChangeHP: new(-val)},
-		ds.ApplyState{SetHP: new(u.CurrentHP)},
+		ds.ApplyState{ChangeHP: new(-val), ToUnitID: target.ID},
+		ds.ApplyState{SetHP: new(target.CurrentHP), ToUnitID: target.ID},
 	)
 
-	if u.CurrentHP <= 0 {
-		u.IsDead = true
-		st.Add(applyOnDeathHandlers(u)...)
+	if target.CurrentHP <= 0 {
+		target.IsDead = true
+		st.Add(applyOnDeathHandlers(target)...)
 
-		if u.IsDead {
-			RemoveUnitFromQueue(u.ID)
-			st.Add(ds.ApplyState{IsDead: true})
+		if target.IsDead {
+			RemoveUnitFromQueue(target.ID)
+			st.Add(ds.ApplyState{IsDead: true, ToUnitID: target.ID})
 		}
 	}
-
-	st.ToUnitID(u.ID)
 
 	return st
 }
@@ -510,10 +503,9 @@ func healUnit(u *ds.Unit, val int) ds.ApplyStates {
 	}
 
 	st := ds.NewUnitStates(
-		ds.ApplyState{ChangeHP: new(val)},
-		ds.ApplyState{SetHP: new(u.CurrentHP)},
+		ds.ApplyState{ChangeHP: new(val), ToUnitID: u.ID},
+		ds.ApplyState{SetHP: new(u.CurrentHP), ToUnitID: u.ID},
 	)
-	st.ToUnitID(u.ID)
 
 	return st
 }

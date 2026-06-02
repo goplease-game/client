@@ -376,7 +376,6 @@ func (s *Screen) activeUnitAP() int {
 // The unit remains in unitsQueue and board state — only the visual is hidden.
 func (s *Screen) hideUnitOnBoard(unit *ds.Unit) {
 	w := s.boardCellWidgets[unit.Pos]
-	log.Printf("hideUnitOnBoard: pos=%v widget=%v", unit.Pos, w != nil)
 
 	if w == nil {
 		return

@@ -218,6 +218,9 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 
 	// Apply state data immediately (HP, AP, statuses etc).
 	for _, st := range payload {
+		if st.ToUnitID == "" {
+			log.Printf("payload %s\nmissing ToUnitID\n", string(data))
+		}
 		target := s.unitByID(st.ToUnitID)
 		if target == nil {
 			continue
@@ -269,6 +272,9 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	// --- Absolute values ---
 	if st.SetHP != nil {
 		target.CurrentHP = *st.SetHP
+	}
+	if st.SetBaseHP != nil {
+		target.BaseHP = *st.SetBaseHP
 	}
 	if st.SetAP != nil {
 		target.CurrentAP = *st.SetAP

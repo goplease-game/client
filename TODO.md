@@ -9,6 +9,7 @@ Core (required for release):
 
 Abilities TODO:
 - [ ] Provoke: Test that opponent can only target provoker
+- [ ] EndlessVial: Display status with how much HP increased
 
 UI/UX improvement (in not specific order, just ideas):
 - [ ] auto end turn

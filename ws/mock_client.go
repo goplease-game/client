@@ -222,7 +222,14 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 
 		st.Duration--
 		if st.Duration < 1 {
+			unit.RemoveStatus(t)
 			states = append(states, ds.ApplyState{RemoveStatus: new(t), ToUnitID: unit.ID})
+		}
+	}
+	for id, cd := range unit.Cooldowns {
+		cd--
+		if cd <= 0 {
+			delete(unit.Cooldowns, id)
 		}
 	}
 

@@ -1,8 +1,8 @@
 {
-  "room_id": "a75e9deb-668a-4b3c-96a5-256657544963",
+  "room_id": "2ddd3cdf-7c6f-484d-9746-cb90ed4ba366",
+  "turn_time_seconds": 999,
   "phase": "unit_placement",
   "is_my_turn": true,
-  "turn_time_seconds": 999,
   "board": {
     "cells": {
       "-1:2": {
@@ -988,24 +988,24 @@
     }
   },
   "player": {
-    "id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+    "id": "019e84c9-cd78-75a7-a007-61c735921b75",
     "name": "Player 1",
     "is_bot": false,
     "units": [
       {
-        "id": "019e5b33-f7bf-70a1-a5ae-9168239a648a",
+        "id": "019e84c9-d1d5-7bc0-8c01-928e447b6630",
         "template_id": 1,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "Bas",
         "description": "An immovable wall who protects allies by absorbing damage, locking down enemies, and holding the front line at all costs.",
         "base_atk": 2,
         "current_atk": 2,
-        "base_hp": 12,
-        "current_hp": 12,
+        "base_hp": 20,
+        "current_hp": 20,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 30,
+        "mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1016,22 +1016,23 @@
           "undying_will"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       },
       {
-        "id": "019e5b33-f7bf-70a2-8fb1-c8337ed3cfd2",
+        "id": "019e84c9-d1d5-7bc1-9c2f-d9291513783b",
         "template_id": 2,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "Grit",
         "description": "A fierce frontline brawler who thrives in the thick of battle, dealing heavy area damage and breaking enemy formations.",
         "base_atk": 4,
         "current_atk": 4,
-        "base_hp": 6,
-        "current_hp": 6,
+        "base_hp": 10,
+        "current_hp": 10,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 30,
+        "mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1042,22 +1043,23 @@
           "frenzy"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       },
       {
-        "id": "019e5b33-f7bf-70a3-a22e-11e0fe09a34c",
+        "id": "019e84c9-d1d5-7bc2-944f-3cce1bc714fb",
         "template_id": 3,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "Fletch",
         "description": "A long-range damage dealer specializing in picking off high-priority targets and providing suppressing cover fire from safety.",
         "base_atk": 4,
         "current_atk": 4,
-        "base_hp": 6,
-        "current_hp": 6,
+        "base_hp": 10,
+        "current_hp": 10,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 20,
+        "mp": 2,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1068,22 +1070,23 @@
           "cover_fire"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       },
       {
-        "id": "019e5b33-f7bf-70a4-8f56-98ec2056b364",
+        "id": "019e84c9-d1d5-7bc3-952a-5683f37450a2",
         "template_id": 4,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "Silver",
         "description": "A highly mobile assassin designed to slip behind enemy lines and eliminate vulnerable targets with devastating backstabs.",
         "base_atk": 3,
         "current_atk": 3,
-        "base_hp": 6,
-        "current_hp": 6,
+        "base_hp": 10,
+        "current_hp": 10,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 40,
+        "mp": 4,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1094,22 +1097,23 @@
           "opportunity"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       },
       {
-        "id": "019e5b33-f7bf-70a5-a293-c67131a1de51",
+        "id": "019e84c9-d1d5-7bc4-a9cc-2c049dde9a58",
         "template_id": 5,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "Mist",
         "description": "A tactical spellcaster who manipulates time and space to control the battlefield, weaken enemies, and reposition units.",
         "base_atk": 3,
         "current_atk": 3,
-        "base_hp": 9,
-        "current_hp": 9,
+        "base_hp": 10,
+        "current_hp": 10,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 20,
+        "mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1120,22 +1124,23 @@
           "arcane_chaos"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       },
       {
-        "id": "019e5b33-f7bf-70a6-9a71-9e40a6946c26",
+        "id": "019e84c9-d1d5-7bc5-a64d-9cbdbbdb3eda",
         "template_id": 6,
-        "owner_id": "019e5b33-ed48-77bb-9f28-f904a012738c",
+        "owner_id": "019e84c9-cd78-75a7-a007-61c735921b75",
         "name": "July",
         "description": "A support and healer focused on keeping the team alive, removing negative effects, and sustaining allies through long battles.",
         "base_atk": 2,
         "current_atk": 2,
-        "base_hp": 9,
-        "current_hp": 9,
+        "base_hp": 15,
+        "current_hp": 15,
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 30,
+        "mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1146,7 +1151,8 @@
           "bottomless_vial"
         ],
         "cooldowns": {},
-        "statuses": null
+        "statuses": null,
+        "is_dead": false
       }
     ]
   },

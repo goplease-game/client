@@ -137,7 +137,7 @@ var ralliedStatus = &Status{
 var decayingShieldStatus = &Status{
 	Name:         "Shield",
 	Description:  "A shield that protect your health. It decays by 1 at the end of each turn.",
-	InitialValue: 4,
+	InitialValue: 5,
 	Type:         DecayingShield,
 	Alignment:    Positive,
 }

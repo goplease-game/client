@@ -87,21 +87,44 @@ func (s *Screen) updateMoveAnimations() {
 	}
 
 	if allDone {
-		// 1. First loop: ONLY clear the "from" positions for all units in the group.
-		// This ensures we don't accidentally wipe out a newly rendered unit on the next iteration.
+		// Collect all destination positions to avoid clearing them.
+		toPositions := make(map[ds.HexCoord]bool)
 		for _, action := range currentGroup {
+			toPositions[action.to] = true
+		}
+
+		// First pass: clear all "from" cells that are not a destination for another unit.
+		for _, action := range currentGroup {
+			if toPositions[action.from] {
+				continue
+			}
 			if fromW := s.boardCellWidgets[action.from]; fromW != nil {
 				s.removePulseWidget(fromW)
 				s.restoreSafeZoneCell(action.from)
 				fromW.SetColor(boardCellBgColor)
-				fromW.RemoveChildren() // Safely clear before anyone lands here
+				fromW.RemoveChildren()
 			}
 		}
 
-		// 2. Second loop: Apply logic updates and render units on their "to" positions.
+		// Second pass: clear board state for all "from" positions.
+		for _, action := range currentGroup {
+			if cell := s.board.Cells[action.from]; cell != nil {
+				cell.Unit = nil
+			}
+		}
+
+		// Third pass: place all units on their destination positions.
 		for _, action := range currentGroup {
 			u := s.unitByID(action.unitID)
-			s.moveUnit(u, action.to) // Update unit position logically
+			u.Pos = action.to
+			if cell := s.board.Cells[action.to]; cell != nil {
+				cell.Unit = u
+			}
+		}
+
+		// Fourth pass: update game logic and render on destination.
+		for _, action := range currentGroup {
+			u := s.unitByID(action.unitID)
 
 			if s.selectedUnitID == u.ID || !u.IsOpponent {
 				s.activeUnitMoved = true
@@ -109,18 +132,16 @@ func (s *Screen) updateMoveAnimations() {
 				s.updateNextActionLabel()
 			}
 
-			// Render the unit on its new destination cell widget safely
 			if toW := s.boardCellWidgets[action.to]; toW != nil {
 				targetBg := unitFriendlyBgColor
 				if u.IsOpponent {
 					targetBg = unitEnemyBgColor
 				}
 				toW.SetColor(targetBg)
-				toW.RemoveChildren() // Clear anything old inside the target cell
+				toW.RemoveChildren()
+				buildBoardCard(toW, u, false)
 
-				buildBoardCard(toW, u, false) // Draw the unit card
-
-				if !u.IsOpponent {
+				if u.ID == s.activeUnitID {
 					s.pulseHexWidgets = append(s.pulseHexWidgets, toW)
 				}
 			}

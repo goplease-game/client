@@ -1,6 +1,8 @@
 package arena
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ds"
+import (
+	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+)
 
 // isReachableHex reports whether coord is present in the precomputed reachable list.
 func isReachableHex(cells []ds.HexCoord, coord ds.HexCoord) bool {
