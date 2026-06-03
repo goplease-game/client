@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
 )
@@ -356,4 +357,58 @@ func RemoveUnitFromQueue(unitID string) {
 			break
 		}
 	}
+}
+
+func HandleEndTurn() (st ds.ApplyStates) {
+	unit := ActiveUnit()
+	if unit == nil {
+		return
+	}
+
+	// decrease status duration
+	for t, sv := range unit.Statuses {
+		if sv.Duration == status.Permanent {
+			continue
+		}
+
+		sv.Duration--
+		if sv.Duration < 1 {
+			st.Add(removeStatusFromUnit(t, unit)...)
+		} else {
+			st.Add(ds.ApplyState{
+				SetStatusDuration: map[status.Type]int{t: sv.Duration},
+				ToUnitID:          unit.ID,
+			})
+		}
+
+		unit.Statuses[t] = sv
+	}
+
+	// reduce ability cooldowns
+	for abID, cd := range unit.Cooldowns {
+		if cd > 0 {
+			cd--
+			unit.SetCooldown(abID, cd)
+			st.Add(ds.ApplyState{SetCooldown: new(map[ability.ID]int{abID: cd}), ToUnitID: unit.ID})
+		}
+	}
+
+	// shield always decreased by 1 every turn
+	if unit.CurrentShield > 0 {
+		unit.CurrentShield--
+		st.Add(
+			ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
+			ds.ApplyState{SetShield: new(unit.CurrentShield), ToUnitID: unit.ID},
+		)
+	}
+
+	return st
+}
+
+func ActiveUnit() *ds.Unit {
+	if gameState.ActiveUnit < 0 || gameState.ActiveUnit >= len(gameState.UnitsQueue) {
+		return nil
+	}
+
+	return gameState.UnitsQueue[gameState.ActiveUnit]
 }

@@ -75,7 +75,7 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord, cel
 	unit := (*ds.Unit)(nil)
 	if cell != nil {
 		unit = cell.Unit
-		if unit.IsDead {
+		if unit != nil && unit.IsDead {
 			unit = nil
 		}
 	}
@@ -136,12 +136,8 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 	})
 
 	ab := ability.ByID(abilityID)
-	if ab.Cooldown > 0 {
-		if u.Cooldowns == nil {
-			u.Cooldowns = make(map[ability.ID]int)
-		}
-		u.Cooldowns[abilityID] = ab.Cooldown
-	}
+	u.SetCooldown(ab.ID, ab.Cooldown)
+
 	u.CurrentAP--
 
 	s.clearAbilityHighlight()

@@ -81,7 +81,7 @@ func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 // Queue cards don't show the walk badge — that's board-only.
 func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 	var img *ebiten.Image
-	if u.IsStunned() {
+	if u.HasStatus(status.Stunned) {
 		img = asset.Image(unitStunnedPic, unitIconSize)
 	} else {
 		img = unitImage(u.TemplateID, unitIconSize)
@@ -242,33 +242,27 @@ func buildStatusTooltip(u *ds.Unit) *widget.Container {
 		}
 
 		// Status name colored by alignment.
-		nameColor := ttTextColor
+		nameColor := neutralStatusNameColor
 		switch us.Status.Alignment {
 		case status.Positive:
-			nameColor = colornames.Palegreen
+			nameColor = positiveStatusNameColor
 		case status.Negative:
-			nameColor = colornames.Tomato
+			nameColor = negativeStatusNameColor
 		}
 
-		tf := ui.TextFaceBold(14)
-		c.AddChild(widget.NewText(
-			widget.TextOpts.Text(us.Status.Name, &tf, nameColor),
-		))
+		descTF := ui.TextFace(14)
 
-		// Description.
-		descTF := ui.TextFace(12)
-		c.AddChild(widget.NewText(
-			widget.TextOpts.Text(us.Status.Description, &descTF, ttTextColor),
-			widget.TextOpts.MaxWidth(250),
-		))
-
-		// Duration if not permanent.
+		var durText string
 		if us.Duration > 0 {
-			durTF := ui.TextFace(11)
-			c.AddChild(widget.NewText(
-				widget.TextOpts.Text(fmt.Sprintf("Duration: %d turns", us.Duration), &durTF, colornames.Skyblue),
-			))
+			durText = fmt.Sprintf("[color=%s]Duration: %d turns[/color]", statusDurationColor, us.Duration)
 		}
+
+		fullText := fmt.Sprintf("[color=%s]%s[/color]: %s", nameColor, us.Status.Name, us.Status.Description+" "+durText)
+		c.AddChild(widget.NewText(
+			widget.TextOpts.Text(fullText, &descTF, ttTextColor),
+			widget.TextOpts.MaxWidth(300),
+			widget.TextOpts.ProcessBBCode(true),
+		))
 	}
 
 	return c

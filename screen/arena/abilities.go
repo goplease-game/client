@@ -68,7 +68,7 @@ func (s *Screen) hideAbilityPanel() {
 func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	bgColor := abilityCardBgColor(ab)
 	u := s.unitByID(s.activeUnitID)
-	onCooldown := u != nil && u.Cooldowns[ab.ID] > 0
+	onCooldown := u != nil && !u.AbilityReady(ab.ID)
 	disabled := !onCooldown && u != nil && u.CurrentAP == 0 && !ab.IsPassive
 	blocked := onCooldown || disabled
 

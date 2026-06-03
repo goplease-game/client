@@ -117,7 +117,7 @@ func findAttackPosition(u *ds.Unit, target *ds.Unit, attackRange int) (ds.HexCoo
 		}
 
 		moveDist := hex.Distance(u.Pos, coord)
-		if moveDist > u.MP {
+		if moveDist > u.CurrentMP {
 			continue
 		}
 

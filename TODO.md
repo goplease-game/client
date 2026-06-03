@@ -4,8 +4,9 @@ Core (required for release):
 - [ ] Download abilities from server (Need API)
 - [x] Timed turns 
 - [ ] AI Bot 
-- [ ] Practice mode (With bot, without time limit)
+- [x] Practice mode (With bot, without time limit)
 - [ ] End game (Win/Lose) screen
+- [ ] Status icons
 
 Abilities TODO:
 - [ ] Provoke: Test that opponent can only target provoker

@@ -1,11 +1,10 @@
 package status
 
 var statuses = map[Type]*Status{
-	DecayingShield: decayingShieldStatus,
 	Rallied:        ralliedStatus,
 	Provoked:       provokedStatus,
 	Provoking:      provokingStatus,
-	Stun:           stunStatus,
+	Stunned:        stunnedStatus,
 	Hamstrung:      hamstrungStatus,
 	Exposed:        exposedStatus,
 	Sharpened:      sharpenedStatus,

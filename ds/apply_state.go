@@ -14,6 +14,8 @@ import (
 type ApplyState struct {
 	ToUnitID string `json:"to_unit_id"`
 
+	SkipTurn bool `json:"skip_turn,omitempty"`
+
 	// Movement
 	MoveTo *HexCoord `json:"move_to,omitempty"` // New position on the grid
 
@@ -35,10 +37,12 @@ type ApplyState struct {
 	SetCooldown *map[ability.ID]int `json:"set_cooldown,omitempty"`
 
 	// Statuses and effects
-	IsDead        bool            `json:"is_dead,omitempty"`
-	AddStatus     *status.Type    `json:"add_status,omitempty"`
-	AddStatusMeta *map[string]any `json:"add_status_meta,omitempty"`
-	RemoveStatus  *status.Type    `json:"remove_status,omitempty"`
+	IsDead        bool           `json:"is_dead,omitempty"`
+	AddStatus     *status.Type   `json:"add_status,omitempty"`
+	AddStatusMeta map[string]any `json:"add_status_meta,omitempty"`
+	RemoveStatus  *status.Type   `json:"remove_status,omitempty"`
+
+	SetStatusDuration map[status.Type]int `json:"set_status_duration,omitempty"`
 
 	UseAbility *UseAbilityPayload `json:"use_ability,omitempty"`
 }

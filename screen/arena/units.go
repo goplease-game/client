@@ -331,7 +331,7 @@ func (s *Screen) buildUnitToolTip(u *ds.Unit) *widget.Container {
 	)
 	stats.AddChild(tooltipStatRow("heart.png", fmt.Sprintf("HP: %d", u.CurrentHP), &toolTipTextTF, hpColor))
 	stats.AddChild(tooltipStatRow("hit.png", fmt.Sprintf("ATK: %d", u.CurrentAtk), &toolTipTextTF, atkColor))
-	stats.AddChild(tooltipStatRow("walk.png", fmt.Sprintf("Move: %d", u.MP), &toolTipTextTF, mpColor))
+	stats.AddChild(tooltipStatRow("walk.png", fmt.Sprintf("Move: %d", u.CurrentMP), &toolTipTextTF, mpColor))
 	c.AddChild(stats)
 
 	return c
@@ -439,7 +439,7 @@ func (s *Screen) killUnit(u *ds.Unit) {
 }
 
 // addUnitStatus adds a status effect to the unit and refreshes its board card.
-func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, metaOpt *map[string]any) {
+func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, meta map[string]any) {
 	st := status.ByType(statusType)
 	if st == nil {
 		log.Printf("addUnitStatus: unknown status type %s", statusType)
@@ -449,10 +449,6 @@ func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, metaOpt *map[
 		u.Statuses = make(map[status.Type]status.Value)
 	}
 
-	var meta map[string]any
-	if metaOpt != nil {
-		meta = *metaOpt
-	}
 	u.Statuses[statusType] = status.Value{
 		UnitID:   u.ID,
 		Duration: st.Duration,
@@ -468,6 +464,18 @@ func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, metaOpt *map[
 	s.showFloatingText(u.Pos, "+ "+st.Name, col)
 
 	// s.showUnitOnBoard(u)
+}
+
+func (s *Screen) updateUnitStatusDuration(u *ds.Unit, statusDur map[status.Type]int) {
+	for st, dur := range statusDur {
+		sv, ok := u.Statuses[st]
+		if !ok {
+			continue
+		}
+
+		sv.Duration = dur
+		u.Statuses[st] = sv
+	}
 }
 
 // removeUnitStatus removes a status effect from the unit and refreshes its board card.

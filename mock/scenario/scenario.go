@@ -10,6 +10,14 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
+const Default = SilverEliminating
+
+var Scenarios = map[Name]func() *Scenario{}
+
+func addScenario(name Name, scenario func() *Scenario) {
+	Scenarios[name] = scenario
+}
+
 const (
 	BasID    = 1
 	GritID   = 2
@@ -23,18 +31,6 @@ const (
 var unitsJSON []byte
 
 type Name string
-
-const (
-	BasWithFriends = "bas_with_friends"
-	ToProvoke      = "to_provoke"
-)
-
-const Default = ToProvoke
-
-var Scenarios = map[Name]func() *Scenario{
-	BasWithFriends: basWithFriends,
-	ToProvoke:      toProvoke,
-}
 
 // Load returns a new Scenario instance for the given name.
 // Panics if name is not registered in Scenarios.
@@ -54,12 +50,15 @@ type Scenario struct {
 // placeUnitAt picks a unit by templateID from player's hand,
 // sets its position and places it on the board cell at coord.
 // The unit is also appended to the scenario queue.
-func (s *Scenario) placeUnitAt(from *ds.Player, at ds.HexCoord, unitID int) {
+func (s *Scenario) placeUnitAt(from *ds.Player, unitID, atQ, atR int) *ds.Unit {
 	var unit *ds.Unit
 	unit, from.Units = pickUnitByTemplateID(from.Units, unitID)
+	at := ds.HexCoord{Q: atQ, R: atR}
 	unit.Pos = at
 	s.Board.Cells[at].Unit = unit
 	s.Queue = append(s.Queue, unit)
+
+	return unit
 }
 
 // newEmptyRectBoard creates a rectangular board of w columns and h rows

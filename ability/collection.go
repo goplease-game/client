@@ -1,5 +1,7 @@
 package ability
 
+import "github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+
 const (
 	BasicMeleeAttack ID = "basic_melee_attack"
 	BasicRangeAttack ID = "basic_range_attack"
@@ -99,6 +101,7 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetAlliesAndSelf,
 		Area:        AreaCircle,
 		AreaRadius:  2,
+		Effect:      Effect{AddShield: 5},
 	},
 	Provoke: {
 		Type:        Skill,
@@ -121,6 +124,7 @@ var Abilities = map[ID]Ability{
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
+		Effect:      Effect{ApplyStatus: status.Stunned},
 	},
 	UndyingWill: {
 		Type:        Skill,
@@ -142,6 +146,7 @@ var Abilities = map[ID]Ability{
 		Activation:  Instant,
 		Area:        AreaCircle,
 		AreaRadius:  2,
+		Effect:      Effect{ApplyStatus: status.Rallied},
 	},
 	IdolihuSpin: {
 		Type:        Skill,
@@ -159,12 +164,13 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Power Push",
-		Description: "Deals 2 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 3 damage instead.",
+		Description: "Deals 2 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 4 damage instead.",
 		Cooldown:    3,
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		DamageHint:  "2/3",
+		DamageHint:  "2/4",
+		Effect:      Effect{DealDamage: 2, DealAltDamage: 4},
 	},
 	Frenzy: {
 		Type:        Skill,
@@ -172,6 +178,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Frenzy",
 		Description: "Gains +1 Attack if there are 2 or more enemies within 2 cells.",
 		AreaRadius:  2,
+		Effect:      Effect{ApplyStatus: status.Frenzied},
 	},
 
 	// --- RANGER ---
@@ -180,12 +187,13 @@ var Abilities = map[ID]Ability{
 		IsPassive:   false,
 		Name:        "Piercing Shot",
 		Description: "Fires a piercing shot that deals 2 damage to each enemy in a straight line.",
-		Cooldown:    3,
+		Cooldown:    2,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectAny,
 		Area:        AreaLine,
 		AreaRadius:  4,
 		DamageHint:  "2",
+		Effect:      Effect{DealDamage: 2},
 	},
 	HuntersMark: {
 		Type:        Skill,
@@ -196,6 +204,7 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
+		Effect:      Effect{ApplyStatus: status.Exposed},
 	},
 	HamstringShot: {
 		Type:        Skill,
@@ -207,6 +216,7 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 		DamageHint:  "2",
+		Effect:      Effect{DealDamage: 2, ApplyStatus: status.Hamstrung},
 	},
 	CoverFire: {
 		Type:        Skill,
@@ -216,6 +226,7 @@ var Abilities = map[ID]Ability{
 		Cooldown:    1,
 		Range:       4,
 		DamageHint:  "3",
+		Effect:      Effect{DealDamage: 3},
 	},
 
 	// --- ROGUE ---
@@ -227,6 +238,7 @@ var Abilities = map[ID]Ability{
 		Cooldown:    3,
 		Range:       4,
 		Activation:  SelectFreeCell,
+		Effect:      Effect{ApplyStatus: status.Sharpened},
 	},
 	GangUp: {
 		Type:        Skill,
@@ -238,6 +250,7 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 		DamageHint:  "ATK/ATK+2",
+		Effect:      Effect{BonusDamage: 2},
 	},
 	Eliminate: {
 		Type:        Skill,
@@ -249,12 +262,13 @@ var Abilities = map[ID]Ability{
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 		DamageHint:  "3",
+		Effect:      Effect{DealDamage: 3, AddAP: 1},
 	},
 	Opportunity: {
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Opportunity",
-		Description: "Once per turn, attacks an adjacent enemy when an ally hits them with a melee attack.",
+		Description: "Once per turn, attacks an adjacent enemy when an ally hits them within melee range.",
 		Cooldown:    1,
 		Range:       1,
 		DamageHint:  HintCurrentATK,
@@ -280,6 +294,7 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,
+		Effect:      Effect{ApplyStatus: status.TemporalAnchor},
 	},
 	Purge: {
 		Type:        Spell,
@@ -309,6 +324,7 @@ var Abilities = map[ID]Ability{
 		Range:       4,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,
+		Effect:      Effect{AddHP: 5},
 	},
 	Equalize: {
 		Type:        Spell,
@@ -330,6 +346,7 @@ var Abilities = map[ID]Ability{
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,
+		Effect:      Effect{AddHP: 2, ApplyStatus: status.DebuffWard},
 	},
 	BottomlessVial: {
 		Type:        Skill,

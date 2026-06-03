@@ -18,10 +18,10 @@ type Unit struct {
 	BaseHP        int `json:"base_hp"`
 	CurrentHP     int `json:"current_hp"`
 	CurrentShield int `json:"current_shield"`
-
-	BaseAP    int `json:"base_ap"` // Action Points
-	CurrentAP int `json:"current_ap"`
-	MP        int `json:"mp"` // Move Points
+	BaseAP        int `json:"base_ap"` // Action Points
+	CurrentAP     int `json:"current_ap"`
+	BaseMP        int `json:"base_mp"` // Move Points
+	CurrentMP     int `json:"current_mp"`
 
 	Pos HexCoord `json:"pos"`
 
@@ -80,15 +80,17 @@ func (u *Unit) RemoveStatus(t status.Type) {
 	delete(u.Statuses, t)
 }
 
-func (u *Unit) IsStunned() bool {
-	_, ok := u.Statuses[status.Stun]
-
-	return ok
+func (u *Unit) IsEnemy(to *Unit) bool {
+	return u.OwnerID != to.OwnerID
 }
 
-// ReachableCells returns all hex cells the unit can reach within its movement points (MP).
+func (u *Unit) IsAlly(to *Unit) bool {
+	return !u.IsEnemy(to)
+}
+
+// ReachableCells returns all hex cells the unit can reach within its movement points (CurrentMP).
 // Movement is calculated using a breadth-first search over the hex grid, where each step
-// to a neighboring cell costs 1 MP.
+// to a neighboring cell costs 1 CurrentMP.
 func (u *Unit) ReachableCells(board Board) []HexCoord {
 	type node struct {
 		pos  HexCoord
@@ -127,7 +129,7 @@ func (u *Unit) ReachableCells(board Board) []HexCoord {
 			}
 
 			newCost := cur.cost + 1
-			if newCost > u.MP {
+			if newCost > u.CurrentMP {
 				continue
 			}
 

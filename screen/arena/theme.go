@@ -64,6 +64,12 @@ var (
 	abilitySelectedPulseColor1  = activeAbilityFgColor
 	abilitySelectedPulseColor2  = activeAbilityBgColor
 	abilityCooldownCounterColor = colornames.White
+
+	// Unit status tooltip
+	neutralStatusNameColor  = "f8f8ff"
+	positiveStatusNameColor = "98fb98"
+	negativeStatusNameColor = "ff63ff"
+	statusDurationColor     = "87ceeb" //
 )
 
 // Font faces used across the arena package.

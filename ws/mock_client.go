@@ -5,8 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
@@ -140,8 +138,14 @@ func (m *MockClient) onUnitMoved(data ds.UnitMovedPayload) {
 // Called whenever the real player clicks "End Turn" / "End Round".
 func (m *MockClient) onEndTurn() {
 	m.send(WaitingForOpponent)
-	time.Sleep(mockDelay)
 
+	states := mock.HandleEndTurn()
+	m.sendApplyStates(states...)
+
+	mock.GetGameState().ActiveUnit++
+
+	// Continue the loop after a short pause.
+	time.Sleep(mockDelay)
 	m.advanceGameLoop()
 }
 
@@ -197,78 +201,31 @@ func (m *MockClient) advanceGameLoop() {
 	}
 }
 
-// nextUnitToPlay returns the next unit in the queue that hasn't acted yet,
-// or nil if all units in the queue have played this round.
-func (m *MockClient) nextUnitToPlay() *ds.Unit {
-	gs := mock.GetGameState()
-	if gs.ActiveUnit < 0 || gs.ActiveUnit >= len(gs.UnitsQueue) {
-		return nil
-	}
-
-	return gs.UnitsQueue[gs.ActiveUnit]
-}
-
 // playUnit handles a single unit's turn.
 // If the unit belongs to the real player, send play_unit and return (wait for player input).
 // If it belongs to the mock, simulate the move and continue the loop.
 func (m *MockClient) playUnit(unit *ds.Unit) {
-	gs := mock.GetGameState()
-	gs.ActiveUnit++
-
-	states := ds.NewUnitStates()
-	// decrease status duration
-	for t, st := range unit.Statuses {
-		if st.Duration == status.Permanent {
-			continue
-		}
-
-		st.Duration--
-		if st.Duration < 1 {
-			unit.RemoveStatus(t)
-			states.Add(ds.ApplyState{RemoveStatus: new(t), ToUnitID: unit.ID})
-		}
-	}
-	for id, cd := range unit.Cooldowns {
-		cd--
-		if cd <= 0 {
-			delete(unit.Cooldowns, id)
-		}
-	}
-
-	// shield always decreased by 1 every turn
-	if unit.CurrentShield > 0 {
-		unit.CurrentShield--
-		states.Add(
-			ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
-			ds.ApplyState{SetShield: new(unit.CurrentShield), ToUnitID: unit.ID},
-		)
-	}
-
-	// reduce cooldowns
-	for abID, cd := range unit.Cooldowns {
-		if cd > 0 {
-			cd--
-			unit.SetCooldown(abID, cd)
-			states.Add(ds.ApplyState{SetCooldown: new(map[ability.ID]int{abID: cd}), ToUnitID: unit.ID})
-		}
-	}
-
-	m.sendApplyStates(states...)
-	m.sendApplyStates(mock.ApplyOnTurnStartHandlers(unit)...)
+	sts := mock.ApplyOnTurnStartHandlers(unit)
+	m.sendApplyStates(sts...)
 
 	if unit.OwnerID != mock.MockedPlayerID {
 		m.sendPlayUnit(unit.ID)
 		return
 	}
 
+	// pretend opponent is playing
+	m.send(WaitingForOpponent)
+	for _, st := range sts {
+		if st.SkipTurn {
+			m.onEndTurn()
+			return
+		}
+	}
 	m.simulateMockUnitTurn(unit)
-
-	// Continue the loop after a short pause.
-	time.Sleep(mockDelay)
-	m.advanceGameLoop()
+	m.onEndTurn()
 }
 
-// simulateMockUnitTurn moves the mock unit to a random reachable cell.
+// simulateMockUnitTurn ...
 func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 	actions := mock.SimulateUnitTurn(unit)
 
@@ -321,15 +278,15 @@ func (m *MockClient) runPlacementPhase() {
 
 func (m *MockClient) advancePlayPhase() {
 	gs := mock.GetGameState()
-	nextUnit := m.nextUnitToPlay()
+	activeUnit := mock.ActiveUnit()
 
-	if nextUnit == nil {
+	if activeUnit == nil {
 		gs.Phase = mock.PlacementPhase
 		m.runPlacementPhase()
 		return
 	}
 
-	m.playUnit(nextUnit)
+	m.playUnit(activeUnit)
 }
 
 // mockPlaceUnit picks a random unit from the mock player's hand and places it.

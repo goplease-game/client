@@ -6,10 +6,9 @@ type Alignment string
 const Permanent = -1
 
 const (
-	DecayingShield Type = "decaying_shield"
 	Provoked       Type = "provoked"
 	Provoking      Type = "provoking"
-	Stun           Type = "stun"
+	Stunned        Type = "stunned"
 	Rallied        Type = "rallied"
 	Exposed        Type = "exposed"
 	Hamstrung      Type = "hamstrung"
@@ -78,33 +77,35 @@ var debuffWardStatus = &Status{
 var sharpenedStatus = &Status{
 	Name:         "Sharpened",
 	Description:  "Increases attack by 1 until the end of the next turn.",
-	Duration:     1,
+	Duration:     2,
 	InitialValue: 1,
 	Type:         Sharpened,
 	Alignment:    Positive,
 }
 
 var hamstrungStatus = &Status{
-	Name:        "Hamstrung",
-	Description: "Movement is reduced to 1 tile.",
-	Duration:    1,
-	Type:        Hamstrung,
-	Alignment:   Negative,
+	Name:         "Hamstrung",
+	Description:  "Movement is reduced to 1 tile.",
+	Duration:     1,
+	InitialValue: 1,
+	Type:         Hamstrung,
+	Alignment:    Negative,
 }
 
 var exposedStatus = &Status{
-	Name:        "Exposed",
-	Description: "Attacks against this unit deal +1 damage.",
-	Duration:    3,
-	Type:        Exposed,
-	Alignment:   Negative,
+	Name:         "Exposed",
+	Description:  "Attacks against this unit deal +1 damage.",
+	Duration:     3,
+	InitialValue: 1,
+	Type:         Exposed,
+	Alignment:    Negative,
 }
 
-var stunStatus = &Status{
+var stunnedStatus = &Status{
 	Name:        "Stunned",
 	Description: "This unit is stunned and cannot take its next action.",
 	Duration:    1,
-	Type:        Stun,
+	Type:        Stunned,
 	Alignment:   Negative,
 }
 
@@ -134,14 +135,6 @@ var ralliedStatus = &Status{
 	Alignment:    Positive,
 }
 
-var decayingShieldStatus = &Status{
-	Name:         "Shield",
-	Description:  "A shield that protect your health. It decays by 1 at the end of each turn.",
-	InitialValue: 5,
-	Type:         DecayingShield,
-	Alignment:    Positive,
-}
-
 var temporalAnchorStatus = &Status{
 	Name:        "Temporal Anchor",
 	Description: "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
@@ -150,9 +143,10 @@ var temporalAnchorStatus = &Status{
 }
 
 var frenziedStatus = &Status{
-	Name:        "Frenzied",
-	Description: "You are frenzied because 2 or more opponents are nearby. Grants +1 Attack while active.",
-	Type:        Frenzied,
-	Alignment:   Positive,
-	Duration:    Permanent,
+	Name:         "Frenzied",
+	Description:  "You are frenzied because 2 or more opponents are nearby. Grants +1 Attack while active.",
+	InitialValue: 1,
+	Type:         Frenzied,
+	Alignment:    Positive,
+	Duration:     Permanent,
 }

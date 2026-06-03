@@ -1,5 +1,7 @@
 package ability
 
+import "github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+
 type ID string
 
 type Type int
@@ -53,6 +55,18 @@ type Ability struct {
 	Activation ActivationType `json:"activation"`
 	Area       AreaType       `json:"area"`
 	AreaRadius int            `json:"area_radius"`
+
+	Effect Effect `json:"effect"`
+}
+
+type Effect struct {
+	AddHP         int         `json:"add_hp"`
+	AddShield     int         `json:"add_shield"`
+	AddAP         int         `json:"add_ap"`
+	DealDamage    int         `json:"deal_damage"`
+	DealAltDamage int         `json:"deal_alt_damage"`
+	BonusDamage   int         `json:"bonus_damage"`
+	ApplyStatus   status.Type `json:"apply_status"`
 }
 
 func ByID(id ID) Ability {

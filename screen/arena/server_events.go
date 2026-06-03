@@ -161,14 +161,6 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 }
 
 func (s *Screen) handleNewRound(data json.RawMessage) {
-	for _, u := range s.unitsQueue {
-		for id, cd := range u.Cooldowns {
-			if cd > 0 {
-				u.Cooldowns[id] = cd - 1
-			}
-		}
-	}
-
 	s.roundNumber++
 	s.showNewRoundBanner(s.roundNumber)
 
@@ -222,6 +214,15 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		if st.ToUnitID == "" {
 			log.Printf("payload %s\nmissing ToUnitID\n", string(data))
 		}
+
+		if st.SkipTurn && st.ToUnitID == s.activeUnitID {
+			s.server.Send(ws.OutMessage{
+				Action: ws.EndTurnAction,
+			})
+
+			return
+		}
+
 		target := s.unitByID(st.ToUnitID)
 		if target == nil {
 			continue
@@ -282,7 +283,7 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 		s.showAbilityPanel(target)
 	}
 	if st.SetMP != nil {
-		target.MP = *st.SetMP
+		target.CurrentMP = *st.SetMP
 	}
 	if st.SetShield != nil {
 		target.CurrentShield = *st.SetShield
@@ -292,7 +293,7 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	}
 	if st.SetCooldown != nil {
 		for abID, cd := range *st.SetCooldown {
-			target.Cooldowns[abID] = cd
+			target.SetCooldown(abID, cd)
 		}
 	}
 
@@ -302,6 +303,10 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	}
 	if st.RemoveStatus != nil {
 		s.removeUnitStatus(target, *st.RemoveStatus)
+	}
+
+	if st.SetStatusDuration != nil {
+		s.updateUnitStatusDuration(target, st.SetStatusDuration)
 	}
 
 	// --- Death ---

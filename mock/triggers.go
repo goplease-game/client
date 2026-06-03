@@ -2,7 +2,6 @@ package mock
 
 import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/hex"
 )
@@ -32,6 +31,8 @@ var onDamageReceivedHandlers []onDamageReceivedHandler
 
 var onTurnStarHandlers = []onMoveHandler{
 	useFocusFieldAbility,
+	recalculateFrenzyAbility,
+	handleOnTurnStartStatuses,
 }
 
 func applyOnDeathHandlers(u *ds.Unit) (st ds.ApplyStates) {
@@ -94,7 +95,7 @@ func useUndyingWillAbility(u *ds.Unit) (st ds.ApplyStates) {
 	return
 }
 
-func recalculateFrenzyAbility(_ *ds.Unit) (st ds.ApplyStates) {
+func recalculateFrenzyAbility(_ *ds.Unit) (sts ds.ApplyStates) {
 	id := ability.Frenzy
 	ab := ability.ByID(id)
 
@@ -104,29 +105,18 @@ func recalculateFrenzyAbility(_ *ds.Unit) (st ds.ApplyStates) {
 		}
 
 		enemies := countEnemiesInRange(u, ab.AreaRadius, 2)
-		hasFrenzy := u.HasStatus(status.Frenzied)
+		isFrenzied := u.HasStatus(ab.Effect.ApplyStatus)
 
 		// Remove
-		if enemies < 2 && hasFrenzy {
-			u.CurrentAtk--
-
-			st.Add(
-				removeStatusFromUnit(u, status.Frenzied),
-				ds.ApplyState{ChangeAtk: new(-1), ToUnitID: u.ID},
-				ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID},
-			)
-
+		if enemies < 2 && isFrenzied {
+			sts.Add(removeStatusFromUnit(ab.Effect.ApplyStatus, u)...)
 			continue
 		}
 
-		// ADD
-		if enemies >= 2 && !hasFrenzy {
-			u.CurrentAtk++
-
-			st.Add(
-				applyStatusToUnit(u, status.Frenzied),
-				ds.ApplyState{ChangeAtk: new(1), ToUnitID: u.ID},
-				ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID},
+		// Add
+		if enemies >= 2 && !isFrenzied {
+			sts.Add(
+				applyStatusToUnit(ab.Effect.ApplyStatus, u, u)...,
 			)
 		}
 	}
@@ -134,7 +124,11 @@ func recalculateFrenzyAbility(_ *ds.Unit) (st ds.ApplyStates) {
 	return
 }
 
-func useCoverFireAbility(source, _ *ds.Unit) (st ds.ApplyStates) {
+func useCoverFireAbility(source, target *ds.Unit) (st ds.ApplyStates) {
+	if source.IsAlly(target) {
+		return
+	}
+
 	id := ability.CoverFire
 	ab := ability.ByID(id)
 
@@ -144,13 +138,18 @@ func useCoverFireAbility(source, _ *ds.Unit) (st ds.ApplyStates) {
 			continue
 		}
 
-		u.Cooldowns[id] = ab.Cooldown
+		if target.ID == u.ID {
+			continue // cannot apply CF from self
+		}
+
+		u.SetCooldown(id, ab.Cooldown)
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    u.ID,
 			AbilityID: id,
 			Target:    source.Pos,
 		}), ToUnitID: u.ID})
-		st.Add(dealDamageToUnit(u, source, 3)...)
+
+		st.Add(dealDamageToUnit(u, source, ab.Effect.DealDamage)...)
 	}
 
 	return
@@ -173,13 +172,13 @@ func useOpportunityAbility(source, target *ds.Unit) (st ds.ApplyStates) {
 			continue
 		}
 
-		u.Cooldowns[id] = ab.Cooldown
+		u.SetCooldown(id, ab.Cooldown)
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    u.ID,
 			AbilityID: id,
 			Target:    target.Pos,
 		}), ToUnitID: u.ID})
-		st.Add(dealDamageToUnit(u, source, u.CurrentAtk)...)
+		st.Add(dealDamageToUnit(u, target, u.CurrentAtk)...)
 	}
 
 	return
@@ -195,7 +194,7 @@ func useFocusFieldAbility(unit *ds.Unit) (st ds.ApplyStates) {
 			continue
 		}
 
-		var cdApplied bool
+		var abUsed bool
 		for abID, cd := range unit.Cooldowns {
 			if ability.ByID(abID).IsPassive {
 				continue
@@ -203,18 +202,13 @@ func useFocusFieldAbility(unit *ds.Unit) (st ds.ApplyStates) {
 
 			if cd > 0 {
 				cd--
-				if cd == 0 {
-					delete(unit.Cooldowns, abID)
-				} else {
-					unit.Cooldowns[abID] = cd
-				}
-
-				cdApplied = true
+				unit.SetCooldown(abID, cd)
+				abUsed = true
 				st.Add(ds.ApplyState{SetCooldown: new(map[ability.ID]int{abID: cd}), ToUnitID: unit.ID})
 			}
 		}
 
-		if cdApplied {
+		if abUsed {
 			st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 				UnitID:    u.ID,
 				AbilityID: id,
