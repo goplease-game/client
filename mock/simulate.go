@@ -1,3 +1,4 @@
+// simulate.go
 package mock
 
 import (
@@ -22,7 +23,9 @@ const (
 	ApplyState      = "apply_state"
 )
 
-// SimulateUnitTurn ...
+// SimulateUnitTurn determines and executes the best available action for the given unit.
+// It evaluates class-specific priority scenarios first, then falls back to
+// attacking the priority target or moving toward it.
 func SimulateUnitTurn(unit *ds.Unit) (acts []SimAction) {
 	defer func() {
 		for i, a := range acts {
@@ -35,14 +38,21 @@ func SimulateUnitTurn(unit *ds.Unit) (acts []SimAction) {
 		}
 	}()
 
-	acts = simulateSimpleAttack(unit)
+	if scenarios, ok := unitScenarios[unit.TemplateID]; ok {
+		for _, scenario := range scenarios {
+			if acts = scenario(unit); len(acts) > 0 {
+				return
+			}
+		}
+	}
+
+	// Default: attack priority target or move toward it.
+	acts = scenarioAttackPriorityTarget(unit)
 	if len(acts) > 0 {
 		return
 	}
 
-	// can't attack, try to move
-	act := simulateMove(unit)
-	acts = append(acts, act)
+	acts = append(acts, scenarioMoveTowardsPriorityTarget(unit))
 	return
 }
 
@@ -138,31 +148,6 @@ func findAttackPosition(u *ds.Unit, target *ds.Unit, attackRange int) (ds.HexCoo
 	return bestPos, true
 }
 
-func findClosestEnemy(u *ds.Unit) *ds.Unit {
-	var closest *ds.Unit
-	bestDist := math.MaxInt
-
-	for _, cell := range gameState.Board.Cells {
-		if cell.Unit == nil {
-			continue
-		}
-
-		enemy := cell.Unit
-		// mocked unit have enemy.IsOpponent: true
-		if enemy.IsOpponent || enemy.IsDead {
-			continue
-		}
-
-		dist := hex.Distance(u.Pos, enemy.Pos)
-		if dist < bestDist {
-			bestDist = dist
-			closest = enemy
-		}
-	}
-
-	return closest
-}
-
 func simulateMove(u *ds.Unit) SimAction {
 	pos := RandomReachableCell(*u)
 	PlaceUnitAt(u, pos)
@@ -173,5 +158,308 @@ func simulateMove(u *ds.Unit) SimAction {
 			UnitID: u.ID,
 			Coord:  pos,
 		},
+	}
+}
+
+func findAllEnemies(of *ds.Unit) []*ds.Unit {
+	enemies := []*ds.Unit{}
+	for _, u := range gameState.UnitsQueue {
+		if u.IsEnemy(of) {
+			enemies = append(enemies, u)
+		}
+	}
+
+	return enemies
+}
+
+// findClosestEnemy returns the nearest enemy to the given unit,
+// breaking ties by lowest HP. Returns nil if no enemies exist.
+func findClosestEnemy(of *ds.Unit) *ds.Unit {
+	enemies := findAllEnemies(of)
+	if len(enemies) == 0 {
+		return nil
+	}
+
+	var best *ds.Unit
+	for _, e := range enemies {
+		if best == nil {
+			best = e
+			continue
+		}
+		distBest := hex.Distance(of.Pos, best.Pos)
+		distE := hex.Distance(of.Pos, e.Pos)
+		if distE < distBest || (distE == distBest && e.CurrentHP < best.CurrentHP) {
+			best = e
+		}
+	}
+	return best
+}
+
+// findClosestReachableEnemy returns the nearest enemy reachable
+// within movement + abilityRange, or nil if none can be reached.
+func findClosestReachableEnemy(u *ds.Unit, abilityRange int) *ds.Unit {
+	enemies := findAllEnemies(u)
+
+	var best *ds.Unit
+	for _, e := range enemies {
+		_, ok := findAttackPosition(u, e, abilityRange)
+		if !ok {
+			continue
+		}
+		if best == nil {
+			best = e
+			continue
+		}
+		if hex.Distance(u.Pos, e.Pos) < hex.Distance(u.Pos, best.Pos) {
+			best = e
+		}
+	}
+	return best
+}
+
+// findClosestEnemyWithBuffs returns the nearest reachable enemy
+// that has at least one positive status effect, or nil.
+func findClosestEnemyWithBuffs(u *ds.Unit, abilityRange int) *ds.Unit {
+	enemies := findAllEnemies(u)
+
+	var best *ds.Unit
+	for _, e := range enemies {
+		if !hasPositiveStatus(e) {
+			continue
+		}
+		_, ok := findAttackPosition(u, e, abilityRange)
+		if !ok {
+			continue
+		}
+		if best == nil {
+			best = e
+			continue
+		}
+		if hex.Distance(u.Pos, e.Pos) < hex.Distance(u.Pos, best.Pos) {
+			best = e
+		}
+	}
+	return best
+}
+
+// findClosestAlly returns the nearest living ally, excluding self. Returns nil if none.
+func findClosestAlly(u *ds.Unit) *ds.Unit {
+	var best *ds.Unit
+	for _, other := range gameState.UnitsQueue {
+		if other.ID == u.ID || !other.IsAlly(u) {
+			continue
+		}
+		if best == nil {
+			best = other
+			continue
+		}
+		if hex.Distance(u.Pos, other.Pos) < hex.Distance(u.Pos, best.Pos) {
+			best = other
+		}
+	}
+	return best
+}
+
+// findMostWoundedAllyInRange returns the ally (or self) within healRange
+// with the lowest CurrentHP relative to BaseHP.
+// Returns nil if all units in range are at full HP.
+func findMostWoundedAllyInRange(u *ds.Unit, healRange int) *ds.Unit {
+	candidates := append(findAlliesInRange(u, healRange), u)
+
+	var best *ds.Unit
+	for _, ally := range candidates {
+		if ally.CurrentHP >= ally.BaseHP {
+			continue
+		}
+		if best == nil {
+			best = ally
+			continue
+		}
+		if ally.CurrentHP < best.CurrentHP {
+			best = ally
+		}
+	}
+	return best
+}
+
+// findAllyWithDebuffInRange returns the first ally (or self) within range
+// that has at least one negative status effect, or nil.
+func findAllyWithDebuffInRange(u *ds.Unit, abilityRange int) *ds.Unit {
+	candidates := append(findAlliesInRange(u, abilityRange), u)
+
+	for _, ally := range candidates {
+		if hasNegativeStatus(ally) {
+			return ally
+		}
+	}
+	return nil
+}
+
+// findAdjacentPosition returns the closest free cell adjacent to target
+// that u can reach within its movement range, or false if none exists.
+func findAdjacentPosition(u *ds.Unit, target *ds.Unit) (ds.HexCoord, bool) {
+	neighbors := hex.Neighbors(target.Pos)
+
+	var best ds.HexCoord
+	bestDist := -1
+
+	for _, pos := range neighbors {
+		cell, ok := gameState.Board.Cells[pos]
+		if !ok || cell.Unit != nil {
+			continue
+		}
+		dist := hex.Distance(u.Pos, pos)
+		if dist > u.CurrentMP {
+			continue
+		}
+		if bestDist < 0 || dist < bestDist {
+			best = pos
+			bestDist = dist
+		}
+	}
+
+	return best, bestDist >= 0
+}
+
+// canReachFrom reports whether a unit standing at fromPos could reach
+// the target given abilityRange (ignores movement — assumes unit is already at fromPos).
+func canReachFrom(fromPos ds.HexCoord, target *ds.Unit, abilityRange int) bool {
+	return hex.Distance(fromPos, target.Pos) <= abilityRange
+}
+
+// findBestPositionForAOE finds the cell reachable by u (within MovePoints)
+// that maximises the score returned by scoreFn(center, radius).
+// Returns the best position and its score.
+func findBestPositionForAOE(
+	u *ds.Unit,
+	radius int,
+	scoreFn func(u *ds.Unit, center ds.HexCoord, radius int) int,
+) (ds.HexCoord, int) {
+	reachable := hex.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
+
+	bestPos := u.Pos
+	bestScore := scoreFn(u, u.Pos, radius)
+
+	for _, pos := range reachable {
+		cell, ok := gameState.Board.Cells[pos]
+		if !ok || (cell.Unit != nil && cell.Unit.ID != u.ID) {
+			continue
+		}
+		score := scoreFn(u, pos, radius)
+		if score > bestScore {
+			bestScore = score
+			bestPos = pos
+		}
+	}
+
+	return bestPos, bestScore
+}
+
+// countAlliesInRadius counts allies of u within radius of center,
+// matching the signature expected by findBestPositionForAOE.
+func countAlliesInRadius(u *ds.Unit, center ds.HexCoord, radius int) int {
+	count := 0
+	cells := hex.CellsInRange(center, radius, gameState.Board)
+	for _, pos := range cells {
+		unit := GetUnitAt(pos)
+		if unit != nil && unit.IsAlly(u) && unit.ID != u.ID {
+			count++
+		}
+	}
+	return count
+}
+
+// simulateMoveTowards moves u one step in the direction of targetPos,
+// choosing the reachable cell closest to the target.
+func simulateMoveTowards(u *ds.Unit, targetPos ds.HexCoord) SimAction {
+	reachable := hex.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
+
+	bestPos := u.Pos
+	bestDist := hex.Distance(u.Pos, targetPos)
+
+	for _, pos := range reachable {
+		cell, ok := gameState.Board.Cells[pos]
+		if !ok || (cell.Unit != nil && cell.Unit.ID != u.ID) {
+			continue
+		}
+		d := hex.Distance(pos, targetPos)
+		if d < bestDist {
+			bestDist = d
+			bestPos = pos
+		}
+	}
+
+	PlaceUnitAt(u, bestPos)
+	return SimAction{
+		Action: UnitMovedAction,
+		data: ds.UnitMovedPayload{
+			UnitID: u.ID,
+			Coord:  bestPos,
+		},
+	}
+}
+
+// --- Status helpers ---
+
+// hasPositiveStatus reports whether the unit has any active positive status effect.
+func hasPositiveStatus(u *ds.Unit) bool {
+	for _, v := range u.Statuses {
+		if v.IsPositive() {
+			return true
+		}
+	}
+	return false
+}
+
+// hasNegativeStatus reports whether the unit has any active negative status effect.
+func hasNegativeStatus(u *ds.Unit) bool {
+	for _, v := range u.Statuses {
+		if v.IsNegative() {
+			return true
+		}
+	}
+	return false
+}
+
+// findFreeCellAdjacentTo returns a free board cell adjacent to target
+// reachable within stepRange hex steps from u's current position.
+func findFreeCellAdjacentTo(u *ds.Unit, target *ds.Unit, stepRange int) (ds.HexCoord, bool) {
+	for _, pos := range hex.Neighbors(target.Pos) {
+		cell, ok := gameState.Board.Cells[pos]
+		if !ok || cell.Unit != nil {
+			continue
+		}
+		if hex.Distance(u.Pos, pos) <= stepRange {
+			return pos, true
+		}
+	}
+	return ds.HexCoord{}, false
+}
+
+// findAbilityTarget returns the position to pass as Target to HandleAbility,
+// and the position to move to before using the ability.
+// Returns false if the ability cannot be used against the given target from current position.
+func findAbilityTarget(u *ds.Unit, target *ds.Unit, abilityID ability.ID) (moveTo ds.HexCoord, targetPos ds.HexCoord, ok bool) {
+	a := ability.ByID(abilityID)
+
+	switch a.Activation {
+	case ability.SelectFreeCell:
+		// Target is a free cell within range, not a unit.
+		// Find a free cell adjacent to the priority target within ability range.
+		targetPos, ok = findFreeCellAdjacentTo(u, target, a.Range)
+		if !ok {
+			return
+		}
+		moveTo = u.Pos // no walking — ability itself handles repositioning
+		return
+
+	default:
+		// Target is a unit — find a position from which u can hit it.
+		moveTo, ok = findAttackPosition(u, target, a.Range)
+		if !ok {
+			return
+		}
+		targetPos = target.Pos
+		return
 	}
 }

@@ -1005,7 +1005,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "base_mp": 3,
+        "current_mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1032,7 +1033,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "base_mp": 3,
+        "current_mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1059,7 +1061,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 2,
+        "base_mp": 2,
+        "current_mp": 2,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1086,7 +1089,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 4,
+        "base_mp": 4,
+        "current_mp": 4,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1113,7 +1117,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "base_mp": 3,
+        "current_mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [
@@ -1140,7 +1145,8 @@
         "current_shield": 0,
         "base_ap": 1,
         "current_ap": 1,
-        "mp": 3,
+        "base_mp": 3,
+        "current_mp": 3,
         "row": -1,
         "col": -1,
         "abilities": [

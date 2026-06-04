@@ -46,7 +46,7 @@ type abilityUsed struct {
 	At ds.HexCoord
 }
 
-// HandleAbility is cooking a response for specific ability. We don't validation here,
+// HandleAbility is cooking a response for specific ability. We don't do validation here,
 // because it is just a mock implementation, so you can hack whatever you want.
 func HandleAbility(data ds.UseAbilityPayload) (resp ds.ApplyStates, err error) {
 	_, ok := ability.Abilities[data.AbilityID]
@@ -323,6 +323,10 @@ func battleCryHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 }
 
 func shadowStepHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+	if GetUnitAt(e.At) != nil {
+		err = fmt.Errorf("shadowStep: target cell %s is occupied", e.At)
+		return
+	}
 	PlaceUnitAt(e.By, e.At)
 
 	sts.Add(

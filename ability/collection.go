@@ -352,7 +352,8 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Bottomless Vial",
-		Description: "The first time each turn July loses HP, her maximum HP permanently increases by 1.",
+		Description: "The first time each round a friendly unit within 4 cells takes damage, their maximum HP permanently increases by 1",
 		Cooldown:    1,
+		AreaRadius:  4,
 	},
 }

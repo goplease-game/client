@@ -31,6 +31,22 @@ func Distance(a, b ds.HexCoord) int {
 	return max3(abs(dq), abs(dr), abs(dq+dr))
 }
 
+// Neighbors returns the 6 adjacent hex coordinates around from.
+// Does not filter by board boundaries or occupancy.
+func Neighbors(from ds.HexCoord) []ds.HexCoord {
+	dirs := []ds.HexCoord{
+		{Q: 1, R: 0}, {Q: -1, R: 0},
+		{Q: 0, R: 1}, {Q: 0, R: -1},
+		{Q: 1, R: -1}, {Q: -1, R: 1},
+	}
+
+	result := make([]ds.HexCoord, 0, 6)
+	for _, d := range dirs {
+		result = append(result, ds.HexCoord{Q: from.Q + d.Q, R: from.R + d.R})
+	}
+	return result
+}
+
 func abs(x int) int {
 	if x < 0 {
 		return -x

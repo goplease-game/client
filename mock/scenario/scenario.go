@@ -10,7 +10,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
-const Default = JulyWithCompany
+const Default = BasWithFriends
 
 var Scenarios = map[Name]func() *Scenario{}
 

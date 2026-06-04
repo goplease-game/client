@@ -225,22 +225,31 @@ func useFocusFieldAbility(unit *ds.Unit) (st ds.ApplyStates) {
 // TODO apply status to display how much max HP increased
 func useBottomlessVialAbility(_, target *ds.Unit) (st ds.ApplyStates) {
 	id := ability.BottomlessVial
-	if !target.HasAbility(id) {
-		return
-	}
-	if !target.AbilityReady(id) {
-		return
+	ab := ability.ByID(id)
+
+	units := findAlliesInRangeWithAbility(target, ab.AreaRadius, id)
+	for _, u := range units {
+		if !u.AbilityReady(id) {
+			continue
+		}
+
+		if u.ID == target.ID {
+			continue // cannot use on self
+		}
+
+		u.SetCooldown(id, ab.Cooldown)
+		target.BaseHP++
+
+		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
+			UnitID:    target.ID,
+			AbilityID: id,
+			Target:    target.Pos,
+		}), ToUnitID: target.ID})
+		st.Add(ds.ApplyState{SetBaseHP: new(target.BaseHP), ToUnitID: target.ID})
+
+		return // apply only once
 	}
 
-	target.Cooldowns[id] = ability.ByID(id).Cooldown
-	target.BaseHP++
-
-	st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
-		UnitID:    target.ID,
-		AbilityID: id,
-		Target:    target.Pos,
-	}), ToUnitID: target.ID})
-	st.Add(ds.ApplyState{SetBaseHP: new(target.BaseHP), ToUnitID: target.ID})
 	return
 }
 

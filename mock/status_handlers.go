@@ -18,9 +18,8 @@ type statusHandler struct {
 }
 
 var statusHandlers = map[status.Type]*statusHandler{
-	status.Provoked:  provokedSH,
-	status.Provoking: nil, // this is just decorative status
-
+	status.Provoked:       provokedSH,
+	status.Provoking:      nil, // this is just decorative status
 	status.Stunned:        stunnedSH,
 	status.Rallied:        ralliedSH,
 	status.Exposed:        exposedSH,
