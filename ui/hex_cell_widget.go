@@ -42,15 +42,18 @@ type HexCellWidget struct {
 	// cachedRect is the last rect assigned by HexLayout.
 	// All layers are kept in sync with this rect via SetLocation.
 	cachedRect image.Rectangle
+
+	boardCells map[ds.HexCoord]*ds.BoardCell // reference to board for boundary detection
 }
 
 // NewHexCellWidget creates a hex cell widget at the given axial coordinate.
 // opts are passed to the underlying widget.Widget for input handling.
-func NewHexCellWidget(coord ds.HexCoord, opts ...widget.WidgetOpt) *HexCellWidget {
+func NewHexCellWidget(coord ds.HexCoord, boardCells map[ds.HexCoord]*ds.BoardCell, opts ...widget.WidgetOpt) *HexCellWidget {
 	h := &HexCellWidget{
-		Coord:   coord,
-		bgColor: color.RGBA{60, 60, 80, 255},
-		layers:  make(map[int]*widget.Container),
+		Coord:      coord,
+		bgColor:    color.RGBA{60, 60, 80, 255},
+		layers:     make(map[int]*widget.Container),
+		boardCells: boardCells,
 	}
 	h.widget = widget.NewWidget(opts...)
 	return h
@@ -121,26 +124,167 @@ func (h *HexCellWidget) AppendHexPath(path *vector.Path) {
 	h.buildHexPath(path)
 }
 
-// buildHexPath appends a pointy-top hexagon centered in cachedRect to path.
-// This is the single source of hex geometry — all render methods use it.
+// buildHexPath appends a pointy-top hexagon to path, rounding only corners
+// that are on the board boundary (both adjacent edges have no neighbor).
 func (h *HexCellWidget) buildHexPath(path *vector.Path) {
+	const cornerRadius = float32(HexRadius)
+
 	cx := float32(h.cachedRect.Min.X + h.cachedRect.Dx()/2)
 	cy := float32(h.cachedRect.Min.Y + h.cachedRect.Dy()/2)
 	r := float32(HexRadius)
 
+	neighborDirs := [6]ds.HexCoord{
+		{Q: 1, R: -1},
+		{Q: 1, R: 0},
+		{Q: 0, R: 1},
+		{Q: -1, R: 1},
+		{Q: -1, R: 0},
+		{Q: 0, R: -1},
+	}
+
+	hasNeighbor := [6]bool{}
+	for i, d := range neighborDirs {
+		neighbor := ds.HexCoord{Q: h.Coord.Q + d.Q, R: h.Coord.R + d.R}
+		_, hasNeighbor[i] = h.boardCells[neighbor]
+	}
+
+	// Vertex i is an outer corner if both adjacent edges have no neighbor.
+	isOuterCorner := func(i int) bool {
+		prev := (i + 5) % 6
+		return !hasNeighbor[prev] && !hasNeighbor[i]
+	}
+
+	isBoardVertex := func() bool {
+		// Count the maximum run of consecutive missing neighbors,
+		// treating the array as circular.
+		best := 0
+		for start := 0; start < 6; start++ {
+			if hasNeighbor[start] {
+				continue
+			}
+			count := 0
+			for j := 0; j < 6; j++ {
+				if !hasNeighbor[(start+j)%6] {
+					count++
+				} else {
+					break
+				}
+			}
+			if count > best {
+				best = count
+			}
+		}
+		return best == 3
+	}()
+
+	vx := [6]float32{}
+	vy := [6]float32{}
 	for i := 0; i < 6; i++ {
-		// Pointy-top orientation: first vertex points straight up (-π/2 offset).
 		angle := float64(i)*math.Pi/3 - math.Pi/2
-		x := cx + r*float32(math.Cos(angle))
-		y := cy + r*float32(math.Sin(angle))
-		if i == 0 {
-			path.MoveTo(x, y)
+		vx[i] = cx + r*float32(math.Cos(angle))
+		vy[i] = cy + r*float32(math.Sin(angle))
+	}
+
+	started := false
+	for i := 0; i < 6; i++ {
+		next := (i + 1) % 6
+		prev := (i + 5) % 6
+
+		toPrevX := vx[prev] - vx[i]
+		toPrevY := vy[prev] - vy[i]
+		toNextX := vx[next] - vx[i]
+		toNextY := vy[next] - vy[i]
+
+		lenPrev := float32(math.Sqrt(float64(toPrevX*toPrevX + toPrevY*toPrevY)))
+		lenNext := float32(math.Sqrt(float64(toNextX*toNextX + toNextY*toNextY)))
+
+		cr := cornerRadius
+		// Board-vertex hexes get half the corner radius to avoid distortion.
+		if isBoardVertex {
+			cr = cornerRadius / 2
+		}
+		// Hard clamp to half edge length as a safety net.
+		if safeRadius := lenPrev / 2; cr > safeRadius {
+			cr = safeRadius
+		}
+
+		p1x := vx[i] + toPrevX/lenPrev*cr
+		p1y := vy[i] + toPrevY/lenPrev*cr
+		p2x := vx[i] + toNextX/lenNext*cr
+		p2y := vy[i] + toNextY/lenNext*cr
+
+		if isOuterCorner(i) {
+			if !started {
+				path.MoveTo(p1x, p1y)
+				started = true
+			} else {
+				path.LineTo(p1x, p1y)
+			}
+			path.QuadTo(vx[i], vy[i], p2x, p2y)
 		} else {
-			path.LineTo(x, y)
+			if !started {
+				path.MoveTo(vx[i], vy[i])
+				started = true
+			} else {
+				path.LineTo(vx[i], vy[i])
+			}
 		}
 	}
+
 	path.Close()
 }
+
+// NOTE: this alternative buildHexPath could draw circle cells (set cornerRadius)
+// buildHexPath appends a pointy-top hexagon with rounded corners centered in cachedRect to path.
+// cornerRadius controls how much each vertex is chamfered — 0 gives sharp corners.
+//func (h *HexCellWidget) buildHexPath(path *vector.Path) {
+//	const cornerRadius = 0.0 // pixels
+//
+//	cx := float32(h.cachedRect.Min.X + h.cachedRect.Dx()/2)
+//	cy := float32(h.cachedRect.Min.Y + h.cachedRect.Dy()/2)
+//	r := float32(HexRadius)
+//
+//	// Compute all 6 vertices.
+//	vx := [6]float32{}
+//	vy := [6]float32{}
+//	for i := 0; i < 6; i++ {
+//		angle := float64(i)*math.Pi/3 - math.Pi/2
+//		vx[i] = cx + r*float32(math.Cos(angle))
+//		vy[i] = cy + r*float32(math.Sin(angle))
+//	}
+//
+//	for i := 0; i < 6; i++ {
+//		curr := i
+//		next := (i + 1) % 6
+//		prev := (i + 5) % 6
+//
+//		// Vectors from current vertex toward neighbors.
+//		toPrevX := vx[prev] - vx[curr]
+//		toPrevY := vy[prev] - vy[curr]
+//		toNextX := vx[next] - vx[curr]
+//		toNextY := vy[next] - vy[curr]
+//
+//		lenPrev := float32(math.Sqrt(float64(toPrevX*toPrevX + toPrevY*toPrevY)))
+//		lenNext := float32(math.Sqrt(float64(toNextX*toNextX + toNextY*toNextY)))
+//
+//		// Points on edges at cornerRadius distance from vertex.
+//		p1x := vx[curr] + toPrevX/lenPrev*cornerRadius
+//		p1y := vy[curr] + toPrevY/lenPrev*cornerRadius
+//		p2x := vx[curr] + toNextX/lenNext*cornerRadius
+//		p2y := vy[curr] + toNextY/lenNext*cornerRadius
+//
+//		if i == 0 {
+//			path.MoveTo(p1x, p1y)
+//		} else {
+//			path.LineTo(p1x, p1y)
+//		}
+//
+//		// Quadratic bezier through the vertex rounds the corner.
+//		path.QuadTo(vx[curr], vy[curr], p2x, p2y)
+//	}
+//
+//	path.Close()
+//}
 
 // RenderUnitLayer renders all widgets on the unit layer (z=0).
 // Call from PostRenderHook after RenderFill and grid stroke.

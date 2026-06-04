@@ -39,6 +39,22 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 	hexW := int(math.Round(math.Sqrt(3) * l.HexSize))
 	hexH := int(math.Round(2 * l.HexSize))
 
+	// Find the minimum x and y across all cells to normalize negative coordinates.
+	minX, minY := math.MaxFloat64, math.MaxFloat64
+	for _, w := range widgets {
+		hc, ok := w.(HexChild)
+		if !ok {
+			continue
+		}
+		x, y := axialToPixel(hc.GetHexCoord(), l.HexSize)
+		if x < minX {
+			minX = x
+		}
+		if y < minY {
+			minY = y
+		}
+	}
+
 	for _, w := range widgets {
 		hc, ok := w.(HexChild)
 		if !ok {
@@ -48,7 +64,9 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 		coord := hc.GetHexCoord()
 		x, y := axialToPixel(coord, l.HexSize)
 
-		// Offset by the container's top-left corner.
+		// Normalize so the top-left cell starts at (0,0), then offset by container.
+		x -= minX
+		y -= minY
 		x += float64(rect.Min.X)
 		y += float64(rect.Min.Y)
 
@@ -57,10 +75,8 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 
 		r := image.Rect(rx, ry, rx+hexW, ry+hexH)
 
-		// SetLocation on the EbitenUI widget enables input event handling.
 		w.GetWidget().SetLocation(r)
 
-		// SetLocation on the widget itself triggers geometry rebuild (e.g. HexCellWidget).
 		if h, ok := w.(interface{ SetLocation(image.Rectangle) }); ok {
 			h.SetLocation(r)
 		}
@@ -74,8 +90,8 @@ func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget
 		l.HexSize = HexRadius
 	}
 
-	maxX := 0.0
-	maxY := 0.0
+	minX, minY := math.MaxFloat64, math.MaxFloat64
+	maxX, maxY := -math.MaxFloat64, -math.MaxFloat64
 
 	for _, w := range widgets {
 		hc, ok := w.(HexChild)
@@ -84,7 +100,12 @@ func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget
 		}
 
 		x, y := axialToPixel(hc.GetHexCoord(), l.HexSize)
-
+		if x < minX {
+			minX = x
+		}
+		if y < minY {
+			minY = y
+		}
 		if x > maxX {
 			maxX = x
 		}
@@ -93,8 +114,11 @@ func (l *HexLayout) PreferredSize(widgets []widget.PreferredSizeLocateableWidget
 		}
 	}
 
-	width := int(math.Round(maxX) + math.Sqrt(3)*l.HexSize)
-	height := int(math.Round(maxY) + 2*l.HexSize)
+	hexW := int(math.Round(math.Sqrt(3) * l.HexSize))
+	hexH := int(math.Round(2 * l.HexSize))
+
+	width := int(math.Round(maxX-minX)) + hexW
+	height := int(math.Round(maxY-minY)) + hexH
 
 	return width, height
 }

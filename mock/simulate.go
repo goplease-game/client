@@ -1,4 +1,3 @@
-// simulate.go
 package mock
 
 import (
@@ -462,4 +461,18 @@ func findAbilityTarget(u *ds.Unit, target *ds.Unit, abilityID ability.ID) (moveT
 		targetPos = target.Pos
 		return
 	}
+}
+
+// countEnemiesInRangeFrom counts enemies of u within radius of a given position.
+// Used to evaluate AoE value before committing to a move.
+func countEnemiesInRangeFrom(center ds.HexCoord, u *ds.Unit, radius int) int {
+	count := 0
+	cells := hex.CellsInRange(center, radius, gameState.Board)
+	for _, pos := range cells {
+		unit := GetUnitAt(pos)
+		if unit != nil && unit.IsEnemy(u) {
+			count++
+		}
+	}
+	return count
 }

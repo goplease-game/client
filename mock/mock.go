@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"math/rand/v2"
 	"path"
 
@@ -21,6 +22,7 @@ const (
 	totalUnitsPerPlayer = 6
 	MockedPlayerID      = "p2"
 	NoActiveUnit        = -1
+	safeZoneSize        = 2
 )
 
 type RoundPhase int
@@ -160,7 +162,7 @@ func LoadScenario(name scenario.Name) ds.GameSnapshot {
 	}
 
 	// find active unit index
-	var activeUnit int
+	activeUnit := NoActiveUnit
 	if sc.ActiveUnitID != "" {
 		for i := range sc.Queue {
 			if sc.Queue[i].ID == sc.ActiveUnitID {
@@ -242,25 +244,22 @@ func LoadData(filename string) ([]byte, error) {
 }
 
 func GetRandomUnoccupiedOpponentSafeZoneCell() ds.HexCoord {
-	// Find max Q per row.
-	maxQPerRow := make(map[int]int)
+	// Find the maximum Q on the board — opponent's safe zone mirrors the player's.
+	maxQ := math.MinInt
 	for coord := range gameState.Board.Cells {
-		if q, ok := maxQPerRow[coord.R]; !ok || coord.Q > q {
-			maxQPerRow[coord.R] = coord.Q
+		if coord.Q > maxQ {
+			maxQ = coord.Q
 		}
 	}
 
-	// Collect empty cells from the two rightmost columns per row.
 	var empty []ds.HexCoord
 	for coord, cell := range gameState.Board.Cells {
 		if cell.Unit != nil {
 			continue
 		}
-		maxQ := maxQPerRow[coord.R]
-		if coord.Q != maxQ && coord.Q != maxQ-1 {
-			continue
+		if coord.Q >= maxQ-safeZoneSize+1 {
+			empty = append(empty, coord)
 		}
-		empty = append(empty, coord)
 	}
 
 	if len(empty) == 0 {

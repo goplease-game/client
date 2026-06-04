@@ -1,8 +1,8 @@
-// scenarios.go
 package mock
 
 import (
 	"log"
+	"math"
 
 	ab "github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
@@ -13,9 +13,9 @@ import (
 // Returns actions if the scenario is applicable, otherwise returns nil.
 type Scenario func(u *ds.Unit) []SimAction
 
-// unitScenarios maps each unit class to its prioritized list of scenarios.
+// unitScenarios maps each unit template ID to its prioritized list of scenarios.
 // Scenarios are evaluated in order; the first one that returns actions is executed.
-var unitScenarios = map[int][]Scenario{ // templateID: []Scenario
+var unitScenarios = map[int][]Scenario{
 	1: tankScenarios,
 	2: warriorScenarios,
 	3: rangerScenarios,
@@ -92,11 +92,11 @@ func simulateAttackTarget(u *ds.Unit, target *ds.Unit) []SimAction {
 		return nil
 	}
 
-	moveTo, ok := findAttackPosition(u, target, basicAttack.Range)
+	moveTo, targetPos, ok := findAbilityTarget(u, target, basicAttack.ID)
 	if !ok {
 		return nil
 	}
-	return simulateMoveAndUseAbility(u, moveTo, basicAttack.ID, target.Pos)
+	return simulateMoveAndUseAbility(u, moveTo, basicAttack.ID, targetPos)
 }
 
 // simulateUseAbility applies an ability to the given target position
@@ -146,11 +146,6 @@ func simulateMoveAndUseAbility(u *ds.Unit, moveTo ds.HexCoord, abilityID ab.ID, 
 	return acts
 }
 
-// isAbilityReady reports whether the ability is off cooldown and available for use.
-func isAbilityReady(u *ds.Unit, abilityID ab.ID) bool {
-	return u.AbilityReady(abilityID)
-}
-
 // =============================================================================
 // Bas — Tank
 // =============================================================================
@@ -158,13 +153,46 @@ func isAbilityReady(u *ds.Unit, abilityID ab.ID) bool {
 var tankScenarios = []Scenario{
 	scenarioBasFortify,
 	scenarioBasShieldBash,
+	scenarioBasProvokeDefendSquishies,
 	scenarioBasProvoke,
+}
+
+// scenarioBasProvokeDefendSquishies uses Provoke when an enemy is adjacent
+// to a high-priority ally (July or Mist) to draw attacks away from them.
+func scenarioBasProvokeDefendSquishies(u *ds.Unit) []SimAction {
+	if !u.AbilityReady(ab.Provoke) {
+		return nil
+	}
+
+	squishyTemplates := map[int]bool{5: true, 6: true} // Mist, July
+	for _, ally := range gameState.UnitsQueue {
+		if !ally.IsAlly(u) || !squishyTemplates[ally.TemplateID] {
+			continue
+		}
+		// Check if any enemy is adjacent to this ally.
+		for _, enemy := range findAllEnemies(u) {
+			if hex.Distance(ally.Pos, enemy.Pos) > 1 {
+				continue
+			}
+			// Enemy is threatening a squishy — provoke from current position if possible.
+			moveTo, ok := findAttackPosition(u, enemy, ab.ByID(ab.Provoke).Range)
+			if !ok {
+				continue
+			}
+			_, targetPos, ok := findAbilityTarget(u, enemy, ab.Provoke)
+			if !ok {
+				continue
+			}
+			return simulateMoveAndUseAbility(u, moveTo, ab.Provoke, targetPos)
+		}
+	}
+	return nil
 }
 
 // scenarioBasFortify activates Fortify if the unit can reach a position
 // where the ability covers 3 or more allies.
 func scenarioBasFortify(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.Fortify) {
+	if !u.AbilityReady(ab.Fortify) {
 		return nil
 	}
 
@@ -180,7 +208,7 @@ func scenarioBasFortify(u *ds.Unit) []SimAction {
 // scenarioBasShieldBash uses Shield Bash on any reachable enemy
 // when the priority target is out of range.
 func scenarioBasShieldBash(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.ShieldBash) {
+	if !u.AbilityReady(ab.ShieldBash) {
 		return nil
 	}
 
@@ -196,18 +224,18 @@ func scenarioBasShieldBash(u *ds.Unit) []SimAction {
 		return nil
 	}
 
-	moveTo, ok := findAttackPosition(u, enemy, shieldBashRange)
+	moveTo, targetPos, ok := findAbilityTarget(u, enemy, ab.ShieldBash)
 	if !ok {
 		return nil
 	}
 
-	return simulateMoveAndUseAbility(u, moveTo, ab.ShieldBash, enemy.Pos)
+	return simulateMoveAndUseAbility(u, moveTo, ab.ShieldBash, targetPos)
 }
 
 // scenarioBasProvoke uses Provoke when the priority target is unreachable,
 // other abilities are on cooldown, and the ability hits at least one enemy.
 func scenarioBasProvoke(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.Provoke) {
+	if !u.AbilityReady(ab.Provoke) {
 		return nil
 	}
 
@@ -217,7 +245,7 @@ func scenarioBasProvoke(u *ds.Unit) []SimAction {
 	}
 
 	// Only use Provoke as a last resort when other abilities are unavailable.
-	if isAbilityReady(u, ab.Fortify) || isAbilityReady(u, ab.ShieldBash) {
+	if u.AbilityReady(ab.Fortify) || u.AbilityReady(ab.ShieldBash) {
 		return nil
 	}
 
@@ -227,12 +255,12 @@ func scenarioBasProvoke(u *ds.Unit) []SimAction {
 		return nil
 	}
 
-	moveTo, ok := findAttackPosition(u, enemy, provokeRange)
+	moveTo, targetPos, ok := findAbilityTarget(u, enemy, ab.Provoke)
 	if !ok {
 		return nil
 	}
 
-	return simulateMoveAndUseAbility(u, moveTo, ab.Provoke, enemy.Pos)
+	return simulateMoveAndUseAbility(u, moveTo, ab.Provoke, targetPos)
 }
 
 // =============================================================================
@@ -242,12 +270,41 @@ func scenarioBasProvoke(u *ds.Unit) []SimAction {
 var warriorScenarios = []Scenario{
 	scenarioGritBattleCry,
 	scenarioGritIdolihuSpin,
+	scenarioGritPowerPush,
+}
+
+// scenarioGritPowerPush uses Power Push, preferring targets that cannot be pushed
+// (adjacent to a wall or board edge) to guarantee the bonus damage.
+func scenarioGritPowerPush(u *ds.Unit) []SimAction {
+	if !u.AbilityReady(ab.PowerPush) {
+		return nil
+	}
+
+	target := priorityTarget(u)
+	if target == nil {
+		return nil
+	}
+
+	moveTo, ok := findAttackPosition(u, target, ab.ByID(ab.PowerPush).Range)
+	if !ok {
+		return nil
+	}
+
+	// Prefer using PowerPush when the target is blocked (alt damage triggers).
+	pushDest := hex.OppositeHex(u.Pos, target.Pos)
+	cell, exists := gameState.Board.Cells[pushDest]
+	blocked := !exists || (cell.Unit != nil)
+	if !blocked {
+		return nil // save cooldown — only 2 damage, not worth it
+	}
+
+	return simulateMoveAndUseAbility(u, moveTo, ab.PowerPush, target.Pos)
 }
 
 // scenarioGritBattleCry finds the best position to hit as many allies as possible
 // with Battle Cry. Only activates when the priority target is out of reach.
 func scenarioGritBattleCry(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.BattleCry) {
+	if !u.AbilityReady(ab.BattleCry) {
 		return nil
 	}
 
@@ -267,9 +324,10 @@ func scenarioGritBattleCry(u *ds.Unit) []SimAction {
 }
 
 // scenarioGritIdolihuSpin uses IDOLIHU! Spin when the priority target
-// falls within the spin's area of effect.
+// falls within the spin's area of effect and at least 2 enemies are in range.
+// With only one target, a basic attack is preferred to avoid wasting the cooldown.
 func scenarioGritIdolihuSpin(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.IdolihuSpin) {
+	if !u.AbilityReady(ab.IdolihuSpin) {
 		return nil
 	}
 
@@ -281,6 +339,13 @@ func scenarioGritIdolihuSpin(u *ds.Unit) []SimAction {
 	spinRadius := ab.ByID(ab.IdolihuSpin).AreaRadius
 	moveTo, ok := findAttackPosition(u, target, spinRadius)
 	if !ok {
+		return nil
+	}
+
+	// Count enemies reachable from the candidate position, not current position,
+	// since we may move before spinning.
+	enemyCount := countEnemiesInRangeFrom(moveTo, u, spinRadius)
+	if enemyCount < 2 {
 		return nil
 	}
 
@@ -312,15 +377,14 @@ func scenarioFletchBestAbility(u *ds.Unit) []SimAction {
 	}
 
 	for _, abilityID := range prioritized {
-		if !isAbilityReady(u, abilityID) {
+		if !u.AbilityReady(abilityID) {
 			continue
 		}
-		abilityRange := ab.ByID(abilityID).Range
-		moveTo, ok := findAttackPosition(u, target, abilityRange)
+		moveTo, targetPos, ok := findAbilityTarget(u, target, abilityID)
 		if !ok {
 			continue
 		}
-		return simulateMoveAndUseAbility(u, moveTo, abilityID, target.Pos)
+		return simulateMoveAndUseAbility(u, moveTo, abilityID, targetPos)
 	}
 
 	return nil
@@ -331,7 +395,48 @@ func scenarioFletchBestAbility(u *ds.Unit) []SimAction {
 // =============================================================================
 
 var rogueScenarios = []Scenario{
+	scenarioSilverShadowStepForGangUp,
 	scenarioSilverBestAbility,
+}
+
+// scenarioSilverShadowStepForGangUp teleports Silver to the opposite side of the
+// priority target relative to the nearest ally, setting up Gang Up bonus damage.
+func scenarioSilverShadowStepForGangUp(u *ds.Unit) []SimAction {
+	if !u.AbilityReady(ab.ShadowStep) || !u.AbilityReady(ab.GangUp) {
+		return nil
+	}
+
+	target := priorityTarget(u)
+	if target == nil {
+		return nil
+	}
+
+	// Find an ally adjacent to the target.
+	var allyOpposite *ds.Unit
+	for _, ally := range gameState.UnitsQueue {
+		if !ally.IsAlly(u) || ally.ID == u.ID {
+			continue
+		}
+		if hex.Distance(ally.Pos, target.Pos) == 1 {
+			allyOpposite = ally
+			break
+		}
+	}
+	if allyOpposite == nil {
+		return nil
+	}
+
+	// The ideal position is directly opposite the ally relative to target.
+	dest := hex.OppositeHex(allyOpposite.Pos, target.Pos)
+	cell, ok := gameState.Board.Cells[dest]
+	if !ok || cell.Unit != nil {
+		return nil
+	}
+	if hex.Distance(u.Pos, dest) > ab.ByID(ab.ShadowStep).Range {
+		return nil
+	}
+
+	return simulateMoveAndUseAbility(u, u.Pos, ab.ShadowStep, dest)
 }
 
 // scenarioSilverBestAbility tries each ability in priority order and uses
@@ -351,7 +456,7 @@ func scenarioSilverBestAbility(u *ds.Unit) []SimAction {
 	}
 
 	for _, abilityID := range prioritized {
-		if !isAbilityReady(u, abilityID) {
+		if !u.AbilityReady(abilityID) {
 			continue
 		}
 		moveTo, targetPos, ok := findAbilityTarget(u, target, abilityID)
@@ -369,13 +474,52 @@ func scenarioSilverBestAbility(u *ds.Unit) []SimAction {
 // =============================================================================
 
 var mageScenarios = []Scenario{
+	scenarioMistTranslocationRescueAlly,
 	scenarioMistPurge,
 	scenarioMistMoveToAlly,
 }
 
+// scenarioMistTranslocationRescueAlly swaps a threatened ally (adjacent to an enemy)
+// with Mist itself to pull them to safety.
+func scenarioMistTranslocationRescueAlly(u *ds.Unit) []SimAction {
+	if !u.AbilityReady(ab.Translocation) {
+		return nil
+	}
+
+	transRange := ab.ByID(ab.Translocation).Range
+
+	priority := []int{6, 5, 1, 2, 3, 4}
+	for _, templateID := range priority {
+		for _, ally := range gameState.UnitsQueue {
+			if !ally.IsAlly(u) || ally.TemplateID != templateID {
+				continue
+			}
+			// Cannot swap with self.
+			if ally.ID == u.ID {
+				continue
+			}
+			if hex.Distance(u.Pos, ally.Pos) > transRange {
+				continue
+			}
+			threatened := false
+			for _, enemy := range findAllEnemies(u) {
+				if hex.Distance(enemy.Pos, ally.Pos) <= 1 {
+					threatened = true
+					break
+				}
+			}
+			if !threatened {
+				continue
+			}
+			return simulateMoveAndUseAbility(u, u.Pos, ab.Translocation, ally.Pos)
+		}
+	}
+	return nil
+}
+
 // scenarioMistPurge uses Purge on the closest enemy that has active positive effects.
 func scenarioMistPurge(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.Purge) {
+	if !u.AbilityReady(ab.Purge) {
 		return nil
 	}
 
@@ -385,12 +529,12 @@ func scenarioMistPurge(u *ds.Unit) []SimAction {
 		return nil
 	}
 
-	moveTo, ok := findAttackPosition(u, target, purgeRange)
+	moveTo, targetPos, ok := findAbilityTarget(u, target, ab.Purge)
 	if !ok {
 		return nil
 	}
 
-	return simulateMoveAndUseAbility(u, moveTo, ab.Purge, target.Pos)
+	return simulateMoveAndUseAbility(u, moveTo, ab.Purge, targetPos)
 }
 
 // scenarioMistMoveToAlly moves Mist adjacent to the nearest ally to activate Focus Field.
@@ -413,12 +557,12 @@ func scenarioMistMoveToAlly(u *ds.Unit) []SimAction {
 
 	// Do not reposition if it would give up a reachable priority target.
 	if ptReachableBefore {
-		ptReachableAfter := target != nil && canReachFrom(moveTo, target, ab.ByID(ab.BasicMagicAttack).Range)
-		if !ptReachableAfter {
+		if !canReachFrom(moveTo, target, ab.ByID(ab.BasicMagicAttack).Range) {
 			return nil
 		}
 	}
 
+	PlaceUnitAt(u, moveTo)
 	return []SimAction{
 		{
 			Action: UnitMovedAction,
@@ -436,13 +580,47 @@ func scenarioMistMoveToAlly(u *ds.Unit) []SimAction {
 
 var supportScenarios = []Scenario{
 	scenarioJulyHeal,
+	scenarioJulyEqualize,
 	scenarioJulyPurify,
+}
+
+// scenarioJulyEqualize uses Equalize when it would benefit the most wounded ally
+// more than a regular Heal would (i.e. average HP in range > wounded HP + healAmount).
+func scenarioJulyEqualize(u *ds.Unit) []SimAction {
+	if !u.AbilityReady(ab.Equalize) {
+		return nil
+	}
+
+	equalizeRadius := ab.ByID(ab.Equalize).AreaRadius
+	allies := append(findAlliesInRange(u, equalizeRadius), u)
+	if len(allies) < 2 {
+		return nil
+	}
+
+	var sumHP, minHP int
+	minHP = math.MaxInt
+	for _, a := range allies {
+		sumHP += a.CurrentHP
+		if a.CurrentHP < minHP {
+			minHP = a.CurrentHP
+		}
+	}
+
+	avg := sumHP / len(allies)
+	healGain := avg - minHP
+
+	// Only use Equalize if it heals the worst-off ally more than a regular Heal.
+	if healGain <= ab.ByID(ab.Heal).Effect.AddHP {
+		return nil
+	}
+
+	return simulateUseAbility(u, ab.Equalize, u.Pos)
 }
 
 // scenarioJulyHeal heals the most wounded ally (or self) within range.
 // Skipped if all friendly units are at full HP.
 func scenarioJulyHeal(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.Heal) {
+	if !u.AbilityReady(ab.Heal) {
 		return nil
 	}
 
@@ -457,7 +635,7 @@ func scenarioJulyHeal(u *ds.Unit) []SimAction {
 
 // scenarioJulyPurify cleanses the first ally within range that has an active negative status.
 func scenarioJulyPurify(u *ds.Unit) []SimAction {
-	if !isAbilityReady(u, ab.Purify) {
+	if !u.AbilityReady(ab.Purify) {
 		return nil
 	}
 

@@ -179,6 +179,11 @@ func eliminateHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 func translocationHandler(e abilityUsed) (ds.ApplyStates, error) {
 	target := mustUnitAt(e.At)
 
+	// Swapping with self is a no-op and likely a bug — abort.
+	if target.ID == e.By.ID {
+		return nil, fmt.Errorf("translocation: cannot swap unit with itself")
+	}
+
 	from := e.By.Pos
 	to := target.Pos
 

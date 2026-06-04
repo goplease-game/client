@@ -83,7 +83,7 @@ func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWi
 		s.safeZoneCells = append(s.safeZoneCells, sc)
 	}
 
-	cell := ui.NewHexCellWidget(coord, widgetOpts...)
+	cell := ui.NewHexCellWidget(coord, s.board.Cells, widgetOpts...)
 	cell.SetColor(boardCellBgColor)
 
 	sc.cell = cell

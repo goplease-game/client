@@ -139,6 +139,7 @@ var temporalAnchorStatus = &Status{
 	Name:         "Temporal Anchor",
 	Description:  "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
 	InitialValue: 1,
+	Duration:     1,
 	Type:         TemporalAnchor,
 	Alignment:    Positive,
 }

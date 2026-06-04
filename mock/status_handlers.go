@@ -182,16 +182,16 @@ func applyStatusToUnit(st status.Type, from, to *ds.Unit) (sts ds.ApplyStates) {
 		Status:   inst,
 	}
 
-	h := statusHandlers[st]
-	if h != nil && h.mutate != nil {
-		h.mutate(&sv, from, to)
+	statusH := statusHandlers[st]
+	if statusH != nil && statusH.mutate != nil {
+		statusH.mutate(&sv, from, to)
 	}
 
 	for t, v := range to.Statuses {
 		if t == st {
 			continue
 		}
-		h = statusHandlers[t]
+		h := statusHandlers[t]
 		if h == nil || h.onOtherStatusApplied == nil {
 			continue
 		}
@@ -209,8 +209,8 @@ func applyStatusToUnit(st status.Type, from, to *ds.Unit) (sts ds.ApplyStates) {
 		ToUnitID:      to.ID,
 	})
 
-	if h != nil && h.onApply != nil {
-		sts.Add(h.onApply(from, to, sv)...)
+	if statusH != nil && statusH.onApply != nil {
+		sts.Add(statusH.onApply(from, to, sv)...)
 	}
 
 	return sts
