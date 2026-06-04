@@ -260,7 +260,7 @@ func (s *Screen) handleUseAbility(load ds.UseAbilityPayload) {
 	})
 
 	ab := ability.ByID(load.AbilityID)
-	unit.Cooldowns[ab.ID] = ab.Cooldown
+	unit.SetCooldown(ab.ID, ab.Cooldown)
 }
 
 // applyStateImmediate applies data mutations to the unit (no visuals).
@@ -320,6 +320,10 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 func (s *Screen) applyStateVisuals(target *ds.Unit, st ds.ApplyState) {
 	if st.IsDead {
 		return // death visuals handled in killUnit
+	}
+
+	if st.ShowText != nil {
+		s.showFloatingText(target.Pos, *st.ShowText, colornames.Gold)
 	}
 
 	// --- Floating text for delta changes ---

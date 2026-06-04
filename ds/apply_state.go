@@ -14,7 +14,8 @@ import (
 type ApplyState struct {
 	ToUnitID string `json:"to_unit_id"`
 
-	SkipTurn bool `json:"skip_turn,omitempty"`
+	SkipTurn bool    `json:"skip_turn,omitempty"`
+	ShowText *string `json:"show_text,omitempty"`
 
 	// Movement
 	MoveTo *HexCoord `json:"move_to,omitempty"` // New position on the grid

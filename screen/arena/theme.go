@@ -68,8 +68,8 @@ var (
 	// Unit status tooltip
 	neutralStatusNameColor  = "f8f8ff"
 	positiveStatusNameColor = "98fb98"
-	negativeStatusNameColor = "ff63ff"
-	statusDurationColor     = "87ceeb" //
+	negativeStatusNameColor = "ff6347"
+	statusDurationColor     = "87ceeb"
 )
 
 // Font faces used across the arena package.

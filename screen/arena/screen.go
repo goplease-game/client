@@ -216,24 +216,9 @@ done:
 // (drag cards, tooltips). The movement animation is drawn as the topmost layer.
 // Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
-	// ui.Draw triggers PostRenderHook which renders hex fills, grid, and overlays.
 	s.ui.Draw(screen)
 
-	for _, fx := range s.activeFxAnims {
-		if fx.delayFrames > 0 {
-			continue
-		}
-		if fx.player == nil {
-			continue
-		}
-		frame := fx.player.CurrentFrame
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(
-			float64(fx.pos.X)-float64(frame.Bounds().Dx())/2,
-			float64(fx.pos.Y)-float64(frame.Bounds().Dy())/2,
-		)
-		screen.DrawImage(frame, op)
-	}
+	s.drawActiveFxAnims(screen)
 
 	// Movement animation is rendered above everything including EbitenUI windows.
 	if len(s.unitMoveAnimQueue) > 0 {

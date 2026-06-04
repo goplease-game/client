@@ -206,10 +206,11 @@ func (m *MockClient) advanceGameLoop() {
 // If it belongs to the mock, simulate the move and continue the loop.
 func (m *MockClient) playUnit(unit *ds.Unit) {
 	sts := mock.ApplyOnTurnStartHandlers(unit)
-	m.sendApplyStates(sts...)
 
 	if unit.OwnerID != mock.MockedPlayerID {
 		m.sendPlayUnit(unit.ID)
+		m.sendApplyStates(sts...)
+		
 		return
 	}
 

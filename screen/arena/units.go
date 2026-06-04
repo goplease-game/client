@@ -380,6 +380,8 @@ func (s *Screen) hideUnitOnBoard(unit *ds.Unit) {
 	if w == nil {
 		return
 	}
+
+	w.SetColor(boardCellBgColor)
 	w.RemoveChildren()
 }
 

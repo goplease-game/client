@@ -148,20 +148,6 @@ func (s *Screen) updateFxAnims() {
 		}
 
 		if fx.programFx != nil {
-			t := float64(fx.programTick) / float64(fx.programDuration)
-			if t > 1.0 {
-				t = 1.0
-			}
-
-			fx.programFx(ProgramFxContext{
-				Screen: s,
-				Coord:  fx.coord,
-				Px:     fx.pos,
-				Unit:   s.unitAtCoord(fx.coord),
-				Widget: s.boardCellWidgets[fx.coord],
-				T:      t,
-			})
-
 			fx.programTick++
 			if fx.programTick > fx.programDuration {
 				fx.finished = true
@@ -182,19 +168,31 @@ func (s *Screen) updateFxAnims() {
 	}
 }
 
-// drawFxAnims renders all active spritesheet fx animations onto screen.
-// Program fx animations are skipped — they render by mutating widgets directly.
-func (s *Screen) drawFxAnims(screen *ebiten.Image) {
+func (s *Screen) drawActiveFxAnims(screen *ebiten.Image) {
 	for _, fx := range s.activeFxAnims {
-		if fx.player == nil {
-			continue // program fx — no sprite to draw
-		}
-		frame := fx.player.CurrentFrame
-		if frame == nil {
-			log.Printf("drawFxAnims: frame is nil for sprite")
+		if fx.delayFrames > 0 {
 			continue
 		}
-		log.Printf("drawFxAnims: drawing frame at pos=%v size=%v", fx.pos, frame.Bounds())
+		if fx.programFx != nil {
+			t := float64(fx.programTick) / float64(fx.programDuration)
+			if t > 1.0 {
+				t = 1.0
+			}
+			fx.programFx(ProgramFxContext{
+				Screen:     s,
+				Coord:      fx.coord,
+				Px:         fx.pos,
+				Unit:       s.unitAtCoord(fx.coord),
+				Widget:     s.boardCellWidgets[fx.coord],
+				T:          t,
+				DrawTarget: screen,
+			})
+			continue
+		}
+		if fx.player == nil {
+			continue
+		}
+		frame := fx.player.CurrentFrame
 		op := &ebiten.DrawImageOptions{}
 		op.GeoM.Translate(
 			float64(fx.pos.X)-float64(frame.Bounds().Dx())/2,

@@ -120,7 +120,7 @@ var provokedStatus = &Status{
 // This status is only informational and has no effect
 var provokingStatus = &Status{
 	Name:        "Provoking",
-	Description: "This unit is provoking other units and will be attacked by them on their turn",
+	Description: "This unit is provoking other units and will be attacked by them on their turn.",
 	Duration:    1,
 	Type:        Provoking,
 	Alignment:   Neutral,
@@ -128,7 +128,7 @@ var provokingStatus = &Status{
 
 var ralliedStatus = &Status{
 	Name:         "Rallied",
-	Description:  "Attack increased by 1",
+	Description:  "Attack increased by 1.",
 	Duration:     2,
 	InitialValue: 1,
 	Type:         Rallied,
@@ -136,10 +136,11 @@ var ralliedStatus = &Status{
 }
 
 var temporalAnchorStatus = &Status{
-	Name:        "Temporal Anchor",
-	Description: "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
-	Type:        TemporalAnchor,
-	Alignment:   Positive,
+	Name:         "Temporal Anchor",
+	Description:  "Gain +1 AP at the start of your turn. At the end of the turn, restore your HP, Shield, and position to their state at the start of the turn.",
+	InitialValue: 1,
+	Type:         TemporalAnchor,
+	Alignment:    Positive,
 }
 
 var frenziedStatus = &Status{

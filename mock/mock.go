@@ -371,6 +371,12 @@ func HandleEndTurn() (st ds.ApplyStates) {
 			continue
 		}
 
+		// before status removed, trigger onTurnEnd
+		h, ok := statusHandlers[t]
+		if ok && h != nil && h.onTurnEnd != nil {
+			st.Add(h.onTurnEnd(unit, sv)...)
+		}
+
 		sv.Duration--
 		if sv.Duration < 1 {
 			st.Add(removeStatusFromUnit(t, unit)...)

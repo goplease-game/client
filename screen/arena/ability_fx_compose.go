@@ -134,7 +134,6 @@ func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func(
 				programDuration: int(0.5 * 60),
 				onDone: func() {
 					s.showUnitOnBoard(unit)
-					// Restore pulse on new cell.
 					if w := s.boardCellWidgets[unit.Pos]; w != nil {
 						s.setPulseHexTargets([]*ui.HexCellWidget{w})
 					}
@@ -189,7 +188,7 @@ func fxUnitFadeZoomOut(unitImg *ebiten.Image) ProgramFx {
 		op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
 		op.ColorScale.ScaleAlpha(alpha)
 
-		ctx.Screen.drawOnTop(unitImg, op)
+		ctx.DrawTarget.DrawImage(unitImg, op)
 	}
 }
 
@@ -212,7 +211,7 @@ func fxUnitFadeZoomIn(unitImg *ebiten.Image) ProgramFx {
 		op.GeoM.Translate(float64(ctx.Px.X), float64(ctx.Px.Y))
 		op.ColorScale.ScaleAlpha(alpha)
 
-		ctx.Screen.drawOnTop(unitImg, op)
+		ctx.DrawTarget.DrawImage(unitImg, op)
 	}
 }
 

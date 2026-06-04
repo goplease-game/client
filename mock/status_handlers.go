@@ -12,7 +12,8 @@ type statusHandler struct {
 	onRemove             func(u *ds.Unit, v status.Value) ds.ApplyStates
 	onUnitAttacked       func(dmg *int, v status.Value)
 	onTurnStart          func(u *ds.Unit, v status.Value) ds.ApplyStates
-	onOtherStatusApplied func(from, to *ds.Unit, st *status.Value, v status.Value)
+	onTurnEnd            func(u *ds.Unit, v status.Value) ds.ApplyStates
+	onOtherStatusApplied func(from, to *ds.Unit, applied *status.Value, v status.Value) ds.ApplyStates
 	mutate               func(v *status.Value, from, to *ds.Unit)
 }
 
@@ -25,8 +26,8 @@ var statusHandlers = map[status.Type]*statusHandler{
 	status.Exposed:        exposedSH,
 	status.Hamstrung:      hamstrungSH,
 	status.Sharpened:      sharpenedSH,
-	status.DebuffWard:     nil, // TODO
-	status.TemporalAnchor: nil,
+	status.DebuffWard:     debuffWardSH,
+	status.TemporalAnchor: temporalAnchorSH,
 	status.Frenzied:       frenziedSH,
 }
 
@@ -102,16 +103,70 @@ var hamstrungSH = &statusHandler{
 	},
 }
 
+var temporalAnchorSH = &statusHandler{
+	onTurnStart: func(u *ds.Unit, sv status.Value) (sts ds.ApplyStates) {
+		u.CurrentAP += sv.Value
+
+		sts.Add(
+			ds.ApplyState{ChangeAP: new(sv.Value), ToUnitID: u.ID},
+			ds.ApplyState{SetAP: new(u.CurrentAP), ToUnitID: u.ID},
+		)
+
+		sv.Meta = map[string]any{
+			"hp":     u.CurrentHP,
+			"shield": u.CurrentShield,
+			"pos":    u.Pos,
+		}
+
+		u.Statuses[sv.Status.Type] = sv
+		return
+	},
+	onTurnEnd: func(u *ds.Unit, sv status.Value) (sts ds.ApplyStates) {
+		if sv.Meta != nil {
+			prevHP := sv.Meta["hp"].(int)
+			prevShield := sv.Meta["shield"].(int)
+			hpDiff := prevHP - u.CurrentHP
+			shDiff := prevShield - u.CurrentShield
+
+			prevPos := sv.Meta["pos"].(ds.HexCoord)
+
+			if hpDiff != 0 {
+				u.CurrentHP = prevHP
+				sts.Add(
+					ds.ApplyState{ChangeHP: new(hpDiff), ToUnitID: u.ID},
+					ds.ApplyState{SetHP: new(u.CurrentHP), ToUnitID: u.ID},
+				)
+			}
+			if shDiff != 0 {
+				u.CurrentShield = prevShield
+				sts.Add(
+					ds.ApplyState{ChangeHP: new(shDiff), ToUnitID: u.ID},
+					ds.ApplyState{SetHP: new(u.CurrentShield), ToUnitID: u.ID},
+				)
+			}
+			if prevPos != u.Pos {
+				u.Pos = prevPos
+				sts.Add(
+					ds.ApplyState{MoveTo: new(prevPos), ToUnitID: u.ID},
+				)
+			}
+
+		}
+
+		return
+	},
+}
+
 var debuffWardSH = &statusHandler{
-	//onOtherStatusApplied: func(u *ds.Unit, sv status.Value) (st ds.ApplyStates) {
-	//	u.CurrentAtk -= sv.Value
-	//	st.Add(
-	//		ds.ApplyState{ChangeAtk: new(-sv.Value), ToUnitID: u.ID},
-	//		ds.ApplyState{SetAtk: new(u.CurrentAtk), ToUnitID: u.ID},
-	//	)
-	//
-	//	return st
-	//},
+	onOtherStatusApplied: func(from, to *ds.Unit, applied *status.Value, v status.Value) (sts ds.ApplyStates) {
+		if !applied.IsNegative() {
+			return
+		}
+
+		applied.Duration = 0
+		sts.Add(ds.ApplyState{ShowText: new("Debuff Ward!"), ToUnitID: to.ID})
+		return
+	},
 }
 
 func applyStatusToUnit(st status.Type, from, to *ds.Unit) (sts ds.ApplyStates) {
@@ -131,6 +186,20 @@ func applyStatusToUnit(st status.Type, from, to *ds.Unit) (sts ds.ApplyStates) {
 	h := statusHandlers[st]
 	if h != nil && h.mutate != nil {
 		h.mutate(&sv, from, to)
+	}
+
+	for t, v := range to.Statuses {
+		if t == st {
+			continue
+		}
+		h = statusHandlers[t]
+		if h == nil || h.onOtherStatusApplied == nil {
+			continue
+		}
+		sts.Add(h.onOtherStatusApplied(from, to, &sv, v)...)
+		if sv.Duration == 0 {
+			return
+		}
 	}
 
 	to.AddStatus(sv)
