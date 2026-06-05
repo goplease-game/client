@@ -26,8 +26,8 @@ type UnitCardRefs struct {
 // Used for cards in the player's hand panel.
 // Returns refs so the caller can swap the icon image on cursor enter/exit.
 func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
-	normalImg := unitImage(u.TemplateID, unitCardSize)
-	hoverImg := ui.TintImage(normalImg, unitCardHoverFgColor)
+	normalImg := asset.Image(unitImagePath(u.TemplateID), unitCardSize)
+	hoverImg := asset.TintedImage(unitImagePath(u.TemplateID), unitCardHoverFgColor, unitCardSize)
 
 	icon := widget.NewGraphic(
 		widget.GraphicOpts.Image(normalImg),
@@ -107,6 +107,7 @@ func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 	}
 
 	c.AddToHUDLayer(hpBadge(u.CurrentHP, iconTop, iconLeft))
+	statusIcons(c, u)
 }
 
 // walkBadge returns a small container with a walk icon, anchored to the
@@ -224,7 +225,7 @@ func shieldBadge(value, top, left int) *widget.Container {
 // buildStatusTooltip builds a tooltip container listing all active status effects on the unit.
 func buildStatusTooltip(u *ds.Unit) *widget.Container {
 	if len(u.Statuses) == 0 {
-		return widget.NewContainer() // empty — tooltip won't show visually
+		return widget.NewContainer()
 	}
 
 	c := widget.NewContainer(
@@ -236,34 +237,127 @@ func buildStatusTooltip(u *ds.Unit) *widget.Container {
 		)),
 	)
 
-	for _, us := range u.Statuses {
-		if us.Status == nil {
+	for _, st := range status.Order {
+		us, ok := u.Statuses[st]
+		if !ok || us.Status == nil {
 			continue
 		}
 
-		// Status name colored by alignment.
+		// Horizontal row: icon + text
+		row := widget.NewContainer(
+			widget.ContainerOpts.Layout(widget.NewRowLayout(
+				widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+				widget.RowLayoutOpts.Spacing(6),
+			)),
+		)
+
+		// Icon
+		const iconSize = 32
+		img := asset.Image(fmt.Sprintf("statuses/%s.png", st), iconSize)
+		row.AddChild(widget.NewGraphic(
+			widget.GraphicOpts.Image(img),
+			widget.GraphicOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+					Position: widget.RowLayoutPositionStart,
+				}),
+			),
+		))
+
+		// Text
 		nameColor := neutralStatusNameColor
-		switch us.Status.Alignment {
-		case status.Positive:
+		if us.IsPositive() {
 			nameColor = positiveStatusNameColor
-		case status.Negative:
+		} else if us.IsNegative() {
 			nameColor = negativeStatusNameColor
 		}
 
-		descTF := ui.TextFace(14)
-
 		var durText string
 		if us.Duration > 0 {
-			durText = fmt.Sprintf("[color=%s]Duration: %d turns[/color]", statusDurationColor, us.Duration)
+			durText = fmt.Sprintf("\n[color=%s]Duration: %d turns[/color]", statusDurationColor, us.Duration)
 		}
 
-		fullText := fmt.Sprintf("[color=%s]%s[/color]: %s", nameColor, us.Status.Name, us.Status.Description+" "+durText)
-		c.AddChild(widget.NewText(
+		fullText := fmt.Sprintf("[color=%s]%s[/color]: %s%s", nameColor, us.Status.Name, us.Status.Description, durText)
+		descTF := ui.TextFace(16)
+		row.AddChild(widget.NewText(
 			widget.TextOpts.Text(fullText, &descTF, ttTextColor),
 			widget.TextOpts.MaxWidth(300),
 			widget.TextOpts.ProcessBBCode(true),
 		))
+
+		c.AddChild(row)
 	}
 
 	return c
+}
+
+// statusIcons adds status icons to the HUD layer, laid out horizontally
+// starting to the right of the HP badge position.
+func statusIcons(c ChildAdder, u *ds.Unit) {
+	if len(u.Statuses) == 0 {
+		return
+	}
+
+	const (
+		iconSize      = 20
+		startTop      = 42
+		startLeft     = 42
+		spacing       = iconSize + 1
+		columnSize    = 3
+		iconsMaxCount = 6
+	)
+
+	i := 0
+	for _, st := range status.Order {
+		if i == iconsMaxCount {
+			break
+		}
+		if st == status.Stunned {
+			continue
+		}
+
+		sv, ok := u.Statuses[st]
+		if !ok {
+			continue
+		}
+		path := fmt.Sprintf("statuses/%s.png", st)
+		iconColor := positiveStatusIconColor
+		if sv.IsNegative() {
+			iconColor = negativeStatusIconColor
+		}
+
+		img := asset.NewImage(path, iconSize).
+			Tint(iconColor).
+			Shadow(1, 1, 0.3).
+			Render()
+
+		col := i / columnSize
+		row := i % columnSize
+
+		top := startTop - row*spacing
+		left := startLeft - col*spacing
+
+		icon := widget.NewContainer(
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+			widget.ContainerOpts.WidgetOpts(
+				widget.WidgetOpts.MinSize(iconSize, iconSize),
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionStart,
+					VerticalPosition:   widget.AnchorLayoutPositionStart,
+					Padding:            &widget.Insets{Top: top, Left: left},
+				}),
+			),
+		)
+		icon.AddChild(widget.NewGraphic(
+			widget.GraphicOpts.Image(img),
+			widget.GraphicOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionCenter,
+					VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				}),
+			),
+		))
+
+		c.AddToHUDLayer(icon)
+		i++
+	}
 }

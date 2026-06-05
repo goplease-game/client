@@ -1,9 +1,21 @@
 Most icons is from https://game-icons.net/
 
-For now I just keep the list here, to give proper credits, as there different authors
+For now, I'm keeping the list here to give proper credit, as the content comes from different authors.
 
 dead-head.png: https://game-icons.net/1x1/delapouite/dead-head.html
 knockout.png: https://game-icons.net/1x1/skoll/knockout.html
+
+Statuses:
+ * debuff_ward: https://game-icons.net/1x1/lorc/eye-shield.html
+ * exposed: https://game-icons.net/1x1/lorc/cross-mark.html
+ * frenzied: https://game-icons.net/1x1/cathelineau/swordman.html (edit)
+ * hamstrung: https://game-icons.net/1x1/delapouite/achilles-heel.html
+ * provoked: https://game-icons.net/1x1/delapouite/confrontation.html
+ * provoking: https://game-icons.net/1x1/lorc/shouting.html
+ * rallied: https://game-icons.net/1x1/delapouite/swords-power.html
+ * sharpened: https://game-icons.net/1x1/delapouite/sword-brandish.html
+ * stunned: https://game-icons.net/1x1/skoll/knockout.html
+ * temporal_anchor: https://game-icons.net/1x1/delapouite/extra-time.html
 
 Units:
 * bas: https://game-icons.net/1x1/lorc/visored-helm.html

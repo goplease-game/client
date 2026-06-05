@@ -41,6 +41,8 @@ var (
 	statusBarTextColor      = colornames.Gold
 	increasedStatValueColor = ui.RGBFromHex("08CB00")
 	decreasedStatValueColor = ui.RGBFromHex("D70654")
+	negativeStatusIconColor = ui.RGBFromHex("D51C39")
+	positiveStatusIconColor = ui.RGBFromHex("059212") // + neutral
 
 	// Board colours.
 	boardBgColor           = ui.RGBFromHex("607B8F")

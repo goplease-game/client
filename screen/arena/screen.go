@@ -42,8 +42,8 @@ type Screen struct {
 	ui     *ebitenui.UI
 
 	// Game state received from the server.
+	roomID             string // todo: arenaID
 	board              ds.Board
-	roomID             string
 	player             ds.Player
 	opponentName       string
 	isMyTurn           bool

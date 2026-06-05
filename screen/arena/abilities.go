@@ -129,7 +129,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 					}
 					s.onAbilityCardClicked(ab, card, bgColor)
 					if s.selectedAbility != nil && s.selectedAbility.ID == ab.ID {
-						iconGraphic.Image = ui.TintImage(abilityImage(string(ab.ID)), activeAbilityFgColor)
+						iconGraphic.Image = asset.TintedImage(abilityImagePath(string(ab.ID)), activeAbilityFgColor, abilityCardSize)
 						s.selectedAbilityIcon = iconGraphic
 					}
 				}
@@ -213,7 +213,11 @@ func abilityImage(abilityID string, sizeOpt ...int) *ebiten.Image {
 	if len(sizeOpt) > 0 {
 		size = sizeOpt[0]
 	}
-	return asset.Image(path.Join("abilities", abilityID+".png"), size)
+	return asset.Image(abilityImagePath(abilityID), size)
+}
+
+func abilityImagePath(abilityID string) string {
+	return path.Join("abilities", abilityID+".png")
 }
 
 // buildAbilityToolTip constructs the tooltip content for an ability card,

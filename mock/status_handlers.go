@@ -82,22 +82,18 @@ var stunnedSH = &statusHandler{
 var hamstrungSH = &statusHandler{
 	onTurnStart: func(u *ds.Unit, st status.Value) (sts ds.ApplyStates) {
 		u.CurrentMP = st.Value
-
 		sts.Add(ds.ApplyState{
 			SetMP:    new(st.Value),
 			ToUnitID: u.ID,
 		})
-
 		return
 	},
 	onRemove: func(u *ds.Unit, v status.Value) (sts ds.ApplyStates) {
-		u.CurrentMP = u.BaseHP
-
+		u.CurrentMP = u.BaseMP
 		sts.Add(ds.ApplyState{
 			SetMP:    new(u.CurrentMP),
 			ToUnitID: u.ID,
 		})
-
 		return
 	},
 }

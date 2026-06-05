@@ -379,6 +379,7 @@ func HandleEndTurn() (st ds.ApplyStates) {
 		sv.Duration--
 		if sv.Duration < 1 {
 			st.Add(removeStatusFromUnit(t, unit)...)
+			continue
 		} else {
 			st.Add(ds.ApplyState{
 				SetStatusDuration: map[status.Type]int{t: sv.Duration},

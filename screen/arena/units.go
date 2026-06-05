@@ -203,7 +203,7 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 	var card *widget.Container
 
 	widgetOpts := []widget.WidgetOpt{
-		widget.WidgetOpts.MinSize(unitCardSize, 54),
+		widget.WidgetOpts.MinSize(unitCardSize, unitCardSize),
 		widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
 			sfx.Play(unitHoverSound)
 			card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))
@@ -310,7 +310,11 @@ func unitImage(templateID int, sizeOpt ...int) *ebiten.Image {
 		size = sizeOpt[0]
 	}
 
-	return asset.Image(path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID)), size)
+	return asset.Image(unitImagePath(templateID), size)
+}
+
+func unitImagePath(templateID int) string {
+	return path.Join("units", fmt.Sprintf("unit_%d_pic.png", templateID))
 }
 
 // buildUnitToolTip constructs the tooltip content for a unit card,

@@ -25,15 +25,15 @@ type Unit struct {
 
 	Pos HexCoord `json:"pos"`
 
-	Abilities []ability.ID       `json:"abilities"`
-	Cooldowns map[ability.ID]int `json:"cooldowns"`
-	Statuses  map[status.Type]status.Value
+	Abilities []ability.ID                 `json:"abilities"`
+	Cooldowns map[ability.ID]int           `json:"cooldowns"`
+	Statuses  map[status.Type]status.Value `json:"statuses"`
 
-	IsOpponent bool
-	IsDead     bool
+	IsOpponent bool `json:"is_opponent"`
+	IsDead     bool `json:"is_dead"`
 
 	// Graphic reference to the board portrait widget, nil if not on board
-	Graphic *widget.Graphic
+	Graphic *widget.Graphic `json:"-"`
 }
 
 func (u *Unit) HasAbility(id ability.ID) bool {

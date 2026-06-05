@@ -1,6 +1,6 @@
 package status
 
-var statuses = map[Type]*Status{
+var Statuses = map[Type]*Status{
 	Rallied:        ralliedStatus,
 	Provoked:       provokedStatus,
 	Provoking:      provokingStatus,
@@ -13,7 +13,26 @@ var statuses = map[Type]*Status{
 	Frenzied:       frenziedStatus,
 }
 
+// Order defines the display order of statuses on unit cards.
+var Order = []Type{
+	// negative first
+	Provoked,
+	Hamstrung,
+	Exposed,
+	Stunned,
+
+	// positive
+	Rallied,
+	Sharpened,
+	DebuffWard,
+	Frenzied,
+	TemporalAnchor,
+
+	// neutral
+	Provoking,
+}
+
 // ByType returns the Status definition for the given Type, or nil if not found.
 func ByType(t Type) *Status {
-	return statuses[t]
+	return Statuses[t]
 }

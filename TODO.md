@@ -18,6 +18,9 @@ UI/UX improvement (in not specific order, just ideas):
 - [ ] Preview ability result before activation
 - [ ] keyboard shortcuts
 
+Code & Project architecture
+- [ ] Refactor "SafeZone" into "UnitPlacementZone" (only naming, as is more obvious)
+
 NEXT (in not specific order, just ideas):
 - [ ] Save/Load game
 - [ ] Combat logs & replays 
