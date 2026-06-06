@@ -50,7 +50,7 @@ func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
 // buildBoardCard adds a unit portrait and HUD badges to a ChildAdder (hex cell or container).
 // The portrait goes to the unit layer; the HP badge goes to the HUD layer.
 // If canMove is true, a walk indicator badge is also added.
-func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
+func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 	icon := widget.NewGraphic(
 		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
 		widget.GraphicOpts.WidgetOpts(
@@ -68,6 +68,10 @@ func buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
 
 	if u.CurrentShield > 0 {
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 11, -6))
+	}
+
+	if s.activeUnitID == u.ID {
+		c.AddToHUDLayer(apBadge(u.CurrentAP))
 	}
 
 	if canMove {
@@ -108,6 +112,33 @@ func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 
 	c.AddToHUDLayer(hpBadge(u.CurrentHP, iconTop, iconLeft))
 	statusIcons(c, u)
+}
+
+func apBadge(ap int) *widget.Container {
+	const iconSize = 10
+
+	badge := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(1),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				Padding:            &widget.Insets{Bottom: 5},
+			}),
+		),
+	)
+
+	img := asset.Image("ap_marker.png", iconSize)
+	for range ap {
+		badge.AddChild(widget.NewGraphic(
+			widget.GraphicOpts.Image(img),
+		))
+	}
+
+	return badge
 }
 
 // walkBadge returns a small container with a walk icon, anchored to the

@@ -121,7 +121,7 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 			if u := s.unitByID(s.activeUnitID); u != nil {
 				if bc := s.boardCellWidget(u); bc != nil {
 					bc.RemoveChildren()
-					buildBoardCard(bc, u, false)
+					s.buildBoardCard(bc, u, false)
 				}
 			}
 

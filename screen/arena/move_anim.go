@@ -139,7 +139,7 @@ func (s *Screen) updateMoveAnimations() {
 				}
 				toW.SetColor(targetBg)
 				toW.RemoveChildren()
-				buildBoardCard(toW, u, false)
+				s.buildBoardCard(toW, u, false)
 
 				if u.ID == s.activeUnitID {
 					s.pulseHexWidgets = append(s.pulseHexWidgets, toW)

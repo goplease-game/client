@@ -259,7 +259,7 @@ func (s *Screen) highlightActiveUnit() {
 			if bc := s.boardCellWidget(prev); bc != nil {
 				bc.SetColor(restoreColor)
 				bc.RemoveChildren()
-				buildBoardCard(bc, prev, false)
+				s.buildBoardCard(bc, prev, false)
 			}
 		}
 	}
@@ -272,7 +272,7 @@ func (s *Screen) highlightActiveUnit() {
 			if bc := s.boardCellWidget(u); bc != nil {
 				s.setPulseHexTargets([]*ui.HexCellWidget{bc})
 				bc.RemoveChildren()
-				buildBoardCard(bc, u, !s.activeUnitMoved)
+				s.buildBoardCard(bc, u, !s.activeUnitMoved)
 			}
 		}
 	}
@@ -396,7 +396,7 @@ func (s *Screen) showUnitOnBoard(unit *ds.Unit) {
 		return
 	}
 	w.RemoveChildren()
-	buildBoardCard(w, unit, unit.ID == s.activeUnitID && !s.activeUnitMoved)
+	s.buildBoardCard(w, unit, unit.ID == s.activeUnitID && !s.activeUnitMoved)
 }
 
 // unitAtCoord returns the unit at the given hex coord, or nil if the cell is empty.

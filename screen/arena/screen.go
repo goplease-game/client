@@ -457,7 +457,7 @@ func (s *Screen) restoreBoardVisuals() {
 		}
 
 		w.SetColor(bg)
-		buildBoardCard(w, u, false)
+		s.buildBoardCard(w, u, false)
 	}
 }
 

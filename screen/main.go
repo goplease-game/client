@@ -151,7 +151,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	tutButton, err := mainMenuButton("Practice", 16, func(args *widget.ButtonClickedEventArgs) {
 		snap := mock.LoadScenario(scenario.Default)
-		s.nextScreen = arena.NewScreen(snap, s.server)
+		s.nextScreen = arena.NewScreen(snap, ws.NewMockClient())
 	})
 	if err != nil {
 		log.Fatal(err)

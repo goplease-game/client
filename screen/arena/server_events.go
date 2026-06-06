@@ -149,7 +149,7 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	}
 
 	cellWidget.SetColor(unitEnemyBgColor)
-	buildBoardCard(cellWidget, payload.Unit, false)
+	s.buildBoardCard(cellWidget, payload.Unit, false)
 
 	u := *payload.Unit
 	u.Pos = payload.Coord

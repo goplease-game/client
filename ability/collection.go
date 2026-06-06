@@ -200,7 +200,7 @@ var Abilities = map[ID]Ability{
 		IsPassive:   false,
 		Name:        "Hunter's Mark",
 		Description: "Marks target for 3 turns. Allies deal +1 damage to marked target.",
-		Cooldown:    4,
+		Cooldown:    3,
 		Range:       3,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,

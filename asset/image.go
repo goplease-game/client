@@ -85,12 +85,7 @@ func (b *ImageBuilder) Shadow(offX, offY int, alpha float32, colorOpt ...color.C
 }
 
 func (b *ImageBuilder) Render() *ebiten.Image {
-	resizeKey := imageCacheKey{
-		filename: b.filename,
-		width:    b.width,
-		height:   b.height,
-	}
-	img := loadOrStore(resizeKey, func() *ebiten.Image {
+	img := loadOrStore(b.baseKey(), func() *ebiten.Image {
 		src, err := loadEbitenImageFromAssets(b.filename)
 		if err != nil {
 			return lostImagePlaceHolder()
@@ -102,43 +97,14 @@ func (b *ImageBuilder) Render() *ebiten.Image {
 	})
 
 	if b.color != nil {
-		r, g, bl, a := b.color.RGBA()
-		tintKey := imageCacheKey{
-			filename: b.filename,
-			width:    b.width,
-			height:   b.height,
-			r:        r,
-			g:        g,
-			b:        bl,
-			a:        a,
-		}
-		img = loadOrStore(tintKey, func() *ebiten.Image {
+		img = loadOrStore(b.tintKey(), func() *ebiten.Image {
 			return ui.TintImage(img, b.color)
 		})
 	}
 
 	if b.shadow != nil {
 		s := b.shadow
-		cr, cg, cb, ca := colorKey(b.color)
-		sr, sg, sb, _ := colorKey(s.color)
-		shadowKey := imageCacheKey{
-			filename: b.filename,
-			width:    b.width,
-			height:   b.height,
-			r:        cr,
-			g:        cg,
-			b:        cb,
-			a:        ca,
-			shadow: shadowCacheKey{
-				offsetX: s.offsetX,
-				offsetY: s.offsetY,
-				alpha:   s.alpha,
-				r:       sr,
-				g:       sg,
-				b:       sb,
-			},
-		}
-		img = loadOrStore(shadowKey, func() *ebiten.Image {
+		img = loadOrStore(b.shadowKey(), func() *ebiten.Image {
 			return applyShadow(img, s.offsetX, s.offsetY, s.alpha, s.color)
 		})
 	}
@@ -222,4 +188,35 @@ func lostImagePlaceHolder() *ebiten.Image {
 		panic(fmt.Sprintf("failed to load placeholder image: %v", err))
 	}
 	return img
+}
+
+func (b *ImageBuilder) baseKey() imageCacheKey {
+	return imageCacheKey{
+		filename: b.filename,
+		width:    b.width,
+		height:   b.height,
+	}
+}
+
+func (b *ImageBuilder) tintKey() imageCacheKey {
+	r, g, bl, a := colorKey(b.color)
+	key := b.baseKey()
+	key.r, key.g, key.b, key.a = r, g, bl, a
+	return key
+}
+
+func (b *ImageBuilder) shadowKey() imageCacheKey {
+	cr, cg, cb, ca := colorKey(b.color)
+	sr, sg, sb, _ := colorKey(b.shadow.color)
+	key := b.baseKey()
+	key.r, key.g, key.b, key.a = cr, cg, cb, ca
+	key.shadow = shadowCacheKey{
+		offsetX: b.shadow.offsetX,
+		offsetY: b.shadow.offsetY,
+		alpha:   b.shadow.alpha,
+		r:       sr,
+		g:       sg,
+		b:       sb,
+	}
+	return key
 }

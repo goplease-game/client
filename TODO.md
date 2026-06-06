@@ -11,6 +11,7 @@ Core (required for release):
 Abilities TODO:
 - [ ] Provoke: Test that opponent can only target provoker
 - [ ] EndlessVial: Display status with how much HP increased
+- [ ] If Mist dies, Temporal Anchor should be dropped (maybe, lets discuss)
 
 UI/UX improvement (in not specific order, just ideas):
 - [ ] auto end turn

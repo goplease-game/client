@@ -144,6 +144,7 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 	s.showAbilityPanel(u)
 	s.updateNextActionLabel()
 	s.updateActiveUnitStatusLabel()
+	s.showUnitOnBoard(u)
 
 	pending := &pendingVisuals{}
 	s.pendingVisuals = pending
