@@ -21,25 +21,15 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-const (
-	abilityCardSize = 64 // ability card size in the footer panel
-	unitCardSize    = 64 // unit card size in the hand and queue panel
-	unitIconSize    = 54 // unit portrait size rendered on the board hex
-
-	unitStunnedPic = "knockout.png"
-	unitKilledPic  = "dead-head.png"
-
-	headerH = 80
-	statusH = 32
-	footerH = 90
-)
-
 // Screen is the main arena game screen.
 // It owns all game state visible to the local player and orchestrates
 // server communication, UI layout, board rendering, and animations.
 type Screen struct {
-	server ws.Client
-	ui     *ebitenui.UI
+	snapshot   ds.GameSnapshot
+	server     ws.Client
+	ui         *ebitenui.UI
+	menuUI     *ebitenui.UI
+	gameOverUI *ebitenui.UI
 
 	// Game state received from the server.
 	roomID             string // todo: arenaID
@@ -62,7 +52,7 @@ type Screen struct {
 	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
 
 	// UI widget references used for dynamic updates.
-	unitCards     map[string]*widget.Container
+	unitCards     map[string]*widget.Container // unitID:widget
 	headerRef     *widget.Container
 	footerRef     *widget.Container
 	queuePanelRef *widget.Container
@@ -115,8 +105,8 @@ type Screen struct {
 	// is sent to the server exactly once, after the UI is fully rendered.
 	firstDrawn bool
 
-	// pendingScreen is set when a screen transition should occur on the next Update.
-	pendingScreen game.Screen
+	// nextScreen is set when a screen transition should occur on the next Update.
+	nextScreen game.Screen
 
 	// roundBanner holds the state of the round announcement overlay.
 	// nil when no banner is active.
@@ -131,11 +121,19 @@ type Screen struct {
 	pendingVisuals *pendingVisuals
 	// pendingDrawOps holds draw operations queued by ProgramFx to be executed in Draw.
 	pendingDrawOps []pendingDrawOp
+
+	menuOverlayRef  *widget.Container
+	menuVisible     bool
+	gameOverVisible bool
+
+	OnExitScreen    func() game.Screen
+	OnRestartScreen func() game.Screen
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
-func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
+func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 	s := &Screen{
+		snapshot:        snap,
 		server:          server,
 		board:           snap.Board,
 		roomID:          snap.RoomID,
@@ -156,13 +154,15 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) game.Screen {
 	return s
 }
 
+func (s *Screen) OnEnter(_ *game.Game) {}
+
 // Update processes server messages, handles input, and advances all animations.
 // Implements game.Screen.
 func (s *Screen) Update(g *game.Game) (game.Screen, error) {
 	// Drain all pending server messages before updating game logic.
 	for {
 		select {
-		case msg := <-g.Server.Inbox():
+		case msg := <-s.server.Inbox():
 			s.handleServerMessage(msg)
 		default:
 			goto done
@@ -188,6 +188,8 @@ done:
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if s.selectedAbility != nil {
 			s.cancelAbilitySelection()
+		} else {
+			s.toggleGameMenu()
 		}
 	}
 
@@ -201,10 +203,17 @@ done:
 	s.updateDropZoneAnim()
 	s.updateMoveAnimations()
 	s.updateFxAnims()
-	s.ui.Update()
 
-	if s.pendingScreen != nil {
-		return s.pendingScreen, nil
+	if s.gameOverVisible {
+		s.gameOverUI.Update()
+	} else if s.menuVisible {
+		s.menuUI.Update()
+	} else {
+		s.ui.Update()
+	}
+
+	if s.nextScreen != nil {
+		return s.nextScreen, nil
 	}
 
 	s.updateTurnTimer()
@@ -217,6 +226,12 @@ done:
 // Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
+	if s.menuVisible {
+		s.menuUI.Draw(screen)
+	}
+	if s.gameOverVisible {
+		s.gameOverUI.Draw(screen)
+	}
 
 	s.drawActiveFxAnims(screen)
 
@@ -353,6 +368,8 @@ func (s *Screen) setupUI() {
 			s.drawTurnTimer(screen)
 		},
 	}
+
+	s.menuUI = &ebitenui.UI{Container: s.menuOverlayRef}
 }
 
 // renderGrid draws the hex grid as a single combined stroke path.

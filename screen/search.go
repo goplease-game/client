@@ -16,7 +16,6 @@ import (
 	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/screen/arena"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"github.com/setanarut/anim"
@@ -154,6 +153,10 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
+func (s *SearchScreen) OnEnter(g *game.Game) {
+	g.Server.Connect(g.PlayerID)
+}
+
 func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
@@ -210,7 +213,7 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			Round:           1,
 			TurnTimeSeconds: data.TurnTimeSeconds,
 		}
-		return arena.NewScreen(snap, s.server)
+		return NewArenaScreen(snap, s.server, false)
 	case ws.ErrorAction:
 		var e ds.ErrorResponse
 		_ = json.Unmarshal(msg.Data, &e)

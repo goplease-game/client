@@ -123,6 +123,7 @@ func (s *Screen) updateMoveAnimations() {
 		}
 
 		// Fourth pass: update game logic and render on destination.
+		// Fourth pass: update game logic and render on destination.
 		for _, action := range currentGroup {
 			u := s.unitByID(action.unitID)
 
@@ -140,6 +141,9 @@ func (s *Screen) updateMoveAnimations() {
 				toW.SetColor(targetBg)
 				toW.RemoveChildren()
 				s.buildBoardCard(toW, u, false)
+
+				// Restore occupied state if destination is a safe-zone cell.
+				s.occupySafeZoneCell(action.to, targetBg)
 
 				if u.ID == s.activeUnitID {
 					s.pulseHexWidgets = append(s.pulseHexWidgets, toW)

@@ -49,6 +49,9 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 	case NewGameAction:
 		m.onNewGame()
 
+	case Surrender:
+		m.onGameOver(YouLose)
+
 	case ReadyToPlay:
 		m.onReadyToPlay()
 
@@ -81,6 +84,10 @@ func (m *MockClient) onNewGame() {
 
 	mock.NewGameState(payload)
 	m.inbox <- InMessage{Action: NewGameAction, Data: data}
+}
+
+func (m *MockClient) onGameOver(action Action) {
+	m.inbox <- InMessage{Action: action}
 }
 
 func (m *MockClient) onReadyToPlay() {
@@ -181,6 +188,17 @@ func (m *MockClient) sendApplyStates(st ...ds.ApplyState) {
 	}
 
 	m.send(ApplyState, data)
+
+}
+
+func (m *MockClient) checkGameOver() {
+	if isGO, playerIdx := mock.CheckGameOver(); isGO {
+		if playerIdx == 0 {
+			m.onGameOver(YouLose)
+		} else {
+			m.onGameOver(YouWin)
+		}
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -210,7 +228,7 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	if unit.OwnerID != mock.MockedPlayerID {
 		m.sendPlayUnit(unit.ID)
 		m.sendApplyStates(sts...)
-		
+
 		return
 	}
 
@@ -314,6 +332,9 @@ func (m *MockClient) mockPlaceUnit(gs *mock.GameState) {
 // startNewRound resets per-round state and begins the next round's play phase.
 func (m *MockClient) startNewRound() {
 	gs := mock.GetGameState()
+	if gs.GameOver {
+		return
+	}
 	gs.CurrentRound++
 	gs.ActiveUnit = 0
 	gs.Phase = mock.PlayPhase
@@ -336,6 +357,10 @@ func (m *MockClient) send(action Action, dataOpt ...json.RawMessage) {
 	}
 
 	m.inbox <- msg
+
+	if mock.GetGameState().Phase == mock.PlayPhase {
+		m.checkGameOver()
+	}
 }
 
 func (m *MockClient) sendErr(e string) {

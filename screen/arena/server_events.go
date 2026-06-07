@@ -22,6 +22,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	switch msg.Action {
 	case ws.ErrorAction:
 		s.handleServerError(msg.Data)
+	case ws.YouWin, ws.YouLose, ws.OpponentSurrendered:
+		s.handleGameOver(msg.Action)
 	case ws.PlaceUnitAction:
 		s.handlePlaceUnit()
 	case ws.EndRoundAction:
@@ -46,6 +48,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 			log.Fatal("handleUseAbility unmarshal:", err)
 		}
 		s.handleUseAbility(payload)
+	default:
+		fmt.Printf("[arena] unhandled action: %v\n", msg.Action)
 	}
 }
 
@@ -75,6 +79,15 @@ func (s *Screen) handleServerError(data json.RawMessage) {
 	}
 
 	s.setStatus("ERROR: " + msg.Message)
+}
+
+func (s *Screen) handleGameOver(reason ws.Action) {
+	switch reason {
+	case ws.YouWin, ws.OpponentSurrendered:
+		s.showGameOverOverlay(true)
+	case ws.YouLose:
+		s.showGameOverOverlay(false)
+	}
 }
 
 // handleEndRound is called when the round ends and the player may finish their turn.

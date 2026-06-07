@@ -285,7 +285,7 @@ func (s *Screen) loadDevState(name string) {
 	}
 	s.setStatus("Dev: loaded " + name)
 	mock.RestoreGameState(name, snap)
-	s.pendingScreen = NewScreen(snap, s.server)
+	s.nextScreen = NewScreen(snap, s.server)
 }
 
 // buildDivider returns a thin horizontal rule for separating dev panel sections.
@@ -359,5 +359,5 @@ func (s *Screen) rebuildScenarioList() {
 func (s *Screen) loadScenario(name scenario.Name) {
 	snap := mock.LoadScenario(name)
 	s.setStatus("Dev: scenario " + string(name))
-	s.pendingScreen = NewScreen(snap, s.server)
+	s.nextScreen = NewScreen(snap, s.server)
 }

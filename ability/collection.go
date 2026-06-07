@@ -290,7 +290,7 @@ var Abilities = map[ID]Ability{
 		IsPassive:   false,
 		Name:        "Time Warp",
 		Description: "Target ally or self gains +1 AP at the start of their next turn. At the end of that turn, their HP, Shield, and position are restored to their state at the start of the turn.",
-		Cooldown:    4,
+		Cooldown:    3,
 		Range:       3,
 		TargetMode:  TargetAlliesAndSelf,
 		Activation:  SelectAllyOrSelf,

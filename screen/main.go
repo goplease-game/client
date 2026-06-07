@@ -11,7 +11,6 @@ import (
 	game "github.com/ognev-dev/goplease-ebitengine-client"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
-	"github.com/ognev-dev/goplease-ebitengine-client/screen/arena"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -78,7 +77,9 @@ func NewMainScreen(server ws.Client) *MainScreen {
 	return s
 }
 
-func (s *MainScreen) Update(g *game.Game) (game.Screen, error) {
+func (s *MainScreen) OnEnter(_ *game.Game) {}
+
+func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 	if s.exit {
 		return nil, ebiten.Termination
 	}
@@ -88,7 +89,6 @@ func (s *MainScreen) Update(g *game.Game) (game.Screen, error) {
 	if s.nextScreen != nil {
 		next := s.nextScreen
 		s.nextScreen = nil
-		g.Server.Connect(g.PlayerID)
 		return next, nil
 	}
 
@@ -149,9 +149,9 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		log.Fatal(err)
 	}
 
-	tutButton, err := mainMenuButton("Practice", 16, func(args *widget.ButtonClickedEventArgs) {
-		snap := mock.LoadScenario(scenario.Default)
-		s.nextScreen = arena.NewScreen(snap, ws.NewMockClient())
+	practiceButton, err := mainMenuButton("Practice", 16, func(args *widget.ButtonClickedEventArgs) {
+		s.server.Disconnect()
+		s.nextScreen = newPracticeScreen()
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -180,7 +180,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	menuC.AddChild(titleText)
 	menuC.AddChild(playButton)
-	menuC.AddChild(tutButton)
+	menuC.AddChild(practiceButton)
 	menuC.AddChild(settButton)
 	menuC.AddChild(aboutButton)
 	menuC.AddChild(exitButton)
@@ -251,4 +251,12 @@ func mainMenuButtonImage() *widget.ButtonImage {
 		Hover:   hover,
 		Pressed: pressed,
 	}
+}
+
+func newPracticeScreen() game.Screen {
+	snap := mock.LoadScenario(scenario.Default)
+	mockCl := ws.NewMockClient()
+	mockCl.Connect("p1")
+
+	return NewArenaScreen(snap, mockCl, true)
 }

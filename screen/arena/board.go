@@ -68,7 +68,7 @@ func (s *Screen) createBoardContainer() *widget.Container {
 // createCell creates a HexCellWidget for the given coordinate and cell data.
 // Safe-zone cells receive additional drop-target widget options.
 func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWidget {
-	isDroppable := data != nil && data.IsSafeZone && data.Unit == nil
+	isDroppable := data != nil && data.IsSafeZone
 	sc := &DropZoneCell{coord: coord}
 
 	widgetOpts := []widget.WidgetOpt{
@@ -97,7 +97,9 @@ func (s *Screen) dropZoneWidgetOpts(sc *DropZoneCell, coord ds.HexCoord) []widge
 	return []widget.WidgetOpt{
 		widget.WidgetOpts.CanDrop(func(args *widget.DragAndDropDroppedEventArgs) bool {
 			_, ok := args.Data.(*ds.Unit)
-			return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn
+			cell := s.board.Cells[coord]
+			return ok && s.ready && !sc.occupied && !s.unitPlacedThisTurn &&
+				cell != nil && cell.Unit == nil
 		}),
 		widget.WidgetOpts.Dropped(func(args *widget.DragAndDropDroppedEventArgs) {
 			unit, ok := args.Data.(*ds.Unit)

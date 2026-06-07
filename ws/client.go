@@ -63,5 +63,11 @@ const (
 	OppDisconnectedAction Action = "opp_disconnected"
 	CancelMatchAction     Action = "cancel_match"
 	MatchCancelledAction  Action = "match_canceled"
-	ErrorAction           Action = "error"
+
+	Surrender           Action = "surrender"
+	OpponentSurrendered Action = "opponent_surrendered"
+	YouWin              Action = "you_win"
+	YouLose             Action = "you_lose"
+
+	ErrorAction Action = "error"
 )

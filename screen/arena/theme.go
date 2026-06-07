@@ -7,6 +7,11 @@ import (
 	"golang.org/x/image/colornames"
 )
 
+const (
+	unitStunnedPic = "knockout.png"
+	unitKilledPic  = "dead-head.png"
+)
+
 var (
 	// Layout colours.
 	bodyBgColor      = color.NRGBA{0x13, 0x1a, 0x22, 0xff}
@@ -72,6 +77,16 @@ var (
 	positiveStatusNameColor = "98fb98"
 	negativeStatusNameColor = "ff6347"
 	statusDurationColor     = "87ceeb"
+
+	// game menu
+	nameColor                = ui.RGBFromHex("#00a8e8")
+	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
+	menuButtonHoverBgColor   = ui.LightenRGB(menuButtonBgColor, 35)
+	menuButtonTextColor      = ui.RGBFromHex("FFF8DE")
+	menuButtonHoverTextColor = ui.DarkenRGB(menuButtonBgColor, 45)
+
+	gameOverLoseColor = ui.RGBFromHex("F5004F")
+	gameOverWinColor  = ui.RGBFromHex("F9E400")
 )
 
 // Font faces used across the arena package.

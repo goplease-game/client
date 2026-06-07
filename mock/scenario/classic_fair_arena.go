@@ -8,6 +8,7 @@ import (
 const safeZoneSize = 2
 const arenaRows = 10
 const arenaCols = 10
+const boardSize = 5
 
 const ClassicFairArena = "Classic Fair Arena"
 
@@ -38,7 +39,7 @@ func classicFairArena() *Scenario {
 		P1:           p1,
 		P2:           p2,
 		Queue:        []*ds.Unit{},
-		Board:        newHexBoard(4),
+		Board:        newHexBoard(boardSize),
 		ActiveUnitID: "",
 	}
 

@@ -287,7 +287,15 @@ func (s *Screen) setPulseTargets(widgets []*widget.Container) {
 }
 
 // setPulseHexTargets replaces the hex cell pulse list and resets the tick.
+// Before clearing, it restores each cell's base color so no pulse frame is frozen.
 func (s *Screen) setPulseHexTargets(widgets []*ui.HexCellWidget) {
+	for _, w := range s.pulseHexWidgets {
+		restoreColor := unitFriendlyBgColor
+		if cell := s.board.Cells[w.Coord]; cell != nil && cell.Unit != nil && cell.Unit.IsOpponent {
+			restoreColor = unitEnemyBgColor
+		}
+		w.SetColor(restoreColor)
+	}
 	s.pulseHexWidgets = widgets
 	s.pulseTick = 0
 }

@@ -24,6 +24,7 @@ Code & Project architecture
 
 NEXT (in not specific order, just ideas):
 - [ ] Save/Load game
+- [ ] Combat stats
 - [ ] Combat logs & replays 
 - [ ] Play stats & relevant opponent 
 - [ ] Let players create their own team using units with custom sets of abilities

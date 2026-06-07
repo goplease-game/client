@@ -3,11 +3,23 @@ package arena
 import (
 	"image/color"
 
+	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"golang.org/x/image/colornames"
+)
+
+const (
+	abilityCardSize = 64 // ability card size in the footer panel
+	unitCardSize    = 64 // unit card size in the hand and queue panel
+	unitIconSize    = 54 // unit portrait size rendered on the board hex
+
+	headerH = 80
+	statusH = 32
+	footerH = 90
 )
 
 // createHeader builds the top bar container that holds the unit queue panel.
@@ -36,6 +48,29 @@ func (s *Screen) createHeader() *widget.Container {
 			}),
 		),
 	)
+
+	tf := ui.TextFace(16)
+	menuBtn := widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{
+			Idle:    image.NewNineSliceColor(color.NRGBA{0x44, 0x44, 0x44, 0xff}),
+			Hover:   image.NewNineSliceColor(color.NRGBA{0x66, 0x66, 0x66, 0xff}),
+			Pressed: image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x33, 0xff}),
+		}),
+		widget.ButtonOpts.Text("≡", &tf, &widget.ButtonTextColor{Idle: colornames.White}),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(36, 36),
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				Padding:            &widget.Insets{Right: 8},
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+			s.toggleGameMenu()
+		}),
+	)
+	h.AddChild(s.queuePanelRef)
+	h.AddChild(menuBtn)
 
 	return h
 }
@@ -213,5 +248,98 @@ func (s *Screen) updateNextActionLabel() {
 		s.setNextActionLabel("END\nTURN")
 	} else {
 		s.setNextActionLabel("SKIP\nTURN")
+	}
+}
+
+// createGameMenu builds a full-screen semi-transparent overlay with a centered
+// menu containing Restart, Surrender, and Exit buttons. Hidden by default.
+func (s *Screen) createGameMenu() *widget.Container {
+	overlay := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0, 0, 0, 160})),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				StretchHorizontal: true,
+				StretchVertical:   true,
+			}),
+		),
+	)
+
+	menu := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(headerBgColor)),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(5),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(24)),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	if s.OnRestartScreen != nil {
+		menu.AddChild(s.menuButton("Restart", func(args *widget.ButtonClickedEventArgs) {
+			s.closeGameMenu()
+			s.nextScreen = s.OnRestartScreen()
+		}))
+	}
+
+	menu.AddChild(s.menuButton("Surrender", func(args *widget.ButtonClickedEventArgs) {
+		s.closeGameMenu()
+		// TODO: s.onSurrender()
+	}))
+	menu.AddChild(s.menuButton("Exit", func(args *widget.ButtonClickedEventArgs) {
+		s.nextScreen = s.OnExitScreen()
+	}))
+
+	overlay.AddChild(menu)
+
+	return overlay
+}
+
+// menuButton creates a styled button for the game menu.
+func (s *Screen) menuButton(label string, onClick widget.ButtonClickedHandlerFunc) *widget.Button {
+	tf := ui.TextFaceBold(16)
+	return widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{
+			Idle:    image.NewNineSliceColor(menuButtonBgColor),
+			Hover:   image.NewNineSliceColor(menuButtonHoverBgColor),
+			Pressed: image.NewNineSliceColor(menuButtonBgColor),
+		}),
+		widget.ButtonOpts.Text(label, &tf, &widget.ButtonTextColor{
+			Idle:  menuButtonTextColor,
+			Hover: menuButtonHoverTextColor,
+		}),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(160, 44),
+		),
+		widget.ButtonOpts.ClickedHandler(onClick),
+	)
+}
+
+// openGameMenu shows the game menu overlay.
+func (s *Screen) openGameMenu() {
+	if s.menuOverlayRef == nil {
+		s.menuOverlayRef = s.createGameMenu()
+		s.menuUI = &ebitenui.UI{Container: s.menuOverlayRef}
+	}
+	s.menuVisible = true
+}
+
+// closeGameMenu hides the game menu overlay.
+func (s *Screen) closeGameMenu() {
+	s.menuVisible = false
+	s.menuOverlayRef.GetWidget().SetVisibility(widget.Visibility_Hide)
+}
+
+// toggleGameMenu opens or closes the game menu.
+func (s *Screen) toggleGameMenu() {
+	if s.menuVisible {
+		s.closeGameMenu()
+	} else {
+		s.openGameMenu()
 	}
 }

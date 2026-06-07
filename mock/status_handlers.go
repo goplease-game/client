@@ -101,51 +101,60 @@ var hamstrungSH = &statusHandler{
 var temporalAnchorSH = &statusHandler{
 	onTurnStart: func(u *ds.Unit, sv status.Value) (sts ds.ApplyStates) {
 		u.CurrentAP += sv.Value
-
 		sts.Add(
 			ds.ApplyState{ChangeAP: new(sv.Value), ToUnitID: u.ID},
 			ds.ApplyState{SetAP: new(u.CurrentAP), ToUnitID: u.ID},
 		)
 
-		sv.Meta = map[string]any{
+		current := u.Statuses[sv.Status.Type]
+		current.Meta = map[string]any{
 			"hp":     u.CurrentHP,
 			"shield": u.CurrentShield,
 			"pos":    u.Pos,
 		}
-
-		u.Statuses[sv.Status.Type] = sv
+		u.Statuses[sv.Status.Type] = current
 		return
 	},
 	onTurnEnd: func(u *ds.Unit, sv status.Value) (sts ds.ApplyStates) {
-		if sv.Meta != nil {
-			prevHP := sv.Meta["hp"].(int)
-			prevShield := sv.Meta["shield"].(int)
-			hpDiff := prevHP - u.CurrentHP
-			shDiff := prevShield - u.CurrentShield
+		if sv.Meta == nil {
+			return
+		}
 
-			prevPos := sv.Meta["pos"].(ds.HexCoord)
+		if u.CurrentAP != u.BaseAP {
+			diff := u.BaseAP - u.CurrentAP
+			u.CurrentAP = u.BaseAP
+			sts.Add(
+				ds.ApplyState{ChangeAP: new(diff), ToUnitID: u.ID},
+				ds.ApplyState{SetAP: new(u.CurrentAP), ToUnitID: u.ID},
+			)
+		}
 
-			if hpDiff != 0 {
-				u.CurrentHP = prevHP
-				sts.Add(
-					ds.ApplyState{ChangeHP: new(hpDiff), ToUnitID: u.ID},
-					ds.ApplyState{SetHP: new(u.CurrentHP), ToUnitID: u.ID},
-				)
-			}
-			if shDiff != 0 {
-				u.CurrentShield = prevShield
-				sts.Add(
-					ds.ApplyState{ChangeHP: new(shDiff), ToUnitID: u.ID},
-					ds.ApplyState{SetHP: new(u.CurrentShield), ToUnitID: u.ID},
-				)
-			}
-			if prevPos != u.Pos {
-				u.Pos = prevPos
-				sts.Add(
-					ds.ApplyState{MoveTo: new(prevPos), ToUnitID: u.ID},
-				)
-			}
+		prevHP := sv.Meta["hp"].(int)
+		prevShield := sv.Meta["shield"].(int)
+		hpDiff := prevHP - u.CurrentHP
+		shDiff := prevShield - u.CurrentShield
 
+		prevPos := sv.Meta["pos"].(ds.HexCoord)
+
+		if hpDiff != 0 {
+			u.CurrentHP = prevHP
+			sts.Add(
+				ds.ApplyState{ChangeHP: new(hpDiff), ToUnitID: u.ID},
+				ds.ApplyState{SetHP: new(u.CurrentHP), ToUnitID: u.ID},
+			)
+		}
+		if shDiff != 0 {
+			u.CurrentShield = prevShield
+			sts.Add(
+				ds.ApplyState{ChangeHP: new(shDiff), ToUnitID: u.ID},
+				ds.ApplyState{SetHP: new(u.CurrentShield), ToUnitID: u.ID},
+			)
+		}
+		if prevPos != u.Pos {
+			u.Pos = prevPos
+			sts.Add(
+				ds.ApplyState{MoveTo: new(prevPos), ToUnitID: u.ID},
+			)
 		}
 
 		return

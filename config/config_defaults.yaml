@@ -2,6 +2,6 @@ resolution: 1200x860
 server_addr: localhost:8080
 
 dev_mode:
-  enabled: false
+  enabled: true
   mock_client: false
   log_protocol: false

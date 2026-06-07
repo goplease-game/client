@@ -25,7 +25,9 @@ type DropZoneCell struct {
 func (sc *DropZoneCell) SetHighlight(active bool) {
 	if !active {
 		if sc.activeGraphic != nil {
-			sc.cell.RemoveChildren()
+			if !sc.occupied {
+				sc.cell.RemoveChildren()
+			}
 			sc.activeGraphic = nil
 		}
 		if sc.occupied {
@@ -36,7 +38,6 @@ func (sc *DropZoneCell) SetHighlight(active bool) {
 		return
 	}
 
-	// Occupied cells do not show a drop highlight.
 	if sc.occupied {
 		return
 	}
@@ -73,4 +74,16 @@ func (sc *DropZoneCell) RenderAnim(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(cx, cy)
 	screen.DrawImage(sc.activeGraphic, op)
+}
+
+// occupySafeZoneCell marks the safe-zone cell at coord as occupied with the given base color.
+// No-op if coord is not a safe-zone cell.
+func (s *Screen) occupySafeZoneCell(coord ds.HexCoord, baseColor color.Color) {
+	for _, sc := range s.safeZoneCells {
+		if sc.coord == coord {
+			sc.occupied = true
+			sc.baseColor = baseColor
+			return
+		}
+	}
 }

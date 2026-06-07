@@ -47,7 +47,9 @@ type GameState struct {
 	CurrentRound int
 	ActivePlayer int // 0 or 1 whose turn is
 
-	Phase RoundPhase
+	Phase                  RoundPhase
+	UnitsPerPlacementPhase int
+	GameOver               bool
 }
 
 func NewGameState(data ds.NewGamePayload) *GameState {
@@ -87,16 +89,47 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 	}
 
 	gameState = &GameState{
-		RoomID:       data.RoomID,
-		Board:        data.Board,
-		Players:      [2]*ds.Player{p1, p2},
-		UnitsQueue:   []*ds.Unit{},
-		CurrentRound: 1,
-		ActivePlayer: 0,
-		ActiveUnit:   NoActiveUnit, // when out of bound - start new round
+		RoomID:                 data.RoomID,
+		Board:                  data.Board,
+		Players:                [2]*ds.Player{p1, p2},
+		UnitsQueue:             []*ds.Unit{},
+		CurrentRound:           1,
+		ActivePlayer:           0,
+		ActiveUnit:             NoActiveUnit, // when out of bound - start new round
+		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
 	}
 
 	return gameState
+}
+
+func CheckGameOver() (over bool, playerIdx int) {
+	if len(gameState.Players[0].Units) > 0 {
+		return
+	}
+
+	if len(gameState.Players[1].Units) > 0 {
+		return
+	}
+
+	p1Units, p2Units := 0, 0
+	for _, u := range gameState.UnitsQueue {
+		if u.OwnerID == gameState.Players[0].ID {
+			p1Units++
+			continue
+		}
+
+		p2Units++
+	}
+
+	if p2Units == 0 {
+		playerIdx = 1
+	}
+
+	if p1Units == 0 || p2Units == 0 {
+		gameState.GameOver = true
+	}
+
+	return gameState.GameOver, playerIdx
 }
 
 func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
@@ -138,13 +171,14 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 	p1.Units = p1Units
 
 	gameState = &GameState{
-		RoomID:       snap.RoomID,
-		Board:        snap.Board,
-		Players:      [2]*ds.Player{&p1, p2},
-		UnitsQueue:   snap.UnitsQueue,
-		CurrentRound: snap.Round,
-		ActiveUnit:   activeUnitIdx,
-		ActivePlayer: 0,
+		RoomID:                 snap.RoomID,
+		Board:                  snap.Board,
+		Players:                [2]*ds.Player{&p1, p2},
+		UnitsQueue:             snap.UnitsQueue,
+		CurrentRound:           snap.Round,
+		ActiveUnit:             activeUnitIdx,
+		ActivePlayer:           0,
+		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
 	}
 
 	fmt.Printf("[mock] new game state loaded from %s\n", name)
@@ -173,13 +207,14 @@ func LoadScenario(name scenario.Name) ds.GameSnapshot {
 
 	// server state - keep as is
 	gameState = &GameState{
-		RoomID:       sc.ID,
-		Board:        sc.Board,
-		Players:      [2]*ds.Player{sc.P1, sc.P2},
-		UnitsQueue:   sc.Queue,
-		CurrentRound: 1,
-		ActiveUnit:   activeUnit,
-		ActivePlayer: 0,
+		RoomID:                 sc.ID,
+		Board:                  sc.Board,
+		Players:                [2]*ds.Player{sc.P1, sc.P2},
+		UnitsQueue:             sc.Queue,
+		CurrentRound:           1,
+		ActiveUnit:             activeUnit,
+		ActivePlayer:           0,
+		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
 	}
 
 	sc2 := scenario.Copy(sc)
