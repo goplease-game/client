@@ -76,7 +76,7 @@ func (s *Screen) drawTurnTimer(screen *ebiten.Image) {
 		fgImg := ebiten.NewImage(barW, int(barH))
 		fgImg.Fill(color.NRGBA{r, g, 0x00, alpha})
 		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(sw-float64(barW), barY) // правый край фиксирован
+		op.GeoM.Translate(sw-float64(barW), barY)
 		screen.DrawImage(fgImg, op)
 	}
 }

@@ -39,12 +39,13 @@ func Load(name Name) *Scenario {
 }
 
 type Scenario struct {
-	ID           string
-	P1           *ds.Player
-	P2           *ds.Player
-	Queue        []*ds.Unit
-	Board        ds.Board
-	ActiveUnitID string
+	ID              string
+	P1              *ds.Player
+	P2              *ds.Player
+	Queue           []*ds.Unit
+	Board           ds.Board
+	ActiveUnitID    string
+	DisableGameOver bool
 }
 
 // placeUnitAt picks a unit by templateID from player's hand,

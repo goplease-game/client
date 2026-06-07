@@ -8,6 +8,7 @@ func init() {
 
 func basWithFriends() *Scenario {
 	s := NewSimpleScenario()
+	s.DisableGameOver = true
 
 	s.placeUnitAt(s.P1, BasID, 1, 3)
 	s.placeUnitAt(s.P1, GritID, 1, 2)

@@ -126,6 +126,8 @@ type Screen struct {
 	menuVisible     bool
 	gameOverVisible bool
 
+	maxPhantomAPPerUnitPerTurn int
+
 	OnExitScreen    func() game.Screen
 	OnRestartScreen func() game.Screen
 }
@@ -144,6 +146,8 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 		roundNumber:     snap.Round,
 		unitCards:       make(map[string]*widget.Container),
 		turnTimeSeconds: snap.TurnTimeSeconds,
+
+		maxPhantomAPPerUnitPerTurn: snap.MaxPhantomAPPerUnitPerTurn,
 	}
 
 	initDropPointAnim()
@@ -208,9 +212,8 @@ done:
 		s.gameOverUI.Update()
 	} else if s.menuVisible {
 		s.menuUI.Update()
-	} else {
-		s.ui.Update()
 	}
+	s.ui.Update()
 
 	if s.nextScreen != nil {
 		return s.nextScreen, nil
@@ -226,6 +229,13 @@ done:
 // Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
+
+	if u := s.unitByID(s.activeUnitID); u != nil {
+		if cell, ok := s.boardCellWidgets[u.Pos]; ok {
+			s.drawAPMarkers(screen, u, cell)
+		}
+	}
+
 	if s.menuVisible {
 		s.menuUI.Draw(screen)
 	}
@@ -417,7 +427,7 @@ func (s *Screen) updateActiveUnitStatusLabel() {
 	}
 
 	canMove := !s.activeUnitMoved
-	canAct := u.CurrentAP > 0
+	canAct := s.unitCanAct(u)
 
 	var status string
 	switch {
@@ -488,7 +498,7 @@ func (s *Screen) updateTurnControls() {
 	}
 
 	canMove := !s.activeUnitMoved
-	canAct := u.CurrentAP > 0
+	canAct := s.unitCanAct(u)
 
 	if !canMove && !canAct {
 		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})

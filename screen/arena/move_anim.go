@@ -129,6 +129,7 @@ func (s *Screen) updateMoveAnimations() {
 
 			if s.selectedUnitID == u.ID || !u.IsOpponent {
 				s.activeUnitMoved = true
+				s.rebuildQueuePanel()
 				s.updateActiveUnitStatusLabel()
 				s.updateNextActionLabel()
 			}

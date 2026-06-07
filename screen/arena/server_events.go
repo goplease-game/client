@@ -236,6 +236,10 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 			return
 		}
 
+		if st.SetPhantomAP != nil {
+			s.player.PhantomAP = *st.SetPhantomAP
+		}
+
 		target := s.unitByID(st.ToUnitID)
 		if target == nil {
 			continue

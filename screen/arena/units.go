@@ -242,7 +242,7 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 		s.pulseWidgets = append(s.pulseWidgets, card)
 	}
 
-	buildQueueUnitCard(NewContainerChildAdder(card), u)
+	s.buildQueueUnitCard(NewContainerChildAdder(card), u)
 	return card
 }
 
@@ -420,6 +420,11 @@ func (s *Screen) unitAtCoord(coord ds.HexCoord) *ds.Unit {
 // and updates the board cell to show the dead overlay.
 func (s *Screen) killUnit(u *ds.Unit) {
 	u.IsDead = true
+
+	if u.ID == s.activeUnitID {
+		s.activeUnitID = ""
+		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
+	}
 
 	// Remove from queue.
 	for i, qu := range s.unitsQueue {

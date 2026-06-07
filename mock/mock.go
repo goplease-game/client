@@ -16,7 +16,11 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
 )
 
-var UnitsPerPlacementPhase = 3
+const UnitsPerPlacementPhase = 3
+
+// MaxPhantomAPPerUnitPerTurn is the maximum number of Phantom AP
+// a single unit can spend per turn.
+const MaxPhantomAPPerUnitPerTurn = 5
 
 const (
 	totalUnitsPerPlayer = 6
@@ -42,14 +46,17 @@ type GameState struct {
 	Board      ds.Board
 	Players    [2]*ds.Player
 	UnitsQueue []*ds.Unit
-	ActiveUnit int
 
 	CurrentRound int
 	ActivePlayer int // 0 or 1 whose turn is
+	ActiveUnitID string
 
-	Phase                  RoundPhase
-	UnitsPerPlacementPhase int
-	GameOver               bool
+	Phase                      RoundPhase
+	UnitsPerPlacementPhase     int
+	MaxPhantomAPPerUnitPerTurn int
+
+	DisableGameOver bool
+	GameOver        bool
 }
 
 func NewGameState(data ds.NewGamePayload) *GameState {
@@ -95,7 +102,6 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 		UnitsQueue:             []*ds.Unit{},
 		CurrentRound:           1,
 		ActivePlayer:           0,
-		ActiveUnit:             NoActiveUnit, // when out of bound - start new round
 		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
 	}
 
@@ -103,6 +109,10 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 }
 
 func CheckGameOver() (over bool, playerIdx int) {
+	if gameState.DisableGameOver {
+		return
+	}
+
 	if len(gameState.Players[0].Units) > 0 {
 		return
 	}
@@ -157,14 +167,6 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 		Units:       inHand,
 	}
 
-	activeUnitIdx := NoActiveUnit
-	for i, unit := range snap.UnitsQueue {
-		if unit.ID == snap.ActiveUnitID {
-			activeUnitIdx = i
-			break
-		}
-	}
-
 	p1 := snap.Player
 	p1Units := make([]ds.Unit, len(snap.Player.Units))
 	copy(p1Units, snap.Player.Units)
@@ -176,7 +178,6 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 		Players:                [2]*ds.Player{&p1, p2},
 		UnitsQueue:             snap.UnitsQueue,
 		CurrentRound:           snap.Round,
-		ActiveUnit:             activeUnitIdx,
 		ActivePlayer:           0,
 		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
 	}
@@ -195,39 +196,32 @@ func LoadScenario(name scenario.Name) ds.GameSnapshot {
 		sc.P2 = &ds.Player{}
 	}
 
-	// find active unit index
-	activeUnit := NoActiveUnit
-	if sc.ActiveUnitID != "" {
-		for i := range sc.Queue {
-			if sc.Queue[i].ID == sc.ActiveUnitID {
-				activeUnit = i
-			}
-		}
-	}
-
 	// server state - keep as is
 	gameState = &GameState{
-		RoomID:                 sc.ID,
-		Board:                  sc.Board,
-		Players:                [2]*ds.Player{sc.P1, sc.P2},
-		UnitsQueue:             sc.Queue,
-		CurrentRound:           1,
-		ActiveUnit:             activeUnit,
-		ActivePlayer:           0,
-		UnitsPerPlacementPhase: UnitsPerPlacementPhase,
+		RoomID:                     sc.ID,
+		Board:                      sc.Board,
+		Players:                    [2]*ds.Player{sc.P1, sc.P2},
+		UnitsQueue:                 sc.Queue,
+		CurrentRound:               1,
+		ActiveUnitID:               sc.ActiveUnitID,
+		ActivePlayer:               0,
+		UnitsPerPlacementPhase:     UnitsPerPlacementPhase,
+		MaxPhantomAPPerUnitPerTurn: MaxPhantomAPPerUnitPerTurn,
+		DisableGameOver:            sc.DisableGameOver,
 	}
 
 	sc2 := scenario.Copy(sc)
 
 	snap := ds.GameSnapshot{
-		RoomID:          sc2.ID,
-		Board:           sc2.Board,
-		Player:          *sc2.P1,
-		OpponentName:    "Richard To Blame",
-		UnitsQueue:      sc2.Queue,
-		ActiveUnitID:    sc2.ActiveUnitID,
-		Round:           1,
-		TurnTimeSeconds: 0,
+		RoomID:                     sc2.ID,
+		Board:                      sc2.Board,
+		Player:                     *sc2.P1,
+		OpponentName:               "Richard To Blame",
+		UnitsQueue:                 sc2.Queue,
+		ActiveUnitID:               sc2.ActiveUnitID,
+		Round:                      1,
+		TurnTimeSeconds:            0,
+		MaxPhantomAPPerUnitPerTurn: MaxPhantomAPPerUnitPerTurn,
 	}
 
 	return snap
@@ -399,6 +393,10 @@ func HandleEndTurn() (st ds.ApplyStates) {
 		return
 	}
 
+	for t, sv := range unit.Statuses {
+		log.Printf("[HandleEndTurn] status %s duration %d permanent %v", t, sv.Duration, sv.Duration == status.Permanent)
+	}
+
 	// decrease status duration
 	for t, sv := range unit.Statuses {
 		if sv.Duration == status.Permanent {
@@ -438,7 +436,7 @@ func HandleEndTurn() (st ds.ApplyStates) {
 	if unit.CurrentShield > 0 {
 		unit.CurrentShield--
 		st.Add(
-			ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
+			//ds.ApplyState{ChangeShield: new(-1), ToUnitID: unit.ID},
 			ds.ApplyState{SetShield: new(unit.CurrentShield), ToUnitID: unit.ID},
 		)
 	}
@@ -447,9 +445,36 @@ func HandleEndTurn() (st ds.ApplyStates) {
 }
 
 func ActiveUnit() *ds.Unit {
-	if gameState.ActiveUnit < 0 || gameState.ActiveUnit >= len(gameState.UnitsQueue) {
-		return nil
+	return GetUnitByID(gameState.ActiveUnitID)
+}
+
+// RecalculatePhantomAP recalculates the Phantom AP pool for both players.
+// Phantom AP = max(0, enemy living units - friendly living units).
+func RecalculatePhantomAP() {
+	counts := [2]int{}
+	for i, p := range gameState.Players {
+		for _, u := range gameState.UnitsQueue {
+			if u.OwnerID == p.ID {
+				counts[i]++
+			}
+		}
 	}
 
-	return gameState.UnitsQueue[gameState.ActiveUnit]
+	for i := range gameState.Players {
+		delta := counts[1-i] - counts[i]
+		if delta < 0 {
+			delta = 0
+		}
+		gameState.Players[i].PhantomAP = delta
+	}
+}
+
+// playerOf returns the Player that owns the given unit.
+func playerOf(u *ds.Unit) *ds.Player {
+	for _, p := range gameState.Players {
+		if p.ID == u.OwnerID {
+			return p
+		}
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package mock
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 
@@ -36,6 +37,11 @@ func SimulateUnitTurn(unit *ds.Unit) (acts []SimAction) {
 			acts[i] = a
 		}
 	}()
+
+	if unit.CurrentAP < 1 {
+		fmt.Printf("[mock] [SimulateUnitTurn] unit %s have no AP", unit.ID)
+		return
+	}
 
 	if scenarios, ok := unitScenarios[unit.TemplateID]; ok {
 		for _, scenario := range scenarios {

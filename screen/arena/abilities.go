@@ -69,7 +69,7 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	bgColor := abilityCardBgColor(ab)
 	u := s.unitByID(s.activeUnitID)
 	onCooldown := u != nil && !u.AbilityReady(ab.ID)
-	disabled := !onCooldown && u != nil && u.CurrentAP == 0 && !ab.IsPassive
+	disabled := !onCooldown && u != nil && !ab.IsPassive && !s.unitCanAct(u)
 	blocked := onCooldown || disabled
 
 	iconGraphic := s.buildAbilityIcon(ab)
@@ -84,6 +84,20 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	}
 
 	return card
+}
+
+// unitCanAct reports whether the unit has AP available to use an ability.
+// A unit can act if it has base AP, or if the team has Phantom AP remaining
+// and the unit hasn't already spent its phantom AP allowance this turn.
+func (s *Screen) unitCanAct(u *ds.Unit) bool {
+	if u.CurrentAP > 0 {
+		return true
+	}
+	if s.player.PhantomAP < 1 {
+		return false
+	}
+
+	return u.PhantomAPUsedThisTurn < s.maxPhantomAPPerUnitPerTurn
 }
 
 func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Color, blocked bool, iconGraphic *widget.Graphic) *widget.Container {

@@ -60,6 +60,8 @@ func applyOnDamageReceivedHandlers(source, target *ds.Unit) (st ds.ApplyStates) 
 }
 
 func ApplyOnTurnStartHandlers(unit *ds.Unit) (st ds.ApplyStates) {
+	unit.PhantomAPUsedThisTurn = 0
+
 	for _, handler := range onTurnStarHandlers {
 		st.Add(handler(unit)...)
 	}

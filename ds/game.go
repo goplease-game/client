@@ -9,6 +9,8 @@ type GameSnapshot struct {
 	ActiveUnitID    string  `json:"active_unit_id"`
 	Round           int     `json:"round"`
 	TurnTimeSeconds int     `json:"turn_time_seconds"`
+
+	MaxPhantomAPPerUnitPerTurn int `json:"max_phantom_ap_per_unit_per_turn"`
 }
 
 type NewGamePayload struct {

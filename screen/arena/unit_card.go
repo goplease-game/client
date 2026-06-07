@@ -2,6 +2,7 @@ package arena
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -64,18 +65,18 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCard
 	c.AddToUnitLayer(icon)
 	u.Graphic = icon
 
-	c.AddToHUDLayer(hpBadge(u.CurrentHP, 40, -6))
+	c.AddToHUDLayer(hpBadge(u.CurrentHP, 36, -6))
 
 	if u.CurrentShield > 0 {
-		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 11, -6))
+		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 16, -6))
 	}
 
 	if s.activeUnitID == u.ID {
-		c.AddToHUDLayer(apBadge(u.CurrentAP))
+		//c.AddToHUDLayer(s.apBadge(u))
 	}
 
 	if canMove {
-		c.AddToHUDLayer(walkBadge())
+		c.AddToHUDLayer(walkBadge(35, 40, false))
 	}
 
 	return UnitCardRefs{Icon: icon}
@@ -83,7 +84,7 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCard
 
 // buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
 // Queue cards don't show the walk badge — that's board-only.
-func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
+func (s *Screen) buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 	var img *ebiten.Image
 	if u.HasStatus(status.Stunned) {
 		img = asset.Image(unitStunnedPic, unitIconSize)
@@ -102,49 +103,81 @@ func buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 	)
 	c.AddToUnitLayer(icon)
 
-	iconTop := -6
-	iconLeft := -6
+	hpTop := -6
+	shieldTop := -6
+	hpLeft := -6
 	if u.CurrentShield > 0 {
-		c.AddToHUDLayer(shieldBadge(u.CurrentShield, iconTop, iconLeft))
-		// move HP badge under shield badge
-		iconTop = 23
+		hpTop = 15
 	}
 
-	c.AddToHUDLayer(hpBadge(u.CurrentHP, iconTop, iconLeft))
+	c.AddToHUDLayer(hpBadge(u.CurrentHP, hpTop, hpLeft))
+
+	if u.CurrentShield > 0 {
+		c.AddToHUDLayer(shieldBadge(u.CurrentShield, shieldTop, hpLeft))
+	}
+
+	if u.ID == s.activeUnitID && !s.activeUnitMoved {
+		c.AddToHUDLayer(walkBadge(40, -15, true))
+	}
+
 	statusIcons(c, u)
 }
 
-func apBadge(ap int) *widget.Container {
+func (s *Screen) drawAPMarkers(screen *ebiten.Image, u *ds.Unit, cell *ui.HexCellWidget) {
 	const iconSize = 10
 
-	badge := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(1),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionEnd,
-				Padding:            &widget.Insets{Bottom: 5},
-			}),
-		),
-	)
-
-	img := asset.Image("ap_marker.png", iconSize)
-	for range ap {
-		badge.AddChild(widget.NewGraphic(
-			widget.GraphicOpts.Image(img),
-		))
+	total := u.CurrentAP
+	phantomAvail := 0
+	if s.player.PhantomAP > 0 {
+		phantomAvail = s.maxPhantomAPPerUnitPerTurn - u.PhantomAPUsedThisTurn
+		if phantomAvail > s.player.PhantomAP {
+			phantomAvail = s.player.PhantomAP
+		}
+	}
+	total += phantomAvail
+	if total == 0 {
+		return
 	}
 
-	return badge
+	rect := cell.CachedRect()
+	cx := float64(rect.Min.X + rect.Dx()/2)
+	cy := float64(rect.Min.Y + rect.Dy()/2)
+	r := float64(ui.HexRadius) - float64(iconSize)/2 - 1
+
+	spreadPerMarker := 15.0 * math.Pi / 180.0 // 15 degrees between markers
+	var angles []float64
+	if total == 1 {
+		angles = []float64{270 * math.Pi / 180.0}
+	} else {
+		totalSpread := float64(total-1) * spreadPerMarker
+		startAngle := 270*math.Pi/180.0 - totalSpread/2
+		for i := 0; i < total; i++ {
+			angles = append(angles, startAngle+float64(i)*spreadPerMarker)
+		}
+	}
+
+	apLeft := u.CurrentAP
+	for i, angle := range angles {
+		var img *ebiten.Image
+		if i < apLeft {
+			img = asset.Image("ap_marker.png", iconSize)
+		} else {
+			img = asset.Image("phantom_ap_marker.png", iconSize)
+		}
+
+		x := cx + r*math.Cos(angle) - float64(iconSize)/2
+		y := cy + r*math.Sin(angle) - float64(iconSize)/2
+
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(x, y+5)
+		screen.DrawImage(img, op)
+	}
 }
 
 // walkBadge returns a small container with a walk icon, anchored to the
 // bottom-left corner of the hex cell to indicate the unit can still move.
-func walkBadge() *widget.Container {
-	const iconSize = 30
+func walkBadge(top, left int, flat bool) *widget.Container {
+	const iconSize = 32
 
 	badge := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -153,7 +186,7 @@ func walkBadge() *widget.Container {
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionStart,
 				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: 35, Left: 48},
+				Padding:            &widget.Insets{Top: top, Left: left},
 			}),
 		),
 	)

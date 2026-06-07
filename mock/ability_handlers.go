@@ -63,10 +63,40 @@ func HandleAbility(data ds.UseAbilityPayload) (resp ds.ApplyStates, err error) {
 
 	unit := GetUnitByID(data.UnitID)
 	if unit == nil {
-		err = fmt.Errorf("[mock] unit not found: %s", data.AbilityID)
+		err = fmt.Errorf("[mock] unit not found: %s", data.UnitID)
 		return
 	}
+
 	ab := ability.ByID(data.AbilityID)
+
+	// Passive abilities do not consume AP.
+	if !ab.IsPassive {
+		if unit.CurrentAP > 0 {
+			unit.CurrentAP--
+			resp.Add(
+				ds.ApplyState{SetAP: new(unit.CurrentAP), ToUnitID: unit.ID},
+			)
+		} else {
+			// No AP left — try to spend from the team's Phantom AP pool.
+			player := playerOf(unit)
+			if player == nil || player.PhantomAP < 1 {
+				err = fmt.Errorf("[mock] unit %s has no AP or Phantom AP", unit.ID)
+				return
+			}
+			if unit.PhantomAPUsedThisTurn >= MaxPhantomAPPerUnitPerTurn {
+				err = fmt.Errorf("[mock] unit %s already spent max Phantom AP this turn", unit.ID)
+				return
+			}
+
+			player.PhantomAP--
+			unit.PhantomAPUsedThisTurn++
+			if player.PlayerIndex == 0 {
+				resp.Add(
+					ds.ApplyState{SetPhantomAP: new(player.PhantomAP)},
+				)
+			}
+		}
+	}
 
 	event := abilityUsed{
 		By: unit,
@@ -74,10 +104,11 @@ func HandleAbility(data ds.UseAbilityPayload) (resp ds.ApplyStates, err error) {
 		At: data.Target,
 	}
 
-	resp, err = handler(event)
+	states, err := handler(event)
 	if err != nil {
 		return
 	}
+	resp.Add(states...)
 
 	unit.SetCooldown(ab.ID, ab.Cooldown)
 	return
@@ -425,8 +456,15 @@ func dealDamageToUnit(source, target *ds.Unit, val int) (st ds.ApplyStates) {
 		st.Add(applyOnDeathHandlers(target)...)
 
 		if target.IsDead {
+			if gameState.ActiveUnitID == target.ID {
+				gameState.ActiveUnitID = ""
+			}
 			RemoveUnitFromQueue(target.ID)
 			st.Add(ds.ApplyState{IsDead: true, ToUnitID: target.ID})
+
+			// Recalculate after unit is removed from queue so counts are correct.
+			RecalculatePhantomAP()
+			st.Add(ds.ApplyState{SetPhantomAP: new(gameState.Players[0].PhantomAP)})
 		}
 	}
 

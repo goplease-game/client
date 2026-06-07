@@ -138,7 +138,12 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 	ab := ability.ByID(abilityID)
 	u.SetCooldown(ab.ID, ab.Cooldown)
 
-	u.CurrentAP--
+	if u.CurrentAP > 0 {
+		u.CurrentAP--
+	} else {
+		u.PhantomAPUsedThisTurn++
+		s.player.PhantomAP--
+	}
 
 	s.clearAbilityHighlight()
 	s.showAbilityPanel(u)

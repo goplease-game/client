@@ -32,6 +32,8 @@ type Unit struct {
 	IsOpponent bool `json:"is_opponent"`
 	IsDead     bool `json:"is_dead"`
 
+	PhantomAPUsedThisTurn int `json:"phantom_ap_used_this_turn"`
+
 	// Graphic reference to the board portrait widget, nil if not on board
 	Graphic *widget.Graphic `json:"-"`
 }

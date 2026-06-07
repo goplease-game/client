@@ -12,7 +12,9 @@ import (
 //	if I apply ChangeX, I always need to apply SetX, Change & Set can be combined into one struct?
 //	ApplyState constructors also will be simpler
 type ApplyState struct {
-	ToUnitID string `json:"to_unit_id"`
+	ToUnitID string `json:"to_unit_id,omitempty"`
+
+	SetPhantomAP *int `json:"set_phantom_ap,omitempty"`
 
 	SkipTurn bool    `json:"skip_turn,omitempty"`
 	ShowText *string `json:"show_text,omitempty"`

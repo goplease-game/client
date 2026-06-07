@@ -7,5 +7,7 @@ type Player struct {
 	PlayerIndex int    `json:"-"`     // 0 or 1
 	Units       []Unit `json:"units"` // units at hand
 
+	PhantomAP int `json:"phantom_ap"`
+
 	UnitsPlacedThisRound int
 }

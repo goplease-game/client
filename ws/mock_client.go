@@ -149,7 +149,22 @@ func (m *MockClient) onEndTurn() {
 	states := mock.HandleEndTurn()
 	m.sendApplyStates(states...)
 
-	mock.GetGameState().ActiveUnit++
+	gs := mock.GetGameState()
+	nextIdx := 0
+	if gs.ActiveUnitID != "" {
+		for i, u := range gs.UnitsQueue {
+			if u.ID == gs.ActiveUnitID {
+				nextIdx = i + 1
+				break
+			}
+		}
+	}
+
+	if nextIdx < len(gs.UnitsQueue) {
+		gs.ActiveUnitID = gs.UnitsQueue[nextIdx].ID
+	} else {
+		gs.ActiveUnitID = "" // end of queue — triggers new round
+	}
 
 	// Continue the loop after a short pause.
 	time.Sleep(mockDelay)
@@ -268,8 +283,8 @@ func (m *MockClient) runPlacementPhase() {
 	p1 := gs.Players[0]
 	p2 := gs.Players[1]
 
-	p1Done := p1.UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase || len(p1.Units) == 0
-	p2Done := p2.UnitsPlacedThisRound >= mock.UnitsPerPlacementPhase || len(p2.Units) == 0
+	p1Done := p1.UnitsPlacedThisRound >= gs.UnitsPerPlacementPhase || len(p1.Units) == 0
+	p2Done := p2.UnitsPlacedThisRound >= gs.UnitsPerPlacementPhase || len(p2.Units) == 0
 
 	if p1Done && p2Done {
 		m.startNewRound()
@@ -336,17 +351,24 @@ func (m *MockClient) startNewRound() {
 		return
 	}
 	gs.CurrentRound++
-	gs.ActiveUnit = 0
+	if len(gs.UnitsQueue) > 0 {
+		gs.ActiveUnitID = gs.UnitsQueue[0].ID
+	}
 	gs.Phase = mock.PlayPhase
+
+	for _, u := range gs.UnitsQueue {
+		u.CurrentAP = u.BaseAP
+	}
 
 	m.send(NewRound)
 
-	if mock.UnitsPerPlacementPhase >= 2 {
-		mock.UnitsPerPlacementPhase--
+	if gs.UnitsPerPlacementPhase >= 2 {
+		gs.UnitsPerPlacementPhase--
 	}
 	gs.Players[0].UnitsPlacedThisRound = 0
 	gs.Players[1].UnitsPlacedThisRound = 0
 
+	mock.RecalculatePhantomAP()
 	m.advanceGameLoop()
 }
 
