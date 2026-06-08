@@ -206,15 +206,17 @@ func applyStatusToUnit(st status.Type, from, to *ds.Unit) (sts ds.ApplyStates) {
 		}
 	}
 
-	to.AddStatus(sv)
+	// If status already exists — just refresh duration, do not call onApply again.
+	_, alreadyActive := to.Statuses[st]
 
+	to.AddStatus(sv)
 	sts.Add(ds.ApplyState{
 		AddStatus:     new(st),
 		AddStatusMeta: sv.Meta,
 		ToUnitID:      to.ID,
 	})
 
-	if statusH != nil && statusH.onApply != nil {
+	if !alreadyActive && statusH != nil && statusH.onApply != nil {
 		sts.Add(statusH.onApply(from, to, sv)...)
 	}
 

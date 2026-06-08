@@ -255,7 +255,7 @@ func purifyHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 		}
 	}
 
-	sts.Add(healUnit(target, e.Ab.Effect.AddHP)...)
+	sts.Add(healUnit(target, e.Ab.Effect.HealHP)...)
 	sts.Add(applyStatusToUnit(e.Ab.Effect.ApplyStatus, e.By, target)...)
 
 	return
@@ -264,7 +264,7 @@ func purifyHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 func healHandler(e abilityUsed) (ds.ApplyStates, error) {
 	target := mustUnitAt(e.At)
 
-	st := healUnit(target, e.Ab.Effect.AddHP)
+	st := healUnit(target, e.Ab.Effect.HealHP)
 	return st, nil
 }
 
@@ -284,12 +284,18 @@ func equalizeHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	remainder := sumHP - eq*count
 
 	for _, u := range units {
-		if u.CurrentHP == eq {
+		// Clamp target HP to unit's max to prevent overheal.
+		target := eq
+		if target > u.BaseHP {
+			target = u.BaseHP
+		}
+
+		if u.CurrentHP == target {
 			continue
 		}
 
-		changeBy := eq - u.CurrentHP
-		u.CurrentHP = eq
+		changeBy := target - u.CurrentHP
+		u.CurrentHP = target
 
 		sts.Add(
 			ds.ApplyState{
@@ -306,6 +312,9 @@ func equalizeHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	if remainder > 0 {
 		for i := 0; i < remainder; i++ {
 			u := units[i%count]
+			if u.CurrentHP >= u.BaseHP {
+				continue
+			}
 			u.CurrentHP++
 
 			for j, v := range sts {
@@ -567,7 +576,7 @@ func findAlliesInRange(u *ds.Unit, radius int) []*ds.Unit {
 	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		unit := GetUnitAt(c)
-		if unit != nil && unit.IsAlly(u) {
+		if unit != nil && !unit.IsDead && unit.IsAlly(u) {
 			units = append(units, unit)
 		}
 	}
@@ -581,7 +590,7 @@ func findEnemiesInRange(u *ds.Unit, radius int) []*ds.Unit {
 	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		unit := GetUnitAt(c)
-		if unit != nil && unit.IsEnemy(u) {
+		if unit != nil && !unit.IsDead && unit.IsEnemy(u) {
 			units = append(units, unit)
 		}
 	}

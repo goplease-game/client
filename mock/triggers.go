@@ -240,7 +240,7 @@ func useBottomlessVialAbility(_, target *ds.Unit) (st ds.ApplyStates) {
 		}
 
 		u.SetCooldown(id, ab.Cooldown)
-		target.BaseHP++
+		target.BaseHP += ab.Effect.AddHP
 
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    target.ID,
@@ -248,6 +248,7 @@ func useBottomlessVialAbility(_, target *ds.Unit) (st ds.ApplyStates) {
 			Target:    target.Pos,
 		}), ToUnitID: target.ID})
 		st.Add(ds.ApplyState{SetBaseHP: new(target.BaseHP), ToUnitID: target.ID})
+		st.Add(healUnit(target, ab.Effect.HealHP)...)
 
 		return // apply only once
 	}

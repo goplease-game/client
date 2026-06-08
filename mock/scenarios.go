@@ -610,7 +610,7 @@ func scenarioJulyEqualize(u *ds.Unit) []SimAction {
 	healGain := avg - minHP
 
 	// Only use Equalize if it heals the worst-off ally more than a regular Heal.
-	if healGain <= ab.ByID(ab.Heal).Effect.AddHP {
+	if healGain <= ab.ByID(ab.Heal).Effect.HealHP {
 		return nil
 	}
 
