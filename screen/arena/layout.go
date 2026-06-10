@@ -368,7 +368,9 @@ func (s *Screen) createGameMenu() *widget.Container {
 
 	menu.AddChild(s.menuButton("Surrender", func(args *widget.ButtonClickedEventArgs) {
 		s.closeGameMenu()
-		// TODO: s.onSurrender()
+		s.server.Send(ws.OutMessage{
+			Action: ws.Surrender,
+		})
 	}))
 	menu.AddChild(s.menuButton("Exit", func(args *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.OnExitScreen()

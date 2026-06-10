@@ -7,11 +7,12 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"golang.org/x/image/colornames"
 )
 
 // showGameOverOverlay displays the game-over overlay with the given title.
 // Creates the overlay lazily on first call.
-func (s *Screen) showGameOverOverlay(win bool) {
+func (s *Screen) showGameOverOverlay(win bool, explain string) {
 	title := "You Lose"
 	titleColor := gameOverLoseColor
 	if win {
@@ -55,6 +56,18 @@ func (s *Screen) showGameOverOverlay(win bool) {
 		),
 	))
 
+	if explain != "" {
+		tf := ui.TextFaceBold(20)
+		panel.AddChild(widget.NewText(
+			widget.TextOpts.Text(explain, &tf, colornames.Whitesmoke),
+			widget.TextOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+					Position: widget.RowLayoutPositionCenter,
+				}),
+			),
+		))
+	}
+
 	buttons := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
@@ -70,6 +83,8 @@ func (s *Screen) showGameOverOverlay(win bool) {
 	buttons.AddChild(s.menuButton("Play Again", func(_ *widget.ButtonClickedEventArgs) {
 		if s.OnRestartScreen != nil {
 			s.nextScreen = s.OnRestartScreen()
+		} else {
+			printD("Play Again: OnRestartScreen is not set")
 		}
 	}))
 	buttons.AddChild(s.menuButton("Main Menu", func(_ *widget.ButtonClickedEventArgs) {

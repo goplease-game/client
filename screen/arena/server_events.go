@@ -83,9 +83,13 @@ func (s *Screen) handleServerError(data json.RawMessage) {
 func (s *Screen) handleGameOver(reason ws.Action) {
 	switch reason {
 	case ws.YouWin, ws.OpponentSurrendered:
-		s.showGameOverOverlay(true)
+		var explain string
+		if reason == ws.OpponentSurrendered {
+			explain = "Your opponent surrendered"
+		}
+		s.showGameOverOverlay(true, explain)
 	case ws.YouLose:
-		s.showGameOverOverlay(false)
+		s.showGameOverOverlay(false, "")
 	}
 }
 

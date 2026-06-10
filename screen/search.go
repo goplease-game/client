@@ -1,12 +1,12 @@
 package screen
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	stdImage "image"
 	"image/color"
 	"log"
+	"math/rand"
 
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
@@ -19,18 +19,105 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
-	"github.com/setanarut/anim"
 	"golang.org/x/image/colornames"
 )
-
-var animPlayer *anim.AnimationPlayer
 
 const (
 	ConnectingLabel   = "Connecting..."
 	SearchingOppLabel = "Searching for opponent…"
 	ConnErrorLabel    = "Connection error. Press Esc to go back."
+
+	unitCount = 6
+
+	// fadeDuration — тики fade-out в конце пути.
+	fadeDuration = 30
+	// travelTicks — полная длина пути юнита (включая fade-out в конце).
+	travelTicks = 90
+	// spawnAt — тик, на котором спавнится следующий юнит (примерно середина пути).
+	spawnAt = travelTicks / 2
 )
 
+var searchOppUnitColors = []color.Color{
+	ui.RGBFromHex("B5BAFF"),
+	ui.RGBFromHex("AEE2FF"),
+	ui.RGBFromHex("7AE2CF"),
+	ui.RGBFromHex("FF6060"),
+	ui.RGBFromHex("7288AE"),
+	ui.RGBFromHex("4BB8FA"),
+	ui.RGBFromHex("9FCBAD"),
+	ui.RGBFromHex("FFC94D"),
+	ui.RGBFromHex("A2CB8B"),
+	ui.RGBFromHex("C0E1D2"),
+	ui.RGBFromHex("F0FFC2"),
+	ui.RGBFromHex("F08D39"),
+	ui.RGBFromHex("FAACBF"),
+	ui.RGBFromHex("76D2DB"),
+}
+
+// unitAnim описывает один юнит, летящий через контейнер.
+type unitAnim struct {
+	img         *ebiten.Image
+	tick        int
+	alpha       float32
+	x           float64
+	startX      float64
+	endX        float64
+	centerY     float64
+	spawnedNext bool // следующий юнит уже заспавнен
+}
+
+func (a *unitAnim) init(containerW, containerH float64) {
+	idx := rand.Intn(unitCount) + 1
+	col := searchOppUnitColors[rand.Intn(len(searchOppUnitColors))]
+	img := asset.TintedImage(fmt.Sprintf("units/unit_%d_pic.png", idx), col, 64)
+	a.img = ebiten.NewImageFromImage(img)
+	iw := float64(a.img.Bounds().Dx())
+	ih := float64(a.img.Bounds().Dy())
+
+	a.tick = 0
+	a.alpha = 1
+	a.startX = -iw
+	a.endX = containerW
+	a.x = a.startX
+	a.centerY = (containerH - ih) / 2
+	a.spawnedNext = false
+}
+
+// update продвигает юнит на один тик.
+// Возвращает true, когда юнит полностью завершил путь.
+func (a *unitAnim) update() bool {
+	if a.img == nil {
+		return true
+	}
+	a.tick++
+
+	progress := float64(a.tick) / float64(travelTicks)
+	a.x = a.startX + (a.endX-a.startX)*progress
+
+	// Fade-out начинается за fadeDuration тиков до конца.
+	fadeStart := travelTicks - fadeDuration
+	if a.tick >= fadeStart {
+		a.alpha = 1 - float32(a.tick-fadeStart)/float32(fadeDuration)
+	}
+
+	return a.tick >= travelTicks
+}
+
+// draw рисует юнит поверх экрана с учётом позиции контейнера.
+func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) {
+	if a.img == nil {
+		return
+	}
+	op := &ebiten.DrawImageOptions{}
+	op.ColorScale.ScaleAlpha(a.alpha)
+	op.GeoM.Translate(
+		float64(containerRect.Min.X)+a.x,
+		float64(containerRect.Min.Y)+a.centerY,
+	)
+	screen.DrawImage(a.img, op)
+}
+
+// SearchScreen — экран поиска оппонента.
 type SearchScreen struct {
 	server          ws.Client
 	ui              *ebitenui.UI
@@ -38,8 +125,11 @@ type SearchScreen struct {
 	elapsedLbl      *widget.Text
 	animPlaceholder *widget.Container
 	tick            int
+	units           []*unitAnim
+	animReady       bool
 }
 
+// NewSearchScreen создаёт и инициализирует SearchScreen.
 func NewSearchScreen(server ws.Client) *SearchScreen {
 	s := &SearchScreen{
 		server: server,
@@ -47,25 +137,11 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 
 	s.server.Connect(uuid.New().String())
 
-	runner := asset.Load("runner.png")
-
-	img, _, err := stdImage.Decode(bytes.NewReader(runner))
-	if err != nil {
-		log.Fatal(err)
-	}
-	spriteSheet := anim.Atlas{
-		Name:  "Default",
-		Image: ebiten.NewImageFromImage(img),
-	}
-	animPlayer = anim.NewAnimationPlayer(spriteSheet)
-	animPlayer.NewAnim("run", 0, 0, 128, 128, 8, false, false, 12)
-
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
-	// Central column: animation placeholder + status + elapsed
 	center := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
@@ -80,14 +156,13 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 		),
 	)
 
-	// placeholder for a runner animation
 	animPlaceholder := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Position: widget.RowLayoutPositionCenter,
 			}),
-			widget.WidgetOpts.MinSize(128, 128),
+			widget.WidgetOpts.MinSize(300, 128),
 		),
 	)
 
@@ -156,10 +231,53 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
+// spawnUnit appends a new unit to the active list.
+func (s *SearchScreen) spawnUnit() {
+	rect := s.animPlaceholder.GetWidget().Rect
+	a := &unitAnim{}
+	a.init(float64(rect.Dx()), float64(rect.Dy()))
+	s.units = append(s.units, a)
+}
+
+// updateUnits advances all active units, spawns the next one when the current
+// reaches the midpoint, and removes units that have finished their path.
+func (s *SearchScreen) updateUnits() {
+	var spawned []*unitAnim
+
+	alive := s.units[:0]
+	for _, a := range s.units {
+		done := a.update()
+
+		if !a.spawnedNext && a.tick >= spawnAt {
+			a.spawnedNext = true
+			rect := s.animPlaceholder.GetWidget().Rect
+			next := &unitAnim{}
+			next.init(float64(rect.Dx()), float64(rect.Dy()))
+			spawned = append(spawned, next)
+		}
+
+		if !done {
+			alive = append(alive, a)
+		}
+	}
+
+	s.units = append(alive, spawned...)
+}
+
+// Update обновляет логику экрана на каждом тике.
 func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
-	animPlayer.Update()
+
+	if !s.animReady {
+		rect := s.animPlaceholder.GetWidget().Rect
+		if rect.Dx() > 0 {
+			s.animReady = true
+			s.spawnUnit()
+		}
+	} else {
+		s.updateUnits()
+	}
 
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
@@ -195,6 +313,7 @@ func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	}
 }
 
+// handleMessage обрабатывает входящие сообщения от сервера.
 func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	fmt.Printf("[search] received: %v\n", msg.Action)
 	if msg.Data != nil {
@@ -226,19 +345,13 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	return nil
 }
 
+// Draw отрисовывает экран и всех активных юнитов.
 func (s *SearchScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
-
-	frame := animPlayer.CurrentFrame
-	rect := s.animPlaceholder.GetWidget().Rect
-	fw := frame.Bounds().Dx()
-	fh := frame.Bounds().Dy()
-
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(
-		float64(rect.Min.X+rect.Dx()/2-fw/2),
-		float64(rect.Min.Y+rect.Dy()/2-fh/2),
-	)
-
-	screen.DrawImage(frame, op)
+	if s.animReady {
+		rect := s.animPlaceholder.GetWidget().Rect
+		for _, a := range s.units {
+			a.draw(screen, rect)
+		}
+	}
 }

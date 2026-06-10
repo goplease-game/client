@@ -22,6 +22,10 @@ func NewArenaScreen(snap ds.GameSnapshot, server ws.Client, isPractice bool) gam
 		ar.OnRestartScreen = func() game.Screen {
 			return newPracticeScreen()
 		}
+	} else {
+		ar.OnRestartScreen = func() game.Screen {
+			return NewSearchScreen(server)
+		}
 	}
 
 	s := &ArenaScreen{
