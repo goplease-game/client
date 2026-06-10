@@ -20,6 +20,7 @@ UI/UX improvement (in not specific order, just ideas):
 - [ ] keyboard shortcuts
 
 Code & Project architecture
+- [ ] Use code from server's repo to handle mock server
 - [ ] Refactor "SafeZone" into "UnitPlacementZone" (only naming, as is more obvious)
 
 NEXT (in not specific order, just ideas):

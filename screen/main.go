@@ -77,8 +77,6 @@ func NewMainScreen(server ws.Client) *MainScreen {
 	return s
 }
 
-func (s *MainScreen) OnEnter(_ *game.Game) {}
-
 func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 	if s.exit {
 		return nil, ebiten.Termination

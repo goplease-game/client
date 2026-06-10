@@ -51,7 +51,6 @@ const (
 	ReadyToPlay        Action = "ready_to_play"
 	WaitingForOpponent Action = "waiting_for_opponent"
 	EndTurnAction      Action = "end_turn"
-	EndRoundAction     Action = "end_round"
 	PlaceUnitAction    Action = "place_unit"
 	UnitPlacedAction   Action = "unit_placed"
 	PlayUnitAction     Action = "play_unit"

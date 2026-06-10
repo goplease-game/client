@@ -238,18 +238,18 @@ func (m *MockClient) advanceGameLoop() {
 // If the unit belongs to the real player, send play_unit and return (wait for player input).
 // If it belongs to the mock, simulate the move and continue the loop.
 func (m *MockClient) playUnit(unit *ds.Unit) {
-	sts := mock.ApplyOnTurnStartHandlers(unit)
+	state := mock.ApplyOnTurnStartHandlers(unit)
 
 	if unit.OwnerID != mock.MockedPlayerID {
 		m.sendPlayUnit(unit.ID)
-		m.sendApplyStates(sts...)
+		m.sendApplyStates(state...)
 
 		return
 	}
 
 	// pretend opponent is playing
 	m.send(WaitingForOpponent)
-	for _, st := range sts {
+	for _, st := range state {
 		if st.SkipTurn {
 			m.onEndTurn()
 			return

@@ -131,6 +131,7 @@ var Abilities = map[ID]Ability{
 		Name:        "Undying Will",
 		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 5 Shield.",
 		Cooldown:    5,
+		Effect:      Effect{HealHP: 1, AddShield: 10},
 	},
 
 	// --- WARRIOR ---

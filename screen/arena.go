@@ -31,8 +31,6 @@ func NewArenaScreen(snap ds.GameSnapshot, server ws.Client, isPractice bool) gam
 	return s
 }
 
-func (s *ArenaScreen) OnEnter(_ *game.Game) {}
-
 func (s *ArenaScreen) Update(g *game.Game) (game.Screen, error) {
 	return s.arena.Update(g)
 }

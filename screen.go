@@ -5,9 +5,6 @@ import "github.com/hajimehoshi/ebiten/v2"
 // Screen represents one logical screen in the game.
 // The main Game delegates Update/Draw to the active screen.
 type Screen interface {
-	// OnEnter is called once when this screen becomes active.
-	// Use it for initialization that requires game context (server connect, etc).
-	OnEnter(g *Game)
 
 	// Update is called every tick (TPS = 60 by default).
 	// Returns the next Screen to display, or itself to stay on the same screen.

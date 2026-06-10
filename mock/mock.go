@@ -96,7 +96,7 @@ func NewGameState(data ds.NewGamePayload) *GameState {
 	}
 
 	gameState = &GameState{
-		RoomID:                 data.RoomID,
+		RoomID:                 data.ArenaID,
 		Board:                  data.Board,
 		Players:                [2]*ds.Player{p1, p2},
 		UnitsQueue:             []*ds.Unit{},
@@ -173,7 +173,7 @@ func RestoreGameState(name string, snap ds.GameSnapshot) *GameState {
 	p1.Units = p1Units
 
 	gameState = &GameState{
-		RoomID:                 snap.RoomID,
+		RoomID:                 snap.ArenaID,
 		Board:                  snap.Board,
 		Players:                [2]*ds.Player{&p1, p2},
 		UnitsQueue:             snap.UnitsQueue,
@@ -213,7 +213,7 @@ func LoadScenario(name scenario.Name) ds.GameSnapshot {
 	sc2 := scenario.Copy(sc)
 
 	snap := ds.GameSnapshot{
-		RoomID:                     sc2.ID,
+		ArenaID:                    sc2.ID,
 		Board:                      sc2.Board,
 		Player:                     *sc2.P1,
 		OpponentName:               "Richard To Blame",

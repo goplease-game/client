@@ -71,6 +71,7 @@ func ApplyOnTurnStartHandlers(unit *ds.Unit) (st ds.ApplyStates) {
 
 func useUndyingWillAbility(u *ds.Unit) (st ds.ApplyStates) {
 	id := ability.UndyingWill
+	ab := ability.ByID(id)
 	if !u.HasAbility(id) {
 		return
 	}
@@ -79,12 +80,11 @@ func useUndyingWillAbility(u *ds.Unit) (st ds.ApplyStates) {
 		return
 	}
 
-	u.CurrentHP = 1
-	u.CurrentShield = 5
+	u.CurrentHP = ab.Effect.HealHP
+	u.CurrentShield = ab.Effect.AddShield
 	u.IsDead = false
 
-	ab := ability.ByID(id)
-	u.Cooldowns[id] = ab.Cooldown
+	u.SetCooldown(id, ab.Cooldown)
 
 	st.Add(
 		ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{UnitID: u.ID, AbilityID: id}), ToUnitID: u.ID},

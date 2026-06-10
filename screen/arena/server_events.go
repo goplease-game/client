@@ -14,7 +14,7 @@ import (
 
 // handleServerMessage dispatches an incoming server message to the appropriate handler.
 func (s *Screen) handleServerMessage(msg ws.InMessage) {
-	fmt.Printf("received: %v\n", msg.Action)
+	fmt.Printf("[arena] received: %v\n", msg.Action)
 	if msg.Data != nil {
 		fmt.Printf("JSON: %s\n", string(msg.Data))
 	}
@@ -26,8 +26,6 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleGameOver(msg.Action)
 	case ws.PlaceUnitAction:
 		s.handlePlaceUnit()
-	case ws.EndRoundAction:
-		s.handleEndRound()
 	case ws.EndTurnAction:
 		s.handleEndTurn()
 	case ws.PlayUnitAction:
@@ -69,6 +67,7 @@ func (s *Screen) handlePlaceUnit() {
 		s.setStatus("Deploy a unit to the board")
 	}
 
+	s.hideNextAction()
 	s.startTurnTimer()
 }
 
@@ -88,16 +87,6 @@ func (s *Screen) handleGameOver(reason ws.Action) {
 	case ws.YouLose:
 		s.showGameOverOverlay(false)
 	}
-}
-
-// handleEndRound is called when the round ends and the player may finish their turn.
-func (s *Screen) handleEndRound() {
-	s.setNextActionLabel("END\nROUND")
-	s.enableNextActionBtn()
-	s.endTurnBtnPulseActive = true
-	s.setStatus("You can end your turn")
-	s.activeUnitID = ""
-	s.highlightActiveUnit()
 }
 
 // handleEndTurn is called when the server signals the player may end their turn.
@@ -134,9 +123,11 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.deselectUnit()
 	s.highlightActiveUnit()
 	s.showAbilityPanel(unit)
-	s.setNextActionLabel("SKIP\nTURN")
 	s.enableNextActionBtn()
 	s.updateActiveUnitStatusLabel()
+
+	s.showNextActionBtn()
+	s.updateNextActionLabel()
 
 	s.startTurnTimer()
 	s.ready = true
@@ -144,7 +135,10 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
 func (s *Screen) handleWaitingForOpponent() {
+	s.activeUnitID = ""
 	s.hideAbilityPanel()
+	s.hideUnitPanel()
+	s.showNextActionHourglass()
 	s.setStatus("Waiting for opponent...")
 }
 
@@ -222,18 +216,15 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		log.Fatal("handleApplyState unmarshal:", err)
 	}
 
+	var skipTurn bool
+
 	// Apply state data immediately (HP, AP, statuses etc).
 	for _, st := range payload {
-		if st.ToUnitID == "" {
-			log.Printf("payload %s\nmissing ToUnitID\n", string(data))
-		}
-
 		if st.SkipTurn && st.ToUnitID == s.activeUnitID {
-			s.server.Send(ws.OutMessage{
-				Action: ws.EndTurnAction,
-			})
-
-			return
+			unit := s.unitByID(st.ToUnitID)
+			if unit != nil && !unit.IsOpponent {
+				skipTurn = true
+			}
 		}
 
 		if st.SetPhantomAP != nil {
@@ -260,6 +251,11 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		if target := s.unitByID(st.ToUnitID); target != nil {
 			s.applyStateVisuals(target, st)
 		}
+	}
+
+	if skipTurn {
+		s.handleWaitingForOpponent()
+		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 	}
 }
 
@@ -297,7 +293,10 @@ func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
 	}
 	if st.SetAP != nil {
 		target.CurrentAP = *st.SetAP
-		s.showAbilityPanel(target)
+		if target.ID == s.activeUnitID && !target.IsOpponent {
+			s.showAbilityPanel(target)
+			s.updateNextActionLabel()
+		}
 	}
 	if st.SetMP != nil {
 		target.CurrentMP = *st.SetMP

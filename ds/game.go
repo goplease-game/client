@@ -1,7 +1,7 @@
 package ds
 
 type GameSnapshot struct {
-	RoomID          string  `json:"room_id"`
+	ArenaID         string  `json:"arena_id"`
 	Board           Board   `json:"board"`
 	Player          Player  `json:"player"`
 	OpponentName    string  `json:"opponent_name"`
@@ -14,7 +14,7 @@ type GameSnapshot struct {
 }
 
 type NewGamePayload struct {
-	RoomID          string  `json:"room_id"`
+	ArenaID         string  `json:"arena_id"`
 	Board           Board   `json:"board"`
 	Player          *Player `json:"player"`
 	Opponent        string  `json:"opponent"`

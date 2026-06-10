@@ -520,3 +520,13 @@ func getProvokingUnitID(u *ds.Unit) string {
 	}
 	return provoker
 }
+
+// hideUnitPanel removes the unit panel from the footer if it is currently shown.
+func (s *Screen) hideUnitPanel() {
+	if !s.unitPanelIn || s.unitPanelRef == nil {
+		return
+	}
+	s.footerRef.RemoveChild(s.unitPanelRef)
+	s.unitPanelRef = nil
+	s.unitPanelIn = false
+}

@@ -11,6 +11,7 @@ import (
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/google/uuid"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
@@ -43,6 +44,8 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	s := &SearchScreen{
 		server: server,
 	}
+
+	s.server.Connect(uuid.New().String())
 
 	runner := asset.Load("runner.png")
 
@@ -153,10 +156,6 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
-func (s *SearchScreen) OnEnter(g *game.Game) {
-	g.Server.Connect(g.PlayerID)
-}
-
 func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
@@ -197,6 +196,11 @@ func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 }
 
 func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
+	fmt.Printf("[search] received: %v\n", msg.Action)
+	if msg.Data != nil {
+		fmt.Printf("JSON: %s\n", string(msg.Data))
+	}
+
 	switch msg.Action {
 	case ws.SearchingOppAction:
 		s.statusLbl.Label = SearchingOppLabel
@@ -206,7 +210,7 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			log.Fatalf("new game: failed to unmarshal: %v", err)
 		}
 		snap := ds.GameSnapshot{
-			RoomID:          data.RoomID,
+			ArenaID:         data.ArenaID,
 			Board:           data.Board,
 			Player:          *data.Player,
 			OpponentName:    data.Opponent,

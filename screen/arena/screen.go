@@ -39,7 +39,6 @@ type Screen struct {
 	isMyTurn           bool
 	unitsQueue         []*ds.Unit
 	activeUnitID       string
-	activeUnitIndex    int
 	prevActiveUnitID   string
 	roundNumber        int
 	unitPlacedThisTurn bool
@@ -130,6 +129,8 @@ type Screen struct {
 
 	OnExitScreen    func() game.Screen
 	OnRestartScreen func() game.Screen
+
+	nextActionHourglass *widget.Graphic
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -138,7 +139,7 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 		snapshot:        snap,
 		server:          server,
 		board:           snap.Board,
-		roomID:          snap.RoomID,
+		roomID:          snap.ArenaID,
 		player:          snap.Player,
 		opponentName:    snap.OpponentName,
 		unitsQueue:      snap.UnitsQueue,
@@ -157,8 +158,6 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 
 	return s
 }
-
-func (s *Screen) OnEnter(_ *game.Game) {}
 
 // Update processes server messages, handles input, and advances all animations.
 // Implements game.Screen.
@@ -448,7 +447,7 @@ func (s *Screen) updateActiveUnitStatusLabel() {
 // Used before navigating away from the screen so state can be restored.
 func (s *Screen) takeSnapshot() ds.GameSnapshot {
 	return ds.GameSnapshot{
-		RoomID:       s.roomID,
+		ArenaID:      s.roomID,
 		Board:        s.board,
 		Player:       s.player,
 		OpponentName: s.opponentName,
@@ -536,6 +535,7 @@ func (s *Screen) drawCellCoordinates(screen *ebiten.Image) {
 	}
 }
 
+// this is what laziness has done to me
 func printD(str string, args ...any) {
 	if config.Get().DevMode.Enabled {
 		fmt.Printf(str+"\n", args...)

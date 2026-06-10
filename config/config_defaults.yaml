@@ -1,4 +1,4 @@
-resolution: 1200x860
+resolution: 1000x660
 server_addr: localhost:8080
 
 dev_mode:

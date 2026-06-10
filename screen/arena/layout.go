@@ -6,6 +6,7 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
@@ -90,15 +91,60 @@ func (s *Screen) createFooter() *widget.Container {
 		),
 	)
 
-	btn := s.buildNextMoveButton()
-	btn.GetWidget().LayoutData = widget.AnchorLayoutData{
+	actionWidget := s.buildNextActionWidget()
+	actionWidget.GetWidget().LayoutData = widget.AnchorLayoutData{
 		HorizontalPosition: widget.AnchorLayoutPositionEnd,
 		VerticalPosition:   widget.AnchorLayoutPositionCenter,
 		Padding:            &widget.Insets{Right: 12},
 	}
-	footer.AddChild(btn)
+	footer.AddChild(actionWidget)
 
 	return footer
+}
+
+// buildNextActionWidget builds a fixed-size container that holds both the Next
+// button and the hourglass graphic. Only one is visible at a time; use
+// showNextActionBtn and showNextActionHourglass to switch between them.
+func (s *Screen) buildNextActionWidget() *widget.Container {
+	const size = 80
+
+	wrapper := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(size, size),
+		),
+	)
+
+	s.buildNextMoveButton()
+	s.nextActionBtn.GetWidget().LayoutData = widget.AnchorLayoutData{
+		StretchHorizontal: true,
+		StretchVertical:   true,
+	}
+	wrapper.AddChild(s.nextActionBtn)
+
+	hourglassImg := asset.Image("hourglass.png", size)
+	s.nextActionHourglass = widget.NewGraphic(
+		widget.GraphicOpts.Image(hourglassImg),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+	s.nextActionHourglass.GetWidget().SetVisibility(widget.Visibility_Hide)
+	wrapper.AddChild(s.nextActionHourglass)
+
+	return wrapper
+}
+
+// hideNextAction hides both the Next button and the hourglass graphic.
+// Call this during phases where no action widget should be visible,
+// such as the unit placement phase.
+func (s *Screen) hideNextAction() {
+	s.stopEndTurnPulse()
+	s.nextActionBtn.GetWidget().SetVisibility(widget.Visibility_Hide)
+	s.nextActionHourglass.GetWidget().SetVisibility(widget.Visibility_Hide)
 }
 
 // createStatusBar builds the thin bar above the footer that shows game status text.
@@ -123,7 +169,7 @@ func (s *Screen) createStatusBar() *widget.Container {
 
 // buildNextMoveButton creates the Next/End Turn button and stores it in s.nextActionBtn.
 // The button starts disabled and is enabled when it becomes the player's turn.
-func (s *Screen) buildNextMoveButton() *widget.Button {
+func (s *Screen) buildNextMoveButton() {
 	const size = 80
 	tf := ui.TextFace(18)
 
@@ -147,7 +193,6 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 			}
 			if !s.ready {
 				printD("NOT READY")
-
 				return
 			}
 			s.stopEndTurnPulse()
@@ -168,7 +213,21 @@ func (s *Screen) buildNextMoveButton() *widget.Button {
 
 	btn.GetWidget().Disabled = true
 	s.nextActionBtn = btn
-	return btn
+}
+
+// showNextActionBtn switches the action widget to show the Next button,
+// hiding the hourglass. Call this when it becomes the player's turn.
+func (s *Screen) showNextActionBtn() {
+	s.nextActionHourglass.GetWidget().SetVisibility(widget.Visibility_Hide)
+	s.nextActionBtn.GetWidget().SetVisibility(widget.Visibility_Show)
+}
+
+// showNextActionHourglass switches the action widget to show the hourglass
+// graphic, hiding the Next button. Call this while waiting for the opponent.
+func (s *Screen) showNextActionHourglass() {
+	s.stopEndTurnPulse()
+	s.nextActionBtn.GetWidget().SetVisibility(widget.Visibility_Hide)
+	s.nextActionHourglass.GetWidget().SetVisibility(widget.Visibility_Show)
 }
 
 // pulseEndTurnBtn updates the Next button border colour for the current pulse frame.
@@ -242,15 +301,32 @@ func (s *Screen) enableNextActionBtn() {
 	}
 }
 
-// updateNextActionLabel sets the Next button label based on
-// whether the unit has exhausted both movement and AP.
+// updateNextActionLabel sets the Next button label and pulse state based on
+// what the active unit has done this turn. Must be called after any action
+// that changes activeUnitMoved or the unit's AP.
 func (s *Screen) updateNextActionLabel() {
 	u := s.unitByID(s.activeUnitID)
+	if u == nil {
+		return
+	}
 
-	if u == nil || (s.activeUnitMoved && s.unitCanAct(u)) {
+	canAct := s.unitCanAct(u)
+
+	switch {
+	case s.activeUnitMoved && !canAct:
+		// Unit has both moved and spent all AP — pulse to signal the turn is fully done.
 		s.setNextActionLabel("END\nTURN")
-	} else {
+		if !s.endTurnBtnPulseActive {
+			s.endTurnBtnPulseActive = true
+		}
+	case s.activeUnitMoved || !canAct:
+		// Unit has done something but not exhausted all actions — END TURN without pulse.
+		s.setNextActionLabel("END\nTURN")
+		s.stopEndTurnPulse()
+	default:
+		// Unit has not acted yet this turn — offer SKIP TURN without pulse.
 		s.setNextActionLabel("SKIP\nTURN")
+		s.stopEndTurnPulse()
 	}
 }
 
