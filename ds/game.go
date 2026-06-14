@@ -14,11 +14,12 @@ type GameSnapshot struct {
 }
 
 type NewGamePayload struct {
-	ArenaID         string  `json:"arena_id"`
-	Board           Board   `json:"board"`
-	Player          *Player `json:"player"`
-	Opponent        string  `json:"opponent"`
-	TurnTimeSeconds int     `json:"turn_time_seconds"` // 0 = no timer
+	ArenaID                    string  `json:"arena_id"`
+	Board                      Board   `json:"board"`
+	Player                     *Player `json:"player"`
+	Opponent                   string  `json:"opponent"`
+	TurnTimeSeconds            int     `json:"turn_time_seconds"` // 0 = no timer
+	MaxPhantomAPPerUnitPerTurn int     `json:"max_phantom_ap_per_unit_per_turn"`
 }
 
 type ErrorResponse struct {

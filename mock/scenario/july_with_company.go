@@ -33,7 +33,7 @@ func julyWithBadCompany() *Scenario {
 		UnitID:   fletch.ID,
 		Duration: 1,
 		Value:    1,
-		Status:   status.ByType(status.Exposed),
+		Status:   status.ByType(status.Marked),
 	})
 	fletch.CurrentHP = 8
 

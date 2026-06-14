@@ -100,14 +100,15 @@ func (u *Unit) ReachableCells(board Board) []HexCoord {
 	}
 
 	visited := make(map[HexCoord]int)
+	visited[u.Pos] = 0
+
 	queue := []node{{u.Pos, 0}}
+	result := make([]HexCoord, 0)
 
 	dirs := []HexCoord{
 		{+1, 0}, {+1, -1}, {0, -1},
 		{-1, 0}, {-1, +1}, {0, +1},
 	}
-
-	result := make([]HexCoord, 0)
 
 	for len(queue) > 0 {
 		cur := queue[0]
@@ -119,13 +120,11 @@ func (u *Unit) ReachableCells(board Board) []HexCoord {
 				R: cur.pos.R + d.R,
 			}
 
-			// exists?
 			cell, ok := board.Cells[next]
 			if !ok {
 				continue
 			}
 
-			// blocked by unit
 			if cell.Unit != nil && next != u.Pos {
 				continue
 			}
@@ -143,7 +142,9 @@ func (u *Unit) ReachableCells(board Board) []HexCoord {
 			visited[next] = newCost
 			queue = append(queue, node{next, newCost})
 
-			result = append(result, next)
+			if !seen {
+				result = append(result, next)
+			}
 		}
 	}
 

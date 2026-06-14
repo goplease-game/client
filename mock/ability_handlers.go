@@ -420,7 +420,7 @@ func dealDamageToUnit(source, target *ds.Unit, val int) (st ds.ApplyStates) {
 		}
 	}()
 
-	eff, ok := target.Statuses[status.Exposed]
+	eff, ok := target.Statuses[status.Marked]
 	if ok {
 		val += eff.Value
 	}

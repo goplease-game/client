@@ -27,14 +27,10 @@ const (
 	SearchingOppLabel = "Searching for opponent…"
 	ConnErrorLabel    = "Connection error. Press Esc to go back."
 
-	unitCount = 6
-
-	// fadeDuration — тики fade-out в конце пути.
+	unitCount    = 6
 	fadeDuration = 30
-	// travelTicks — полная длина пути юнита (включая fade-out в конце).
-	travelTicks = 90
-	// spawnAt — тик, на котором спавнится следующий юнит (примерно середина пути).
-	spawnAt = travelTicks / 2
+	travelTicks  = 90
+	spawnAt      = travelTicks / 2
 )
 
 var searchOppUnitColors = []color.Color{
@@ -54,7 +50,7 @@ var searchOppUnitColors = []color.Color{
 	ui.RGBFromHex("76D2DB"),
 }
 
-// unitAnim описывает один юнит, летящий через контейнер.
+// unitAnim holds the state of a single unit travelling across the placeholder container.
 type unitAnim struct {
 	img         *ebiten.Image
 	tick        int
@@ -63,9 +59,10 @@ type unitAnim struct {
 	startX      float64
 	endX        float64
 	centerY     float64
-	spawnedNext bool // следующий юнит уже заспавнен
+	spawnedNext bool
 }
 
+// init loads a random tinted unit image and resets all movement state for a new pass.
 func (a *unitAnim) init(containerW, containerH float64) {
 	idx := rand.Intn(unitCount) + 1
 	col := searchOppUnitColors[rand.Intn(len(searchOppUnitColors))]
@@ -83,8 +80,7 @@ func (a *unitAnim) init(containerW, containerH float64) {
 	a.spawnedNext = false
 }
 
-// update продвигает юнит на один тик.
-// Возвращает true, когда юнит полностью завершил путь.
+// update advances the unit by one tick. It returns true when the unit has completed its path.
 func (a *unitAnim) update() bool {
 	if a.img == nil {
 		return true
@@ -94,7 +90,6 @@ func (a *unitAnim) update() bool {
 	progress := float64(a.tick) / float64(travelTicks)
 	a.x = a.startX + (a.endX-a.startX)*progress
 
-	// Fade-out начинается за fadeDuration тиков до конца.
 	fadeStart := travelTicks - fadeDuration
 	if a.tick >= fadeStart {
 		a.alpha = 1 - float32(a.tick-fadeStart)/float32(fadeDuration)
@@ -103,7 +98,7 @@ func (a *unitAnim) update() bool {
 	return a.tick >= travelTicks
 }
 
-// draw рисует юнит поверх экрана с учётом позиции контейнера.
+// draw renders the unit onto screen offset by containerRect's origin.
 func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) {
 	if a.img == nil {
 		return
@@ -117,7 +112,7 @@ func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) 
 	screen.DrawImage(a.img, op)
 }
 
-// SearchScreen — экран поиска оппонента.
+// SearchScreen is the matchmaking screen shown while the client waits for an opponent.
 type SearchScreen struct {
 	server          ws.Client
 	ui              *ebitenui.UI
@@ -129,7 +124,7 @@ type SearchScreen struct {
 	animReady       bool
 }
 
-// NewSearchScreen создаёт и инициализирует SearchScreen.
+// NewSearchScreen creates a SearchScreen and initiates a server connection.
 func NewSearchScreen(server ws.Client) *SearchScreen {
 	s := &SearchScreen{
 		server: server,
@@ -231,7 +226,7 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
-// spawnUnit appends a new unit to the active list.
+// spawnUnit initialises a new unitAnim from the current placeholder bounds and appends it to the active list.
 func (s *SearchScreen) spawnUnit() {
 	rect := s.animPlaceholder.GetWidget().Rect
 	a := &unitAnim{}
@@ -239,8 +234,8 @@ func (s *SearchScreen) spawnUnit() {
 	s.units = append(s.units, a)
 }
 
-// updateUnits advances all active units, spawns the next one when the current
-// reaches the midpoint, and removes units that have finished their path.
+// updateUnits advances all active units, spawns the next unit when the leading one reaches
+// the midpoint, and removes units that have completed their path.
 func (s *SearchScreen) updateUnits() {
 	var spawned []*unitAnim
 
@@ -264,7 +259,7 @@ func (s *SearchScreen) updateUnits() {
 	s.units = append(alive, spawned...)
 }
 
-// Update обновляет логику экрана на каждом тике.
+// Update implements game.Screen. It drives the matchmaking loop, unit animation, and input handling.
 func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
@@ -313,7 +308,7 @@ func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	}
 }
 
-// handleMessage обрабатывает входящие сообщения от сервера.
+// handleMessage dispatches an incoming server message and returns the next screen if a transition is required.
 func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	fmt.Printf("[search] received: %v\n", msg.Action)
 	if msg.Data != nil {
@@ -329,12 +324,13 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			log.Fatalf("new game: failed to unmarshal: %v", err)
 		}
 		snap := ds.GameSnapshot{
-			ArenaID:         data.ArenaID,
-			Board:           data.Board,
-			Player:          *data.Player,
-			OpponentName:    data.Opponent,
-			Round:           1,
-			TurnTimeSeconds: data.TurnTimeSeconds,
+			ArenaID:                    data.ArenaID,
+			Board:                      data.Board,
+			Player:                     *data.Player,
+			OpponentName:               data.Opponent,
+			Round:                      1,
+			TurnTimeSeconds:            data.TurnTimeSeconds,
+			MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 		}
 		return NewArenaScreen(snap, s.server, false)
 	case ws.ErrorAction:
@@ -345,7 +341,7 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	return nil
 }
 
-// Draw отрисовывает экран и всех активных юнитов.
+// Draw implements game.Screen. It renders the UI and all active unit animations.
 func (s *SearchScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 	if s.animReady {

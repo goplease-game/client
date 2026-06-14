@@ -28,12 +28,6 @@ type Board struct {
 	Cells BoardCells `json:"cells"`
 }
 
-// InBounds checks if the given hex coordinate exists within the board boundaries.
-func (b *Board) InBounds(coord HexCoord) bool {
-	_, exists := b.Cells[coord]
-	return exists
-}
-
 func (b *BoardCells) UnmarshalJSON(data []byte) error {
 	tmp := make(map[string]*BoardCell)
 	if err := json.Unmarshal(data, &tmp); err != nil {
@@ -72,4 +66,10 @@ func (b BoardCells) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(out)
+}
+
+// InBounds checks if the given hex coordinate exists within the board boundaries.
+func (b *Board) InBounds(coord HexCoord) bool {
+	_, exists := b.Cells[coord]
+	return exists
 }

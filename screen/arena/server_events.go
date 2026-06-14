@@ -121,6 +121,7 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	}
 
 	unit.CurrentAP = unit.BaseAP
+	unit.PhantomAPUsedThisTurn = 0
 
 	s.activeUnitID = payload.UnitID
 	s.activeUnitMoved = false
@@ -220,17 +221,9 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		log.Fatal("handleApplyState unmarshal:", err)
 	}
 
-	var skipTurn bool
-
 	// Apply state data immediately (HP, AP, statuses etc).
+	var moveAnims []unitMoveAnimAction
 	for _, st := range payload {
-		if st.SkipTurn && st.ToUnitID == s.activeUnitID {
-			unit := s.unitByID(st.ToUnitID)
-			if unit != nil && !unit.IsOpponent {
-				skipTurn = true
-			}
-		}
-
 		if st.SetPhantomAP != nil {
 			s.player.PhantomAP = *st.SetPhantomAP
 		}
@@ -240,6 +233,14 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 			continue
 		}
 		s.applyStateImmediate(target, st)
+
+		if st.MoveTo != nil {
+			moveAnims = append(moveAnims, s.moveUnitAnim(target, *st.MoveTo))
+		}
+	}
+
+	if len(moveAnims) > 0 {
+		s.addMoveAnim(moveAnims...)
 	}
 
 	// Visual feedback waits for fx to finish.
@@ -255,11 +256,6 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 		if target := s.unitByID(st.ToUnitID); target != nil {
 			s.applyStateVisuals(target, st)
 		}
-	}
-
-	if skipTurn {
-		s.handleWaitingForOpponent()
-		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 	}
 }
 
@@ -283,11 +279,6 @@ func (s *Screen) handleUseAbility(load ds.UseAbilityPayload) {
 // applyStateImmediate applies data mutations to the unit (no visuals).
 // Called as soon as ApplyState arrives from the server.
 func (s *Screen) applyStateImmediate(target *ds.Unit, st ds.ApplyState) {
-	// --- Movement ---
-	if st.MoveTo != nil {
-		s.moveUnitForced(target, *st.MoveTo)
-	}
-
 	// --- Absolute values ---
 	if st.SetHP != nil {
 		target.CurrentHP = *st.SetHP

@@ -393,20 +393,16 @@ func HandleEndTurn() (st ds.ApplyStates) {
 		return
 	}
 
-	for t, sv := range unit.Statuses {
-		log.Printf("[HandleEndTurn] status %s duration %d permanent %v", t, sv.Duration, sv.Duration == status.Permanent)
-	}
-
 	// decrease status duration
 	for t, sv := range unit.Statuses {
-		if sv.Duration == status.Permanent {
-			continue
-		}
-
 		// before status removed, trigger onTurnEnd
 		h, ok := statusHandlers[t]
 		if ok && h != nil && h.onTurnEnd != nil {
 			st.Add(h.onTurnEnd(unit, sv)...)
+		}
+
+		if sv.Duration == status.Permanent {
+			continue
 		}
 
 		sv.Duration--

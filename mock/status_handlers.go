@@ -22,7 +22,7 @@ var statusHandlers = map[status.Type]*statusHandler{
 	status.Provoking:      nil, // this is just decorative status
 	status.Stunned:        stunnedSH,
 	status.Rallied:        ralliedSH,
-	status.Exposed:        exposedSH,
+	status.Marked:         exposedSH,
 	status.Hamstrung:      hamstrungSH,
 	status.Sharpened:      sharpenedSH,
 	status.DebuffWard:     debuffWardSH,

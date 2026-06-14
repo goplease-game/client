@@ -423,6 +423,7 @@ func (s *Screen) killUnit(u *ds.Unit) {
 
 	if u.ID == s.activeUnitID {
 		s.activeUnitID = ""
+		// TODO server should control queue!!!
 		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 	}
 

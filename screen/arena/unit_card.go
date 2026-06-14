@@ -52,8 +52,15 @@ func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
 // The portrait goes to the unit layer; the HP badge goes to the HUD layer.
 // If canMove is true, a walk indicator badge is also added.
 func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
+	var img *ebiten.Image
+	if u.HasStatus(status.Stunned) {
+		img = asset.Image(unitStunnedPic, unitIconSize)
+	} else {
+		img = unitImage(u.TemplateID, unitIconSize)
+	}
+
 	icon := widget.NewGraphic(
-		widget.GraphicOpts.Image(unitImage(u.TemplateID, unitIconSize)),
+		widget.GraphicOpts.Image(img),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -85,13 +92,7 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCard
 // buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
 // Queue cards don't show the walk badge — that's board-only.
 func (s *Screen) buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
-	var img *ebiten.Image
-	if u.HasStatus(status.Stunned) {
-		img = asset.Image(unitStunnedPic, unitIconSize)
-	} else {
-		img = unitImage(u.TemplateID, unitIconSize)
-	}
-
+	img := unitImage(u.TemplateID, unitIconSize)
 	icon := widget.NewGraphic(
 		widget.GraphicOpts.Image(img),
 		widget.GraphicOpts.WidgetOpts(
@@ -375,10 +376,6 @@ func statusIcons(c ChildAdder, u *ds.Unit) {
 		if i == iconsMaxCount {
 			break
 		}
-		if st == status.Stunned {
-			continue
-		}
-
 		sv, ok := u.Statuses[st]
 		if !ok {
 			continue

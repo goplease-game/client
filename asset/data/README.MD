@@ -8,7 +8,7 @@ hourglass.png: https://game-icons.net/1x1/lorc/sands-of-time.html
 
 Statuses:
  * debuff_ward: https://game-icons.net/1x1/lorc/eye-shield.html
- * exposed: https://game-icons.net/1x1/lorc/cross-mark.html
+ * marked: https://game-icons.net/1x1/lorc/cross-mark.html
  * frenzied: https://game-icons.net/1x1/cathelineau/swordman.html (edit)
  * hamstrung: https://game-icons.net/1x1/delapouite/achilles-heel.html
  * provoked: https://game-icons.net/1x1/delapouite/confrontation.html
@@ -17,6 +17,7 @@ Statuses:
  * sharpened: https://game-icons.net/1x1/delapouite/sword-brandish.html
  * stunned: https://game-icons.net/1x1/skoll/knockout.html
  * temporal_anchor: https://game-icons.net/1x1/delapouite/extra-time.html
+ * impatience: https://game-icons.net/1x1/lorc/vomiting.html
 
 Units:
 * bas: https://game-icons.net/1x1/lorc/visored-helm.html

@@ -6,11 +6,12 @@ var Statuses = map[Type]*Status{
 	Provoking:      provokingStatus,
 	Stunned:        stunnedStatus,
 	Hamstrung:      hamstrungStatus,
-	Exposed:        exposedStatus,
+	Marked:         markedStatus,
 	Sharpened:      sharpenedStatus,
 	DebuffWard:     debuffWardStatus,
 	TemporalAnchor: temporalAnchorStatus,
 	Frenzied:       frenziedStatus,
+	Impatience:     impatienceStatus,
 }
 
 // Order defines the display order of statuses on unit cards.
@@ -18,7 +19,7 @@ var Order = []Type{
 	// negative first
 	Provoked,
 	Hamstrung,
-	Exposed,
+	Marked,
 	Stunned,
 
 	// positive
@@ -27,6 +28,7 @@ var Order = []Type{
 	DebuffWard,
 	Frenzied,
 	TemporalAnchor,
+	Impatience,
 
 	// neutral
 	Provoking,

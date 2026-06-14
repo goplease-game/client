@@ -123,7 +123,6 @@ func (s *Screen) updateMoveAnimations() {
 		}
 
 		// Fourth pass: update game logic and render on destination.
-		// Fourth pass: update game logic and render on destination.
 		for _, action := range currentGroup {
 			u := s.unitByID(action.unitID)
 
