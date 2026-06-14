@@ -40,6 +40,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleUnitMoved(msg.Data)
 	case ws.ApplyState:
 		s.handleApplyState(msg.Data)
+	case ws.ActiveUnitChangedAction:
+		s.handleActiveUnitChanged(msg.Data)
 	case ws.UseAbility:
 		var payload ds.UseAbilityPayload
 		if err := json.Unmarshal(msg.Data, &payload); err != nil {
@@ -257,6 +259,24 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 			s.applyStateVisuals(target, st)
 		}
 	}
+}
+
+// handleApplyState processes a batch of atomic state mutations from the server.
+// Each ApplyState is applied sequentially to the target unit.
+func (s *Screen) handleActiveUnitChanged(data json.RawMessage) {
+	var payload ds.ActiveUnitChangedPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		log.Fatal("handleActiveUnitChanged unmarshal:", err)
+	}
+
+	s.activeUnitID = payload.UnitID
+
+	s.deselectUnit()
+	if s.activeUnitID != "" {
+		s.highlightActiveUnit()
+	}
+
+	s.rebuildQueuePanel()
 }
 
 func (s *Screen) handleUseAbility(load ds.UseAbilityPayload) {

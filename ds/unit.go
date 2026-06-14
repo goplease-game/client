@@ -169,3 +169,7 @@ type UnitPlacedPayload struct {
 	Coord      HexCoord `json:"coord"`
 	TemplateID int      `json:"template_id"`
 }
+
+type ActiveUnitChangedPayload struct {
+	UnitID string `json:"unit_id"`
+}

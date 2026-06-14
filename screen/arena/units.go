@@ -243,6 +243,11 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 	}
 
 	s.buildQueueUnitCard(NewContainerChildAdder(card), u)
+
+	if isActive {
+		card.AddChild(s.buildActiveUnitMarker())
+	}
+
 	return card
 }
 
@@ -530,4 +535,21 @@ func (s *Screen) hideUnitPanel() {
 	s.footerRef.RemoveChild(s.unitPanelRef)
 	s.unitPanelRef = nil
 	s.unitPanelIn = false
+}
+
+func (s *Screen) buildActiveUnitMarker() *widget.Graphic {
+	img := asset.Image("active_unit_marker.png")
+
+	return widget.NewGraphic(
+		widget.GraphicOpts.Image(img),
+		widget.GraphicOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(21, 15),
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				//VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				Padding: &widget.Insets{Top: unitCardSize - 5},
+				// Stretch: false,
+			}),
+		),
+	)
 }
