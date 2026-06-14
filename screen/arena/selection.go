@@ -101,10 +101,10 @@ func (s *Screen) removePulseWidget(w *ui.HexCellWidget) {
 	}
 }
 
-// restoreSafeZoneCell resets the safe-zone cell at coord to unoccupied,
+// restoreDropZoneCell resets the safe-zone cell at coord to unoccupied,
 // allowing a unit to be placed there again in a future turn.
-func (s *Screen) restoreSafeZoneCell(coord ds.HexCoord) {
-	for _, sc := range s.safeZoneCells {
+func (s *Screen) restoreDropZoneCell(coord ds.HexCoord) {
+	for _, sc := range s.dropZoneCells {
 		if sc.coord == coord {
 			sc.occupied = false
 			sc.baseColor = boardCellBgColor

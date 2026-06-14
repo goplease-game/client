@@ -4,7 +4,6 @@ import (
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
 type timerBarState struct {
@@ -36,7 +35,6 @@ func (s *Screen) updateTurnTimer() {
 	s.timerBar.tick++
 	if s.timerBar.tick >= s.timerBar.duration {
 		s.timerBar = nil
-		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 	}
 }
 

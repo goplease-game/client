@@ -46,7 +46,7 @@ type Screen struct {
 	unitPanelIn        bool
 
 	// Board rendering.
-	safeZoneCells    []*DropZoneCell     // safe-zone cells that accept unit drops
+	dropZoneCells    []*DropZoneCell     // safe-zone cells that accept unit drops
 	sortedCells      []*ui.HexCellWidget // board cells sorted by (R, Q) for deterministic overlay render order
 	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
 
@@ -309,7 +309,7 @@ func (s *Screen) updatePulse() {
 // frame to all active drop zone cells.
 func (s *Screen) updateDropZoneAnim() {
 	animDropArrow.Update()
-	for _, sc := range s.safeZoneCells {
+	for _, sc := range s.dropZoneCells {
 		if sc.activeGraphic != nil {
 			sc.activeGraphic = animDropArrow.CurrentFrame
 		}
@@ -352,7 +352,7 @@ func (s *Screen) setupUI() {
 				cell.RenderUnitLayer(screen)
 			}
 			// Layer 4: drop zone arrow animations.
-			for _, sc := range s.safeZoneCells {
+			for _, sc := range s.dropZoneCells {
 				sc.RenderAnim(screen)
 			}
 			// Layer 5: HUD badges (hp, shield, move indicator).

@@ -80,7 +80,7 @@ func (s *Screen) createCell(coord ds.HexCoord, data *ds.BoardCell) *ui.HexCellWi
 
 	if isDroppable {
 		widgetOpts = append(widgetOpts, s.dropZoneWidgetOpts(sc, coord)...)
-		s.safeZoneCells = append(s.safeZoneCells, sc)
+		s.dropZoneCells = append(s.dropZoneCells, sc)
 	}
 
 	cell := ui.NewHexCellWidget(coord, s.board.Cells, widgetOpts...)

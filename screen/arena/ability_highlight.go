@@ -1,6 +1,8 @@
 package arena
 
 import (
+	"fmt"
+
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/hex"
@@ -27,6 +29,9 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 	s.deselectUnit()
 
 	caster := s.unitByID(s.activeUnitID)
+	if caster == nil {
+		return
+	}
 
 	rangeN := ab.Range
 	var cells []ds.HexCoord
@@ -40,6 +45,8 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		cells = hex.CellsInRange(caster.Pos, rangeN, s.board)
 	}
 
+	fmt.Printf("HAB: %s: cells: %d\n", ab.Name, len(cells))
+
 	s.abilityHighlightCells = cells
 
 	for _, pos := range cells {
@@ -49,16 +56,24 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 		}
 
 		cell := s.board.Cells[pos]
+		if cell == nil {
+			continue
+		}
+		u := cell.Unit
+		if u != nil && u.IsDead {
+			continue
+		}
 
 		switch {
-		case cell == nil || cell.Unit == nil:
+		case cell.Unit == nil:
 			w.SetColor(abilityRangeCellColor)
-		case s.isValidTarget(ab, caster, *cell.Unit):
-			if cell.Unit.IsOpponent {
-				w.SetColor(abilityEnemyTargetCellColor)
-			} else {
-				w.SetColor(abilityAllyTargetCellColor)
+		case s.isValidAbilityTarget(ab, pos):
+			col := abilityAllyTargetCellColor
+			if cell.Unit.IsEnemy(caster) {
+				col = abilityEnemyTargetCellColor
 			}
+
+			w.SetColor(col)
 		}
 	}
 }
@@ -91,29 +106,29 @@ func (s *Screen) clearAbilityHighlight() {
 
 // isValidTarget reports whether target is a valid target for ab cast by caster,
 // based on the ability's TargetMode.
-func (s *Screen) isValidTarget(ab ability.Ability, caster *ds.Unit, target ds.Unit) bool {
-	if target.IsDead {
-		return false
-	}
-	// If caster is provoked — only the provoker is a valid target.
-	// TODO test this from opponent side
-	if provokerID := getProvokingUnitID(caster); provokerID != "" {
-		return target.IsOpponent && target.ID == provokerID
-	}
-
-	switch ab.TargetMode {
-	case ability.TargetEnemies:
-		return target.IsOpponent != caster.IsOpponent
-	case ability.TargetAllies:
-		return target.IsOpponent == caster.IsOpponent && target.ID != caster.ID
-	case ability.TargetAlliesAndSelf:
-		return target.IsOpponent == caster.IsOpponent
-	case ability.TargetAny:
-		return true
-	default:
-		return false
-	}
-}
+//func (s *Screen) isValidTarget(ab ability.Ability, caster *ds.Unit, target ds.Unit) bool {
+//	if target.IsDead {
+//		return false
+//	}
+//
+//	// If caster is provoked — only the provoker is a valid target.
+//	if provokerID := getProvokingUnitID(caster); provokerID != "" {
+//		return target.IsOpponent && target.ID == provokerID
+//	}
+//
+//	switch ab.TargetMode {
+//	case ability.TargetEnemies:
+//		return target.IsEnemy(caster)
+//	case ability.TargetAllies:
+//		return target.IsAlly(caster) && target.ID != caster.ID
+//	case ability.TargetAlliesAndSelf:
+//		return target.IsAlly(caster)
+//	case ability.TargetAny:
+//		return true
+//	default:
+//		return false
+//	}
+//}
 
 // hexLine returns cells in a straight line from `from` in direction `dir`
 // up to `length` steps. Only returns cells that exist on the board.

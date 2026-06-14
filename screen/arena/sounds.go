@@ -5,4 +5,5 @@ const (
 	unitHoverSound  = "unit_hover.ogg"
 	unitPlacedSound = "unit_placed.ogg"
 	unitDragSound   = "unit_drag.ogg"
+	selectError     = "select_error.ogg"
 )

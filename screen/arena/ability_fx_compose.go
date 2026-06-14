@@ -40,7 +40,7 @@ func (s *Screen) abilityFxComposer(abFx AbilityFx, abilityID ability.ID, unit *d
 		}
 
 		if isAOE {
-			targets := s.abilityTargets(abDef, unit)
+			targets := s.abilityTargetsForFx(abDef, unit)
 			if len(targets) == 0 {
 				afterDone()
 				return
@@ -215,8 +215,8 @@ func fxUnitFadeZoomIn(unitImg *ebiten.Image) ProgramFx {
 	}
 }
 
-// abilityTargets returns all valid target coords for the given ability cast by unit.
-func (s *Screen) abilityTargets(ab ability.Ability, unit *ds.Unit) []ds.HexCoord {
+// abilityTargetsForFx returns all valid target coords for the given ability cast by unit.
+func (s *Screen) abilityTargetsForFx(ab ability.Ability, unit *ds.Unit) []ds.HexCoord {
 	var cells []ds.HexCoord
 
 	switch ab.Area {
@@ -231,9 +231,10 @@ func (s *Screen) abilityTargets(ab ability.Ability, unit *ds.Unit) []ds.HexCoord
 	var targets []ds.HexCoord
 	for _, pos := range cells {
 		cell := s.board.Cells[pos]
-		if cell != nil && cell.Unit != nil && s.isValidTarget(ab, unit, *cell.Unit) {
+		if cell != nil && cell.Unit != nil && s.isValidAbilityTarget(ab, pos) {
 			targets = append(targets, pos)
 		}
 	}
+
 	return targets
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/ognev-dev/goplease-ebitengine-client/ability"
 	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
@@ -50,9 +51,8 @@ func (s *Screen) onCellClickedWithAbility(coord ds.HexCoord) bool {
 	}
 
 	ab := *s.selectedAbility
-	cell := s.board.Cells[coord]
-
-	if !s.isValidAbilityTarget(ab, coord, cell) {
+	if !s.isValidAbilityTarget(ab, coord) {
+		sfx.Play(selectError)
 		// Clicked invalid target — cancel ability selection.
 		s.cancelAbilitySelection()
 		return true
@@ -64,34 +64,78 @@ func (s *Screen) onCellClickedWithAbility(coord ds.HexCoord) bool {
 }
 
 // isValidAbilityTarget checks whether coord is a valid target for ab.
-func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord, cell *ds.BoardCell) bool {
+func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) bool {
 	caster := s.unitByID(s.activeUnitID)
+	if caster == nil {
+		return false
+	}
 
 	// Must be within range.
 	if ab.Range > 0 && hex.Distance(caster.Pos, coord) > ab.Range {
 		return false
 	}
 
-	unit := (*ds.Unit)(nil)
-	if cell != nil {
-		unit = cell.Unit
-		if unit != nil && unit.IsDead {
-			unit = nil
+	cell, ok := s.board.Cells[coord]
+	if !ok || cell == nil {
+		return false
+	}
+
+	if ab.Activation == ability.SelectAny {
+		return true
+	}
+
+	u := cell.Unit
+	if u == nil {
+		return ab.Activation == ability.SelectFreeCell
+	}
+
+	if u.IsDead {
+		return false
+	}
+
+	// Only alive units left in here
+	switch ab.TargetMode {
+	case ability.TargetSelf:
+		if u.ID == caster.ID {
+			return true
 		}
+	case ability.TargetAllies:
+		if u.IsAlly(caster) {
+			return true
+		}
+	case ability.TargetAlliesAndSelf:
+		if u.ID == caster.ID || u.IsAlly(caster) {
+			return true
+		}
+	case ability.TargetEnemies:
+		if u.IsEnemy(caster) {
+			if provokerID := getProvokingUnitID(caster); provokerID != "" {
+				return u.ID == provokerID
+			}
+			return true
+		}
+	case ability.TargetEnemiesAndSelf:
+		if u.ID == caster.ID || u.IsEnemy(caster) {
+			if provokerID := getProvokingUnitID(caster); provokerID != "" {
+				return u.ID == provokerID
+			}
+			return true
+		}
+		//case ability.TargetAny:
+		//	return true
 	}
 
 	switch ab.Activation {
 	case ability.SelectEnemy:
-		return unit != nil && unit.IsOpponent != caster.IsOpponent
+		if provokerID := getProvokingUnitID(caster); provokerID != "" {
+			return u.ID == provokerID
+		}
+		return u.IsEnemy(caster)
 	case ability.SelectAlly:
-		return unit != nil && unit.IsOpponent == caster.IsOpponent && unit.ID != caster.ID
+		return u.IsAlly(caster) && u.ID != caster.ID
 	case ability.SelectAllyOrSelf:
-		return unit != nil && unit.IsOpponent == caster.IsOpponent
+		return u.IsAlly(caster)
 	case ability.SelectAnyUnit:
-		return unit != nil
-	case ability.SelectFreeCell:
-		return unit == nil
-	case ability.SelectAny:
 		return true
 	}
 

@@ -57,7 +57,7 @@ func (s *Screen) setupUnitPanel() {
 func (s *Screen) buildUnitCard(u *ds.Unit) *widget.Container {
 	dnd := &dndHandler{
 		dndUnit:   &dndUnit{unit: u},
-		safeCells: s.safeZoneCells,
+		safeCells: s.dropZoneCells,
 		canDrag:   func() bool { return s.ready && !s.unitPlacedThisTurn },
 	}
 
@@ -520,10 +520,12 @@ func getProvokingUnitID(u *ds.Unit) string {
 	if !ok {
 		return ""
 	}
+
 	provoker, ok := us.Meta["provoker"].(string)
 	if !ok {
 		return ""
 	}
+
 	return provoker
 }
 

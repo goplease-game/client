@@ -100,7 +100,7 @@ func (s *Screen) updateMoveAnimations() {
 			}
 			if fromW := s.boardCellWidgets[action.from]; fromW != nil {
 				s.removePulseWidget(fromW)
-				s.restoreSafeZoneCell(action.from)
+				s.restoreDropZoneCell(action.from)
 				fromW.SetColor(boardCellBgColor)
 				fromW.RemoveChildren()
 			}

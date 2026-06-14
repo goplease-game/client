@@ -79,7 +79,7 @@ func (sc *DropZoneCell) RenderAnim(screen *ebiten.Image) {
 // occupySafeZoneCell marks the safe-zone cell at coord as occupied with the given base color.
 // No-op if coord is not a safe-zone cell.
 func (s *Screen) occupySafeZoneCell(coord ds.HexCoord, baseColor color.Color) {
-	for _, sc := range s.safeZoneCells {
+	for _, sc := range s.dropZoneCells {
 		if sc.coord == coord {
 			sc.occupied = true
 			sc.baseColor = baseColor
