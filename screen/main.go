@@ -156,14 +156,14 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	}
 
 	settButton, err := mainMenuButton("Settings", 16, func(args *widget.ButtonClickedEventArgs) {
-		println("NO SETTINGS YET")
+		s.nextScreen = NewSettingsScreen(s)
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	aboutButton, err := mainMenuButton("About", 16, func(args *widget.ButtonClickedEventArgs) {
-		println("ABOUT WHAT?")
+		s.nextScreen = NewAboutScreen(s)
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -257,4 +257,55 @@ func newPracticeScreen() game.Screen {
 	mockCl.Connect("p1")
 
 	return NewArenaScreen(snap, mockCl, true)
+}
+
+func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) (*widget.Button, error) {
+	tf := ui.TextFace(size)
+	tfHover := ui.TextFace(size + 5)
+	var button *widget.Button
+	button = widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+				//Stretch:  true,
+			}),
+		),
+		widget.ButtonOpts.Image(mainMenuButtonImage()),
+		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
+			Idle:    menuButtonTextColor,
+			Hover:   menuButtonHoverTextColor,
+			Pressed: menuButtonTextColor,
+		}),
+		widget.ButtonOpts.TextPadding(&widget.Insets{
+			Left:   25,
+			Right:  25,
+			Top:    10,
+			Bottom: 10,
+		}),
+		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
+			button.GetWidget().CustomData = true
+		}),
+		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
+			button.Text().SetPadding(&widget.Insets{})
+			button.GetWidget().CustomData = false
+		}),
+		widget.ButtonOpts.ClickedHandler(clickHandler),
+		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
+			sfx.Play("button_hover.ogg")
+			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
+			button.Text().SetFace(&tfHover)
+			button.GetWidget().Render(nil)
+		}),
+		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
+			button.Text().SetPadding(&widget.Insets{})
+			button.Text().SetFace(&tf)
+		}),
+	)
+
+	return button, nil
 }

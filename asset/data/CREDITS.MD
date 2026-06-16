@@ -1,9 +1,9 @@
-Most icons is from https://game-icons.net/
+Most art is sourced from [game-icons.net](https://game-icons.net/) (CC BY 3.0).
+Unless stated otherwise, any graphical or media assets not credited
+to specific authors are contributed and distributed under the CC0 (Public Domain) license.
 
-For now, I'm keeping the list here to give proper credit, as the content comes from different authors.
-
-dead-head.png: https://game-icons.net/1x1/delapouite/dead-head.html
-knockout.png: https://game-icons.net/1x1/skoll/knockout.html
+dead-head.png: https://game-icons.net/1x1/delapouite/dead-head.html \
+knockout.png: https://game-icons.net/1x1/skoll/knockout.html \
 hourglass.png: https://game-icons.net/1x1/lorc/sands-of-time.html
 
 Statuses:

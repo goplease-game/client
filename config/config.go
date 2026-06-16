@@ -25,6 +25,8 @@ type ConfigT struct {
 
 	ServerAddr string `yaml:"server_addr"`
 
+	Volume float64 `yaml:"volume"`
+
 	DevMode struct {
 		Enabled     bool `yaml:"enabled"`
 		MockClient  bool `yaml:"mock_client"`
@@ -102,4 +104,31 @@ func parseResolution(res string) (width, height int, err error) {
 		return 0, 0, fmt.Errorf("invalid resolution format: %w (expecting '800x600', got '%s')", err, res)
 	}
 	return width, height, nil
+}
+
+// Save writes the current config to the user config directory as YAML.
+func Save() error {
+	conf := Get()
+
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return fmt.Errorf("save config: %w", err)
+	}
+
+	configDir := filepath.Join(dir, osUserConfigGameDir)
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		return fmt.Errorf("save config: mkdir %s: %w", configDir, err)
+	}
+
+	data, err := yaml.Marshal(conf)
+	if err != nil {
+		return fmt.Errorf("save config: marshal: %w", err)
+	}
+
+	configPath := filepath.Join(configDir, configFilename)
+	if err := os.WriteFile(configPath, data, 0o644); err != nil {
+		return fmt.Errorf("save config: write %s: %w", configPath, err)
+	}
+
+	return nil
 }

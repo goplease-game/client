@@ -10,7 +10,7 @@ const (
 	Provoking      Type = "provoking"
 	Stunned        Type = "stunned"
 	Rallied        Type = "rallied"
-	Marked         Type = "exposed"
+	Marked         Type = "marked"
 	Hamstrung      Type = "hamstrung"
 	Sharpened      Type = "sharpened"
 	DebuffWard     Type = "debuff_ward"

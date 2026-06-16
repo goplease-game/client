@@ -28,7 +28,7 @@ type WSClient struct {
 }
 
 func wsURL() string {
-	return "ws://" + config.Get().ServerAddr + "/goplease/"
+	return "ws://" + config.Get().ServerAddr + "/play/"
 }
 
 func NewWSClient() *WSClient {

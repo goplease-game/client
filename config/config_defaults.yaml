@@ -1,7 +1,9 @@
 resolution: 900x750
-server_addr: localhost:8080
+server_addr: localhost:8090
+
+volume: 1
 
 dev_mode:
-  enabled: true
+  enabled: false
   mock_client: false
   log_protocol: false

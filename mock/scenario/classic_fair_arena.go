@@ -8,7 +8,7 @@ import (
 const safeZoneSize = 2
 const arenaRows = 10
 const arenaCols = 10
-const boardSize = 5
+const boardSize = 4
 
 const ClassicFairArena = "Classic Fair Arena"
 
