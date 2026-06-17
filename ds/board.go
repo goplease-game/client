@@ -7,30 +7,37 @@ import (
 	"strings"
 )
 
+// HexCoord represents a position on the hex board using axial coordinates.
 type HexCoord struct {
 	Q int `json:"q"`
 	R int `json:"r"`
 }
 
+// String returns the coordinate as a "(q,r)" string.
 func (c HexCoord) String() string {
 	return fmt.Sprintf("(%d,%d)", c.Q, c.R)
 }
 
+// BoardCell represents a single cell on the board, optionally occupied by a unit.
 type BoardCell struct {
 	Coord      HexCoord `json:"coord"`
 	Unit       *Unit    `json:"unit"`
 	IsSafeZone bool     `json:"is_safe_zone"`
 }
 
+// BoardCells maps hex coordinates to the cells on the board.
 type BoardCells map[HexCoord]*BoardCell
 
+// Board represents the hex board and its cells.
 type Board struct {
 	Cells BoardCells `json:"cells"`
 }
 
+// UnmarshalJSON decodes BoardCells from a JSON object keyed by "q:r" coordinate strings.
 func (b *BoardCells) UnmarshalJSON(data []byte) error {
 	tmp := make(map[string]*BoardCell)
-	if err := json.Unmarshal(data, &tmp); err != nil {
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
 		return err
 	}
 
@@ -50,7 +57,7 @@ func (b *BoardCells) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Needed for saving state
+// MarshalJSON encodes BoardCells as a JSON object keyed by "q:r" coordinate strings.
 func (b BoardCells) MarshalJSON() ([]byte, error) {
 	type Alias BoardCell
 

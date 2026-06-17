@@ -1,15 +1,15 @@
 package arena
 
 import (
-	"fmt"
 	"image"
 	"image/color"
-	"math/rand"
+	"math/rand/v2"
+	"strconv"
 
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 // floatingText holds the state of a floating text animation above a unit.
@@ -31,7 +31,7 @@ func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color
 	}
 
 	centre := s.cellCentrePx(coord)
-	n := rand.Intn(20) + 10
+	n := rand.IntN(20) + 10 //nolint:gosec
 
 	// Stagger texts on the same unit — each one waits for the previous to finish.
 	delay := 0
@@ -54,7 +54,7 @@ func (s *Screen) showFloatingText(coord ds.HexCoord, txt string, col color.Color
 
 func (s *Screen) showFloatingStat(coord ds.HexCoord, val int, labelOpt ...string) {
 	col := decreasedStatValueColor
-	txt := fmt.Sprintf("%d", val)
+	txt := strconv.Itoa(val)
 	if val > 0 {
 		col = increasedStatValueColor
 		txt = "+" + txt

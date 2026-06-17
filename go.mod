@@ -1,4 +1,4 @@
-module github.com/ognev-dev/goplease-ebitengine-client
+module github.com/goplease-game/client
 
 go 1.26.0
 

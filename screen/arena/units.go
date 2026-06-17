@@ -9,14 +9,14 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
@@ -510,8 +510,6 @@ func (s *Screen) removeUnitStatus(u *ds.Unit, statusType status.Type) {
 		delete(u.Statuses, statusType)
 		s.showFloatingText(u.Pos, "- "+st.Name, colornames.White)
 	}
-
-	//s.showUnitOnBoard(u)
 }
 
 // getProvokingUnitID returns the ID of the unit that provoked this unit, or empty string.

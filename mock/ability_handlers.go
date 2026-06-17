@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
 )
 
 var abilityHandlers = map[ability.ID]func(abilityUsed) (ds.ApplyStates, error){
@@ -101,7 +101,9 @@ func HandleAbility(data ds.UseAbilityPayload) (resp ds.ApplyStates, err error) {
 	event := abilityUsed{
 		By: unit,
 		Ab: ab,
-		At: data.Target,
+	}
+	if data.Target != nil {
+		event.At = *data.Target
 	}
 
 	states, err := handler(event)
@@ -166,8 +168,8 @@ func powerPushHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 
 	dealDmg := e.Ab.Effect.DealDamage
 
-	pos := hex.OppositeHex(e.By.Pos, target.Pos)
-	cell, _ := gameState.Board.Cells[pos]
+	pos := grid.OppositeHex(e.By.Pos, target.Pos)
+	cell := gameState.Board.Cells[pos]
 	if cell != nil && cell.Unit == nil {
 		sts.Add(ds.ApplyState{MoveTo: new(pos), ToUnitID: target.ID})
 		target.Pos = pos
@@ -182,8 +184,8 @@ func powerPushHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 func gangUpHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	target := mustUnitAt(e.At)
 	dealDmg := e.By.CurrentAtk
-	pos := hex.OppositeHex(e.By.Pos, target.Pos)
-	cell, _ := gameState.Board.Cells[pos]
+	pos := grid.OppositeHex(e.By.Pos, target.Pos)
+	cell := gameState.Board.Cells[pos]
 	if cell != nil && cell.Unit != nil && cell.Unit.IsAlly(e.By) {
 		dealDmg += e.Ab.Effect.BonusDamage
 	}
@@ -261,14 +263,14 @@ func purifyHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func healHandler(e abilityUsed) (ds.ApplyStates, error) {
+func healHandler(e abilityUsed) (state ds.ApplyStates, _ error) {
 	target := mustUnitAt(e.At)
 
 	st := healUnit(target, e.Ab.Effect.HealHP)
 	return st, nil
 }
 
-func equalizeHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func equalizeHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	var sumHP int
 	units := findAlliesInRange(e.By, e.Ab.AreaRadius)
 	for _, u := range units {
@@ -337,7 +339,7 @@ func equalizeHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func idolihuSpinHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func idolihuSpinHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	units := findEnemiesInRange(e.By, e.Ab.AreaRadius)
 	for _, u := range units {
 		sts.Add(dealDamageToUnit(e.By, u, e.By.CurrentAtk)...)
@@ -346,7 +348,7 @@ func idolihuSpinHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func piercingShotHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func piercingShotHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	cells := lineSingleAreaCells(e.By.Pos, e.At, e.Ab.AreaRadius)
 	for _, c := range cells {
 		unit := GetUnitAt(c.Coord)
@@ -358,7 +360,7 @@ func piercingShotHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func battleCryHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func battleCryHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	units := findAlliesInRange(e.By, e.Ab.AreaRadius)
 	for _, u := range units {
 		sts.Add(applyStatusToUnit(e.Ab.Effect.ApplyStatus, e.By, u)...)
@@ -381,7 +383,7 @@ func shadowStepHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func huntersMarkHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func huntersMarkHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	target := mustUnitAt(e.At)
 
 	sts.Add(
@@ -391,7 +393,7 @@ func huntersMarkHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
 	return
 }
 
-func hamstringShotHandler(e abilityUsed) (sts ds.ApplyStates, err error) {
+func hamstringShotHandler(e abilityUsed) (sts ds.ApplyStates, _ error) {
 	target := mustUnitAt(e.At)
 
 	sts.Add(dealDamageToUnit(e.By, target, e.Ab.Effect.DealDamage)...)
@@ -573,7 +575,7 @@ func lineSingleAreaCells(from, targetPos ds.HexCoord, radius int) []*ds.BoardCel
 func findAlliesInRange(u *ds.Unit, radius int) []*ds.Unit {
 	units := []*ds.Unit{}
 
-	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	cells := grid.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		unit := GetUnitAt(c)
 		if unit != nil && !unit.IsDead && unit.IsAlly(u) {
@@ -587,7 +589,7 @@ func findAlliesInRange(u *ds.Unit, radius int) []*ds.Unit {
 func findEnemiesInRange(u *ds.Unit, radius int) []*ds.Unit {
 	units := []*ds.Unit{}
 
-	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	cells := grid.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		unit := GetUnitAt(c)
 		if unit != nil && !unit.IsDead && unit.IsEnemy(u) {

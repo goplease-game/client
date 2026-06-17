@@ -1,6 +1,7 @@
-package hex
+// Package grid ...
+package grid
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ds"
+import "github.com/goplease-game/client/ds"
 
 // CellsInRange returns all board positions within rangeN hex steps of from.
 // Uses hex cube distance, not square-grid distance, so diagonals are correct.

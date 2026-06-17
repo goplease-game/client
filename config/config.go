@@ -1,3 +1,4 @@
+// Package config ...
 package config
 
 import (
@@ -25,14 +26,14 @@ const (
 // manager abstracts platform-specific loading and saving of the raw config bytes.
 type manager interface {
 	// load returns the raw config bytes, e.g. read from the user config directory.
-	load() ([]byte, error)
+	load() (data []byte, err error)
 	// save persists the given raw config bytes.
-	save([]byte) error
+	save(data []byte) error
 }
 
-// ConfigT holds the application's runtime configuration, combining values
+// Config holds the application's runtime configuration, combining values
 // loaded from YAML with values derived at load time (e.g. window dimensions).
-type ConfigT struct {
+type Config struct {
 	Resolution string `yaml:"resolution"`
 	WindowW    int    `yaml:"-"`
 	WindowH    int    `yaml:"-"`
@@ -54,7 +55,7 @@ type ConfigT struct {
 var loadConfigOnce sync.Once
 
 // loadedConfig caches the config loaded by Get; nil until the first call.
-var loadedConfig *ConfigT
+var loadedConfig *Config
 
 // confM is the platform-specific manager used to load and save the config.
 // It is nil until the first call to Get, which initializes it via newConfigManager.
@@ -64,7 +65,7 @@ var confM manager
 // config directory (falling back to config_defaults.yaml) on the first call
 // and returning the cached value on subsequent calls. It panics if loading,
 // unmarshaling, or resolution parsing fails.
-func Get() *ConfigT {
+func Get() *Config {
 	loadConfigOnce.Do(func() {
 		var err error
 
@@ -74,7 +75,7 @@ func Get() *ConfigT {
 			panic(err)
 		}
 
-		conf := new(ConfigT)
+		conf := new(Config)
 		err = yaml.Unmarshal(data, conf)
 		if err != nil {
 			panic(err)

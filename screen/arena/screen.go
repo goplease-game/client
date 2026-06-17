@@ -8,16 +8,16 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	game "github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
@@ -161,7 +161,7 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 
 // Update processes server messages, handles input, and advances all animations.
 // Implements game.Screen.
-func (s *Screen) Update(g *game.Game) (game.Screen, error) {
+func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
 	// Drain all pending server messages before updating game logic.
 	for {
 		select {
@@ -431,13 +431,13 @@ func (s *Screen) updateActiveUnitStatusLabel() {
 	var status string
 	switch {
 	case canMove && canAct:
-		status = fmt.Sprintf("%s can move and use an ability", u.Name)
+		status = u.Name + " can move and use an ability"
 	case canMove:
-		status = fmt.Sprintf("%s can move", u.Name)
+		status = u.Name + " can move"
 	case canAct:
-		status = fmt.Sprintf("%s can use an ability", u.Name)
+		status = u.Name + " can use an ability"
 	default:
-		status = fmt.Sprintf("%s may end turn", u.Name)
+		status = u.Name + " may end turn"
 	}
 
 	s.setStatus(status)
@@ -535,7 +535,7 @@ func (s *Screen) drawCellCoordinates(screen *ebiten.Image) {
 	}
 }
 
-// this is what laziness has done to me
+// this is what laziness has done to me.
 func printD(str string, args ...any) {
 	if config.Get().DevMode.Enabled {
 		fmt.Printf(str+"\n", args...)

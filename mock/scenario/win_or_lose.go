@@ -1,7 +1,7 @@
 package scenario
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ds"
 )
 
 const WinOrLose = "Win or Lose"

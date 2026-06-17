@@ -7,14 +7,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/goplease-game/client/config"
 	"github.com/gorilla/websocket"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
 )
+
+const pingInterval = time.Second * 30
 
 // WSClient manages a single WebSocket connection.
 // It is safe to call Send from any goroutine.
 // Incoming messages are delivered on the Inbox channel.
-type WSClient struct {
+type WSClient struct { //nolint:revive
 	inbox  chan InMessage // buffered; read by the game loop
 	status ConnStatus     // read by screens; written only by wsClient goroutines
 
@@ -27,14 +29,17 @@ type WSClient struct {
 	msgLogger *log.Logger
 }
 
+// wsURL returns the WebSocket server address from config.
 func wsURL() string {
 	return config.Get().ServerAddr
 }
 
+// NewWSClient creates a new WSClient, enabling protocol logging to a file
+// when dev mode and log protocol are turned on in config.
 func NewWSClient() *WSClient {
 	c := &WSClient{
-		inbox:     make(chan InMessage, 128),
-		outbox:    make(chan []byte, 128),
+		inbox:     make(chan InMessage, 128), //nolint:mnd
+		outbox:    make(chan []byte, 128),    //nolint:mnd
 		stop:      make(chan struct{}),
 		status:    StatusDisconnected,
 		msgLogger: nil,
@@ -42,7 +47,7 @@ func NewWSClient() *WSClient {
 
 	dev := config.Get().DevMode
 	if dev.Enabled && dev.LogProtocol {
-		f, _ := os.OpenFile("protocol_log.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		f, _ := os.OpenFile("protocol_log.txt", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 		c.msgLogger = log.New(f, "", log.Ltime|log.Lmicroseconds)
 	}
 
@@ -63,16 +68,37 @@ func (c *WSClient) Connect(playerID string) {
 	go c.dial(playerID)
 }
 
+// Inbox returns the channel on which incoming messages are delivered.
 func (c *WSClient) Inbox() <-chan InMessage {
 	return c.inbox
 }
 
+// Status returns the current connection status.
 func (c *WSClient) Status() ConnStatus {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.status
 }
 
+// Send encodes v as JSON and enqueues it for sending.
+func (c *WSClient) Send(v OutMessage) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("[ws] marshal error: %v", err)
+		return
+	}
+	select {
+	case c.outbox <- b:
+	default:
+		log.Println("[ws] outbox full, dropping message")
+	}
+}
+
+// Disconnect closes the connection gracefully.
+func (c *WSClient) Disconnect() { c.close() }
+
+// dial establishes the WebSocket connection, retrying with backoff on
+// failure, then starts the read and write loops once connected.
 func (c *WSClient) dial(playerID string) {
 	var conn *websocket.Conn
 	var err error
@@ -105,6 +131,8 @@ func (c *WSClient) dial(playerID string) {
 	go c.writeLoop(conn)
 }
 
+// readLoop reads incoming messages from conn and forwards them to the
+// inbox until the connection errors or closes.
 func (c *WSClient) readLoop(conn *websocket.Conn) {
 	defer c.close()
 	for {
@@ -119,7 +147,8 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 		c.logMessage(raw, false)
 
 		var msg InMessage
-		if err := json.Unmarshal(raw, &msg); err != nil {
+		err = json.Unmarshal(raw, &msg)
+		if err != nil {
 			log.Printf("[ws] bad JSON: %v", err)
 			continue
 		}
@@ -131,21 +160,25 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 	}
 }
 
+// writeLoop sends queued outgoing messages and periodic pings on conn
+// until the connection errors or a stop is requested.
 func (c *WSClient) writeLoop(conn *websocket.Conn) {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(pingInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case data := <-c.outbox:
 			c.logMessage(data, true)
 
-			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+			err := conn.WriteMessage(websocket.TextMessage, data)
+			if err != nil {
 				log.Printf("[ws] write error: %v", err)
 				c.close()
 				return
 			}
 		case <-ticker.C:
-			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			err := conn.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
 				c.close()
 				return
 			}
@@ -157,31 +190,8 @@ func (c *WSClient) writeLoop(conn *websocket.Conn) {
 	}
 }
 
-// Send encodes v as JSON and enqueues it for sending.
-func (c *WSClient) Send(v OutMessage) {
-	b, err := json.Marshal(v)
-	if err != nil {
-		log.Printf("[ws] marshal error: %v", err)
-		return
-	}
-	select {
-	case c.outbox <- b:
-	default:
-		log.Println("[ws] outbox full, dropping message")
-	}
-}
-
-func (c *WSClient) logMessage(msg []byte, out bool) {
-	if c.msgLogger != nil {
-		key := "<-"
-		if out {
-			key = "->"
-		}
-
-		c.msgLogger.Printf("%s %s", key, msg)
-	}
-}
-
+// close disconnects the underlying connection and signals the write loop
+// to stop, exactly once.
 func (c *WSClient) close() {
 	c.stopOnce.Do(func() {
 		c.mu.Lock()
@@ -194,5 +204,15 @@ func (c *WSClient) close() {
 	})
 }
 
-// Disconnect closes the connection gracefully.
-func (c *WSClient) Disconnect() { c.close() }
+// logMessage writes msg to the protocol log if logging is enabled,
+// marking it as outgoing or incoming.
+func (c *WSClient) logMessage(msg []byte, out bool) {
+	if c.msgLogger != nil {
+		key := "<-"
+		if out {
+			key = "->"
+		}
+
+		c.msgLogger.Printf("%s %s", key, msg)
+	}
+}

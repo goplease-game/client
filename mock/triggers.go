@@ -1,9 +1,9 @@
 package mock
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
 )
 
 func init() {
@@ -148,7 +148,7 @@ func useCoverFireAbility(source, target *ds.Unit) (st ds.ApplyStates) {
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    u.ID,
 			AbilityID: id,
-			Target:    source.Pos,
+			Target:    &source.Pos,
 		}), ToUnitID: u.ID})
 
 		st.Add(dealDamageToUnit(u, source, ab.Effect.DealDamage)...)
@@ -158,7 +158,7 @@ func useCoverFireAbility(source, target *ds.Unit) (st ds.ApplyStates) {
 }
 
 func useOpportunityAbility(source, target *ds.Unit) (st ds.ApplyStates) {
-	if hex.Distance(source.Pos, target.Pos) > 1 { // only melee attacks
+	if grid.Distance(source.Pos, target.Pos) > 1 { // only melee attacks
 		return
 	}
 
@@ -178,7 +178,7 @@ func useOpportunityAbility(source, target *ds.Unit) (st ds.ApplyStates) {
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    u.ID,
 			AbilityID: id,
-			Target:    target.Pos,
+			Target:    &target.Pos,
 		}), ToUnitID: u.ID})
 		st.Add(dealDamageToUnit(u, target, u.CurrentAtk)...)
 	}
@@ -214,7 +214,7 @@ func useFocusFieldAbility(unit *ds.Unit) (st ds.ApplyStates) {
 			st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 				UnitID:    u.ID,
 				AbilityID: id,
-				Target:    unit.Pos,
+				Target:    &unit.Pos,
 			}), ToUnitID: unit.ID})
 		}
 
@@ -245,7 +245,7 @@ func useBottomlessVialAbility(_, target *ds.Unit) (st ds.ApplyStates) {
 		st.Add(ds.ApplyState{UseAbility: new(ds.UseAbilityPayload{
 			UnitID:    target.ID,
 			AbilityID: id,
-			Target:    target.Pos,
+			Target:    &target.Pos,
 		}), ToUnitID: target.ID})
 		st.Add(ds.ApplyState{SetBaseHP: new(target.BaseHP), ToUnitID: target.ID})
 		st.Add(healUnit(target, ab.Effect.HealHP)...)
@@ -262,7 +262,7 @@ func countEnemiesInRange(u *ds.Unit, radius int, atLeastOpt ...int) (count int) 
 		atLeast = atLeastOpt[0]
 	}
 
-	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	cells := grid.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		if unit := GetUnitAt(c); unit != nil && unit.OwnerID != u.OwnerID {
 			count++
@@ -278,7 +278,7 @@ func countEnemiesInRange(u *ds.Unit, radius int, atLeastOpt ...int) (count int) 
 func findEnemiesInRangeWithAbility(u *ds.Unit, radius int, abID ability.ID) []*ds.Unit {
 	enemies := []*ds.Unit{}
 
-	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	cells := grid.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		if unit := GetUnitAt(c); unit != nil && unit.OwnerID != u.OwnerID && unit.HasAbility(abID) {
 			enemies = append(enemies, unit)
@@ -291,7 +291,7 @@ func findEnemiesInRangeWithAbility(u *ds.Unit, radius int, abID ability.ID) []*d
 func findAlliesInRangeWithAbility(u *ds.Unit, radius int, abID ability.ID) []*ds.Unit {
 	units := []*ds.Unit{}
 
-	cells := hex.CellsInRange(u.Pos, radius, gameState.Board)
+	cells := grid.CellsInRange(u.Pos, radius, gameState.Board)
 	for _, c := range cells {
 		if unit := GetUnitAt(c); unit != nil && unit.OwnerID == u.OwnerID && unit.HasAbility(abID) {
 			units = append(units, unit)

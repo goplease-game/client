@@ -3,9 +3,9 @@ package arena
 import (
 	"image/color"
 
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 // DropZoneCell tracks the state of a safe-zone hex cell that can accept unit drops.

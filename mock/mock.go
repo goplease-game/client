@@ -10,10 +10,10 @@ import (
 	"path"
 
 	"github.com/google/uuid"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/mock/scenario"
 )
 
 const UnitsPerPlacementPhase = 3

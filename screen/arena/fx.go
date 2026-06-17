@@ -3,11 +3,13 @@ package arena
 import (
 	"image"
 
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
+// FxDefiner is implemented by types that can be expanded into a full
+// FxDefinition for playback.
 type FxDefiner interface {
 	Define() FxDefinition
 }
@@ -31,6 +33,7 @@ type FxGroup struct {
 // Implements FxDefiner — use when no internal sequencing is needed.
 type FxSteps []FxStep
 
+// Define returns the steps as a single group with no internal sequencing.
 func (s FxSteps) Define() FxDefinition {
 	return FxDefinition{
 		Groups: []FxGroup{
@@ -43,6 +46,7 @@ func (s FxSteps) Define() FxDefinition {
 // Implements FxDefiner — use when internal sequencing within the fx is needed.
 type FxGroups []FxGroup
 
+// Define returns the groups in their given sequence.
 func (g FxGroups) Define() FxDefinition {
 	return FxDefinition{
 		Groups: g,
@@ -88,6 +92,7 @@ type FxStep struct {
 	FPS float64
 }
 
+// Define wraps the step in a single group containing only itself.
 func (s FxStep) Define() FxDefinition {
 	return FxDefinition{
 		Groups: []FxGroup{
@@ -96,6 +101,8 @@ func (s FxStep) Define() FxDefinition {
 	}
 }
 
+// ProgramFxContext provides a ProgramFx with everything it needs to
+// render a single frame of a code-driven effect.
 type ProgramFxContext struct {
 	Screen     *Screen
 	Coord      ds.HexCoord
@@ -106,4 +113,6 @@ type ProgramFxContext struct {
 	DrawTarget *ebiten.Image
 }
 
+// ProgramFx is a code-driven effect callback invoked every frame with the
+// current playback context.
 type ProgramFx func(ctx ProgramFxContext)

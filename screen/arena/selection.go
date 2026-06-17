@@ -1,9 +1,9 @@
 package arena
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 )
 
 // selectUnit is called when the player clicks the active unit on the board.

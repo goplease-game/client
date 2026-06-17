@@ -1,11 +1,14 @@
+// Package ws ...
 package ws
 
 import (
 	"encoding/json"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
+	"github.com/goplease-game/client/config"
 )
 
+// Client is the interface implemented by both the real WebSocket client and
+// the mock client used in practice mode.
 type Client interface {
 	Inbox() <-chan InMessage
 	Status() ConnStatus
@@ -14,6 +17,7 @@ type Client interface {
 	Disconnect()
 }
 
+// NewClient returns a WSClient, or a mock client if mock mode is enabled in config.
 func NewClient() Client {
 	dev := config.Get().DevMode
 	if dev.Enabled && dev.MockClient {
@@ -23,18 +27,23 @@ func NewClient() Client {
 	return NewWSClient()
 }
 
+// InMessage is a message received from the server, with the payload left
+// as raw JSON until the action is known.
 type InMessage struct {
 	Action Action          `json:"action"`
 	Data   json.RawMessage `json:"data"`
 }
 
+// OutMessage is a message sent to the server.
 type OutMessage struct {
 	Action Action `json:"action"`
 	Data   any    `json:"data"`
 }
 
+// ConnStatus represents the current state of the WebSocket connection.
 type ConnStatus int
 
+// Connection status values.
 const (
 	StatusDisconnected ConnStatus = iota
 	StatusConnecting
@@ -42,8 +51,10 @@ const (
 	StatusError
 )
 
+// Action identifies the type of message exchanged over the WebSocket connection.
 type Action string
 
+// Action identifiers exchanged between client and server.
 const (
 	ConnectedAction         Action = "connected"
 	SearchingOppAction      Action = "searching_opp"

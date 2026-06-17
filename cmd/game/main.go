@@ -1,14 +1,15 @@
+// Package main ...
 package main
 
 import (
 	"log"
 
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/screen"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/screen"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
 func main() {

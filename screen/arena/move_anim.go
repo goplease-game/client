@@ -3,16 +3,16 @@ package arena
 import (
 	"image"
 
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 )
 
 const moveDuration = 30 // frames
 
 // moveUnitAnim creates a movement action using the unit's current position as the starting point.
 // Note: This function only constructs the action object; it does NOT play the animation.
-// To play the animation, you must add it to the queue: s.addMoveAnim(s.moveUnitAnim(u, to))
+// To play the animation, you must add it to the queue: s.addMoveAnim(s.moveUnitAnim(u, to)).
 func (s *Screen) moveUnitAnim(u *ds.Unit, to ds.HexCoord) unitMoveAnimAction {
 	return unitMoveAnimAction{
 		anim:   newMoveAnim(unitImage(u.TemplateID), s.cellCentrePx(u.Pos), s.cellCentrePx(to)),
@@ -55,14 +55,14 @@ func (a *unitMoveAnim) active() bool {
 	return a != nil && a.tick <= moveDuration
 }
 
-// update advances the animation frame, capping it at moveDuration + 1
+// update advances the animation frame, capping it at moveDuration + 1.
 func (a *unitMoveAnim) update() {
 	if a.tick <= moveDuration {
 		a.tick++
 	}
 }
 
-// isDone checks if the animation has safely completed its full duration cycle
+// isDone checks if the animation has safely completed its full duration cycle.
 func (a *unitMoveAnim) isDone() bool {
 	return a.tick > moveDuration
 }
@@ -193,7 +193,7 @@ const liftPx = 20.0 // pixels the unit rises above the source cell during the ar
 const (
 	liftEnd   = 0.15 // 0.00–0.15: rise straight up above source cell
 	travelEnd = 0.85 // 0.15–0.85: move horizontally at full lift height
-	// landEnd = 1.00 // 0.85–1.00: descend onto destination cell
+	// landEnd = 1.00 // 0.85–1.00: descend onto destination cell.
 )
 
 // currentPos returns the interpolated pixel position (top-left of the icon)

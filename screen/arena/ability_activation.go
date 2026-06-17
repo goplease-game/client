@@ -6,11 +6,11 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ws"
 )
 
 // onAbilityCardClicked is called when the player clicks an ability card.
@@ -32,7 +32,7 @@ func (s *Screen) onAbilityCardClicked(ab ability.Ability, card *widget.Container
 	}
 
 	if ab.Activation == ability.Instant {
-		s.sendUseAbility(ab.ID, ds.HexCoord{})
+		s.sendUseAbility(ab.ID, nil)
 		return
 	}
 
@@ -58,7 +58,7 @@ func (s *Screen) onCellClickedWithAbility(coord ds.HexCoord) bool {
 		return true
 	}
 
-	s.sendUseAbility(ab.ID, coord)
+	s.sendUseAbility(ab.ID, &coord)
 	s.cancelAbilitySelection()
 	return true
 }
@@ -71,7 +71,7 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) boo
 	}
 
 	// Must be within range.
-	if ab.Range > 0 && hex.Distance(caster.Pos, coord) > ab.Range {
+	if ab.Range > 0 && grid.Distance(caster.Pos, coord) > ab.Range {
 		return false
 	}
 
@@ -121,8 +121,6 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) boo
 			}
 			return true
 		}
-		//case ability.TargetAny:
-		//	return true
 	}
 
 	switch ab.Activation {
@@ -164,7 +162,7 @@ func (s *Screen) cancelAbilitySelection() {
 }
 
 // sendUseAbility sends the UseAbility message to the server.
-func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
+func (s *Screen) sendUseAbility(abilityID ability.ID, target *ds.HexCoord) {
 	u := s.unitByID(s.activeUnitID)
 	if u == nil {
 		return
@@ -197,7 +195,12 @@ func (s *Screen) sendUseAbility(abilityID ability.ID, target ds.HexCoord) {
 
 	pending := &pendingVisuals{}
 	s.pendingVisuals = pending
-	s.playAbilityFx(abilityID, u, target, func() {
+
+	var fxTarget ds.HexCoord
+	if target != nil {
+		fxTarget = *target
+	}
+	s.playAbilityFx(abilityID, u, fxTarget, func() {
 		pending.fxDone = true
 		s.tryFlushPendingVisuals(pending)
 	})

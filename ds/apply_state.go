@@ -1,8 +1,8 @@
 package ds
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ability/status"
 )
 
 // ApplyState represents a single, atomic state mutation applied to a unit.

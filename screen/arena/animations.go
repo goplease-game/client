@@ -1,8 +1,8 @@
 package arena
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
 	"github.com/setanarut/anim"
 )
 

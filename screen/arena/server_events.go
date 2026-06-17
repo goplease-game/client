@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ws"
 	"golang.org/x/image/colornames"
 )
 
@@ -35,7 +35,7 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	case ws.UnitPlacedAction:
 		s.handleOpponentUnitPlaced(msg.Data)
 	case ws.NewRound:
-		s.handleNewRound(msg.Data)
+		s.handleNewRound()
 	case ws.UnitMovedAction:
 		s.handleUnitMoved(msg.Data)
 	case ws.ApplyState:
@@ -44,7 +44,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 		s.handleActiveUnitChanged(msg.Data)
 	case ws.UseAbility:
 		var payload ds.UseAbilityPayload
-		if err := json.Unmarshal(msg.Data, &payload); err != nil {
+		err := json.Unmarshal(msg.Data, &payload)
+		if err != nil {
 			log.Fatal("handleUseAbility unmarshal:", err)
 		}
 		s.handleUseAbility(payload)
@@ -64,7 +65,7 @@ func (s *Screen) handlePlaceUnit() {
 	s.setupUnitPanel()
 
 	if len(s.player.Units) == 1 {
-		s.setStatus(fmt.Sprintf("%s is ready to be deployed", s.player.Units[0].Name))
+		s.setStatus(s.player.Units[0].Name + "%s is ready to be deployed")
 	} else {
 		s.setStatus("Deploy a unit to the board")
 	}
@@ -75,7 +76,8 @@ func (s *Screen) handlePlaceUnit() {
 
 func (s *Screen) handleServerError(data json.RawMessage) {
 	var msg ds.ErrorResponse
-	if err := json.Unmarshal(data, &msg); err != nil {
+	err := json.Unmarshal(data, &msg)
+	if err != nil {
 		log.Fatal("handleServerError unmarshal:", err)
 	}
 
@@ -108,7 +110,8 @@ func (s *Screen) handleEndTurn() {
 // It shows the unit's ability panel, highlights it on the board, and enables the Next button.
 func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	var payload ds.PlayUnitPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal("handlePlayUnit unmarshal:", err)
 	}
 
@@ -153,7 +156,8 @@ func (s *Screen) handleWaitingForOpponent() {
 // It renders the unit card on the destination cell and adds it to the turn queue.
 func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	var payload ds.PlaceUnitPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal("handleOpponentUnitPlaced unmarshal:", err)
 	}
 
@@ -174,7 +178,7 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	sfx.Play(unitPlacedSound)
 }
 
-func (s *Screen) handleNewRound(data json.RawMessage) {
+func (s *Screen) handleNewRound() {
 	s.roundNumber++
 	s.showNewRoundBanner(s.roundNumber)
 
@@ -191,7 +195,8 @@ func (s *Screen) handleNewRound(data json.RawMessage) {
 // It starts the movement animation; finishMove is called when the animation completes.
 func (s *Screen) handleUnitMoved(data json.RawMessage) {
 	var payload ds.UnitMovedPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal("handleUnitMoved unmarshal:", err)
 	}
 
@@ -219,7 +224,8 @@ func (s *Screen) handleUnitMoved(data json.RawMessage) {
 // Each ApplyState is applied sequentially to the target unit.
 func (s *Screen) handleApplyState(data json.RawMessage) {
 	var payload []ds.ApplyState
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal("handleApplyState unmarshal:", err)
 	}
 
@@ -265,7 +271,8 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 // Each ApplyState is applied sequentially to the target unit.
 func (s *Screen) handleActiveUnitChanged(data json.RawMessage) {
 	var payload ds.ActiveUnitChangedPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
+	err := json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal("handleActiveUnitChanged unmarshal:", err)
 	}
 
@@ -287,7 +294,12 @@ func (s *Screen) handleUseAbility(load ds.UseAbilityPayload) {
 
 	pending := &pendingVisuals{}
 	s.pendingVisuals = pending
-	s.playAbilityFx(load.AbilityID, unit, load.Target, func() {
+
+	var fxTarget ds.HexCoord
+	if load.Target != nil {
+		fxTarget = *load.Target
+	}
+	s.playAbilityFx(load.AbilityID, unit, fxTarget, func() {
 		pending.fxDone = true
 		s.tryFlushPendingVisuals(pending)
 	})

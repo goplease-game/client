@@ -14,6 +14,7 @@ UI/UX improvement (in not specific order, just ideas):
 - [ ] reconnect
 - [ ] auto end turn (from server)
 - [ ] keyboard shortcuts
+- [ ] Display errors to user as toast/popup instead of fatal/log
 
 Code & Project architecture
 - [ ] Use code from server's repo to handle mock server

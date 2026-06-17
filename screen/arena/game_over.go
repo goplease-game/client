@@ -6,7 +6,7 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/goplease-game/client/ui"
 	"golang.org/x/image/colornames"
 )
 

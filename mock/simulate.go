@@ -6,9 +6,9 @@ import (
 	"log"
 	"math"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
 )
 
 type SimAction struct {
@@ -97,7 +97,7 @@ func simulateSimpleAttack(u *ds.Unit) (data []SimAction) {
 	states, err := HandleAbility(ds.UseAbilityPayload{
 		UnitID:    u.ID,
 		AbilityID: ab.ID,
-		Target:    enemy.Pos,
+		Target:    &enemy.Pos,
 	})
 	if err != nil {
 		log.Fatalf("[SimulateUnitTurn] HandleAbility: %s", err.Error())
@@ -108,7 +108,7 @@ func simulateSimpleAttack(u *ds.Unit) (data []SimAction) {
 		data: ds.UseAbilityPayload{
 			UnitID:    u.ID,
 			AbilityID: ab.ID,
-			Target:    enemy.Pos,
+			Target:    &enemy.Pos,
 		},
 	}, SimAction{
 		Action: ApplyState,
@@ -119,7 +119,7 @@ func simulateSimpleAttack(u *ds.Unit) (data []SimAction) {
 }
 
 func findAttackPosition(u *ds.Unit, target *ds.Unit, attackRange int) (ds.HexCoord, bool) {
-	if hex.Distance(u.Pos, target.Pos) <= attackRange {
+	if grid.Distance(u.Pos, target.Pos) <= attackRange {
 		return u.Pos, true
 	}
 
@@ -131,12 +131,12 @@ func findAttackPosition(u *ds.Unit, target *ds.Unit, attackRange int) (ds.HexCoo
 			continue
 		}
 
-		moveDist := hex.Distance(u.Pos, coord)
+		moveDist := grid.Distance(u.Pos, coord)
 		if moveDist > u.CurrentMP {
 			continue
 		}
 
-		if hex.Distance(coord, target.Pos) > attackRange {
+		if grid.Distance(coord, target.Pos) > attackRange {
 			continue
 		}
 
@@ -191,8 +191,8 @@ func findClosestEnemy(of *ds.Unit) *ds.Unit {
 			best = e
 			continue
 		}
-		distBest := hex.Distance(of.Pos, best.Pos)
-		distE := hex.Distance(of.Pos, e.Pos)
+		distBest := grid.Distance(of.Pos, best.Pos)
+		distE := grid.Distance(of.Pos, e.Pos)
 		if distE < distBest || (distE == distBest && e.CurrentHP < best.CurrentHP) {
 			best = e
 		}
@@ -215,7 +215,7 @@ func findClosestReachableEnemy(u *ds.Unit, abilityRange int) *ds.Unit {
 			best = e
 			continue
 		}
-		if hex.Distance(u.Pos, e.Pos) < hex.Distance(u.Pos, best.Pos) {
+		if grid.Distance(u.Pos, e.Pos) < grid.Distance(u.Pos, best.Pos) {
 			best = e
 		}
 	}
@@ -240,7 +240,7 @@ func findClosestEnemyWithBuffs(u *ds.Unit, abilityRange int) *ds.Unit {
 			best = e
 			continue
 		}
-		if hex.Distance(u.Pos, e.Pos) < hex.Distance(u.Pos, best.Pos) {
+		if grid.Distance(u.Pos, e.Pos) < grid.Distance(u.Pos, best.Pos) {
 			best = e
 		}
 	}
@@ -258,7 +258,7 @@ func findClosestAlly(u *ds.Unit) *ds.Unit {
 			best = other
 			continue
 		}
-		if hex.Distance(u.Pos, other.Pos) < hex.Distance(u.Pos, best.Pos) {
+		if grid.Distance(u.Pos, other.Pos) < grid.Distance(u.Pos, best.Pos) {
 			best = other
 		}
 	}
@@ -303,7 +303,7 @@ func findAllyWithDebuffInRange(u *ds.Unit, abilityRange int) *ds.Unit {
 // findAdjacentPosition returns the closest free cell adjacent to target
 // that u can reach within its movement range, or false if none exists.
 func findAdjacentPosition(u *ds.Unit, target *ds.Unit) (ds.HexCoord, bool) {
-	neighbors := hex.Neighbors(target.Pos)
+	neighbors := grid.Neighbors(target.Pos)
 
 	var best ds.HexCoord
 	bestDist := -1
@@ -313,7 +313,7 @@ func findAdjacentPosition(u *ds.Unit, target *ds.Unit) (ds.HexCoord, bool) {
 		if !ok || cell.Unit != nil {
 			continue
 		}
-		dist := hex.Distance(u.Pos, pos)
+		dist := grid.Distance(u.Pos, pos)
 		if dist > u.CurrentMP {
 			continue
 		}
@@ -329,7 +329,7 @@ func findAdjacentPosition(u *ds.Unit, target *ds.Unit) (ds.HexCoord, bool) {
 // canReachFrom reports whether a unit standing at fromPos could reach
 // the target given abilityRange (ignores movement — assumes unit is already at fromPos).
 func canReachFrom(fromPos ds.HexCoord, target *ds.Unit, abilityRange int) bool {
-	return hex.Distance(fromPos, target.Pos) <= abilityRange
+	return grid.Distance(fromPos, target.Pos) <= abilityRange
 }
 
 // findBestPositionForAOE finds the cell reachable by u (within MovePoints)
@@ -340,7 +340,7 @@ func findBestPositionForAOE(
 	radius int,
 	scoreFn func(u *ds.Unit, center ds.HexCoord, radius int) int,
 ) (ds.HexCoord, int) {
-	reachable := hex.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
+	reachable := grid.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
 
 	bestPos := u.Pos
 	bestScore := scoreFn(u, u.Pos, radius)
@@ -364,7 +364,7 @@ func findBestPositionForAOE(
 // matching the signature expected by findBestPositionForAOE.
 func countAlliesInRadius(u *ds.Unit, center ds.HexCoord, radius int) int {
 	count := 0
-	cells := hex.CellsInRange(center, radius, gameState.Board)
+	cells := grid.CellsInRange(center, radius, gameState.Board)
 	for _, pos := range cells {
 		unit := GetUnitAt(pos)
 		if unit != nil && unit.IsAlly(u) && unit.ID != u.ID {
@@ -377,17 +377,17 @@ func countAlliesInRadius(u *ds.Unit, center ds.HexCoord, radius int) int {
 // simulateMoveTowards moves u one step in the direction of targetPos,
 // choosing the reachable cell closest to the target.
 func simulateMoveTowards(u *ds.Unit, targetPos ds.HexCoord) SimAction {
-	reachable := hex.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
+	reachable := grid.CellsInRange(u.Pos, u.CurrentMP, gameState.Board)
 
 	bestPos := u.Pos
-	bestDist := hex.Distance(u.Pos, targetPos)
+	bestDist := grid.Distance(u.Pos, targetPos)
 
 	for _, pos := range reachable {
 		cell, ok := gameState.Board.Cells[pos]
 		if !ok || (cell.Unit != nil && cell.Unit.ID != u.ID) {
 			continue
 		}
-		d := hex.Distance(pos, targetPos)
+		d := grid.Distance(pos, targetPos)
 		if d < bestDist {
 			bestDist = d
 			bestPos = pos
@@ -429,12 +429,12 @@ func hasNegativeStatus(u *ds.Unit) bool {
 // findFreeCellAdjacentTo returns a free board cell adjacent to target
 // reachable within stepRange hex steps from u's current position.
 func findFreeCellAdjacentTo(u *ds.Unit, target *ds.Unit, stepRange int) (ds.HexCoord, bool) {
-	for _, pos := range hex.Neighbors(target.Pos) {
+	for _, pos := range grid.Neighbors(target.Pos) {
 		cell, ok := gameState.Board.Cells[pos]
 		if !ok || cell.Unit != nil {
 			continue
 		}
-		if hex.Distance(u.Pos, pos) <= stepRange {
+		if grid.Distance(u.Pos, pos) <= stepRange {
 			return pos, true
 		}
 	}
@@ -473,7 +473,7 @@ func findAbilityTarget(u *ds.Unit, target *ds.Unit, abilityID ability.ID) (moveT
 // Used to evaluate AoE value before committing to a move.
 func countEnemiesInRangeFrom(center ds.HexCoord, u *ds.Unit, radius int) int {
 	count := 0
-	cells := hex.CellsInRange(center, radius, gameState.Board)
+	cells := grid.CellsInRange(center, radius, gameState.Board)
 	for _, pos := range cells {
 		unit := GetUnitAt(pos)
 		if unit != nil && unit.IsEnemy(u) {

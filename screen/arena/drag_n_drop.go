@@ -3,8 +3,8 @@ package arena
 import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
 )
 
 // dndUnit builds and caches the drag widget for a unit card.
@@ -16,7 +16,7 @@ type dndUnit struct {
 
 // Create returns the drag widget and the unit as the drop payload.
 // The widget is created once and reused on subsequent drags.
-func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
+func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, any) {
 	if d.dragWidget == nil {
 		unitImg := unitImage(d.unit.TemplateID)
 		d.dragWidget = widget.NewContainer(
@@ -42,6 +42,7 @@ func (d *dndUnit) Create(_ widget.HasWidget) (*widget.Container, interface{}) {
 // It highlights valid drop targets when a drag starts and tracks the hovered cell.
 type dndHandler struct {
 	*dndUnit
+
 	safeCells   []*DropZoneCell // all safe-zone cells that can receive a drop
 	currentCell *DropZoneCell   // cell currently under the dragged card; nil if none
 	canDrag     func() bool     // returns false when dragging is not allowed (e.g. not the player's turn)
@@ -50,7 +51,7 @@ type dndHandler struct {
 // Create is called by EbitenUI when a drag begins.
 // Returns nil to cancel the drag if canDrag reports false.
 // Otherwise highlights all safe-zone cells and delegates to dndUnit.Create.
-func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interface{}) {
+func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, any) {
 	if !d.canDrag() {
 		return nil, nil
 	}
@@ -64,7 +65,7 @@ func (d *dndHandler) Create(parent widget.HasWidget) (*widget.Container, interfa
 
 // Update is called each frame while a drag is in progress.
 // It tracks which safe-zone cell is currently hovered and updates its tint.
-func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ interface{}) {
+func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ any) {
 	if d.currentCell != nil {
 		d.currentCell.SetHover(false)
 		d.currentCell = nil
@@ -82,7 +83,7 @@ func (d *dndHandler) Update(canDrop bool, target widget.HasWidget, _ interface{}
 
 // EndDrag is called by EbitenUI when the drag ends (drop or cancel).
 // Clears the highlight on all safe-zone cells regardless of outcome.
-func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ interface{}) {
+func (d *dndHandler) EndDrag(_ bool, _ widget.HasWidget, _ any) {
 	for _, sc := range d.safeCells {
 		sc.SetHighlight(false)
 	}

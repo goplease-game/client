@@ -7,9 +7,9 @@ import (
 
 	"github.com/ebitenui/ebitenui/input"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/ds"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
 )
 
 // z-index constants define the render order for hex cell layers.
@@ -35,7 +35,7 @@ type HexCellWidget struct {
 	// layers maps z-index to an EbitenUI container for that render layer.
 	layers map[int]*widget.Container
 
-	// bgColor is the current fill color of the hex.
+	// bgColor is the current fill color of the grid.
 	// Change it via SetColor — no image allocation needed.
 	bgColor color.RGBA
 
@@ -124,6 +124,189 @@ func (h *HexCellWidget) AppendHexPath(path *vector.Path) {
 	h.buildHexPath(path)
 }
 
+// NOTE: this alternative buildHexPath could draw circle cells (set cornerRadius)
+// buildHexPath appends a pointy-top hexagon with rounded corners centered in cachedRect to path.
+// cornerRadius controls how much each vertex is chamfered — 0 gives sharp corners.
+/*
+func (h *HexCellWidget) buildHexPath(path *vector.Path) {
+	const cornerRadius = 0.0 // pixels
+
+	cx := float32(h.cachedRect.Min.X + h.cachedRect.Dx()/2)
+	cy := float32(h.cachedRect.Min.Y + h.cachedRect.Dy()/2)
+	r := float32(HexRadius)
+
+	// Compute all 6 vertices.
+	vx := [6]float32{}
+	vy := [6]float32{}
+	for i := 0; i < 6; i++ {
+		angle := float64(i)*math.Pi/3 - math.Pi/2
+		vx[i] = cx + r*float32(math.Cos(angle))
+		vy[i] = cy + r*float32(math.Sin(angle))
+	}
+
+	for i := 0; i < 6; i++ {
+		curr := i
+		next := (i + 1) % 6
+		prev := (i + 5) % 6
+
+		// Vectors from current vertex toward neighbors.
+		toPrevX := vx[prev] - vx[curr]
+		toPrevY := vy[prev] - vy[curr]
+		toNextX := vx[next] - vx[curr]
+		toNextY := vy[next] - vy[curr]
+
+		lenPrev := float32(math.Sqrt(float64(toPrevX*toPrevX + toPrevY*toPrevY)))
+		lenNext := float32(math.Sqrt(float64(toNextX*toNextX + toNextY*toNextY)))
+
+		// Points on edges at cornerRadius distance from vertex.
+		p1x := vx[curr] + toPrevX/lenPrev*cornerRadius
+		p1y := vy[curr] + toPrevY/lenPrev*cornerRadius
+		p2x := vx[curr] + toNextX/lenNext*cornerRadius
+		p2y := vy[curr] + toNextY/lenNext*cornerRadius
+
+		if i == 0 {
+			path.MoveTo(p1x, p1y)
+		} else {
+			path.LineTo(p1x, p1y)
+		}
+
+		// Quadratic bezier through the vertex rounds the corner.
+		path.QuadTo(vx[curr], vy[curr], p2x, p2y)
+	}
+
+	path.Close()
+}
+*/
+
+// RenderUnitLayer renders all widgets on the unit layer (z=0).
+// Call from PostRenderHook after RenderFill and grid stroke.
+func (h *HexCellWidget) RenderUnitLayer(screen *ebiten.Image) {
+	h.renderLayer(screen, zIndexUnit)
+}
+
+// RenderHUDLayer renders all widgets on the HUD layer (z=100).
+// Call from PostRenderHook after RenderUnitLayer.
+func (h *HexCellWidget) RenderHUDLayer(screen *ebiten.Image) {
+	h.renderLayer(screen, zIndexHUD)
+}
+
+// RenderFXLayer renders all widgets on the FX layer (z=200).
+// Call from PostRenderHook after RenderHUDLayer.
+func (h *HexCellWidget) RenderFXLayer(screen *ebiten.Image) {
+	h.renderLayer(screen, zIndexFX)
+}
+
+// --- Color ---
+
+// SetColor updates the hex fill color for the next RenderFill call.
+// Accepts any color.Color implementation (color.RGBA, color.NRGBA, etc).
+// No image allocation occurs — only a color.RGBA field is written.
+func (h *HexCellWidget) SetColor(c color.Color) {
+	r, g, b, a := c.RGBA()
+	h.bgColor = color.RGBA{
+		R: uint8(r >> 8), //nolint:gosec
+		G: uint8(g >> 8), //nolint:gosec
+		B: uint8(b >> 8), //nolint:gosec
+		A: uint8(a >> 8), //nolint:gosec
+	}
+}
+
+// --- Child widget management ---
+
+// AddChild adds widgets to the unit layer (z=0).
+// Implements ChildAdder for compatibility with buildBoardCard.
+func (h *HexCellWidget) AddChild(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
+	return h.layerFor(zIndexUnit).AddChild(children...)
+}
+
+// AddToUnitLayer adds widgets to the unit layer (z=0), rendered below HUD.
+// Use for unit portraits and other base-level visuals.
+func (h *HexCellWidget) AddToUnitLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
+	return h.layerFor(zIndexUnit).AddChild(children...)
+}
+
+// AddToHUDLayer adds widgets to the HUD layer (z=100), rendered above units.
+// Use for hp badges, status icons, and other UI overlays.
+func (h *HexCellWidget) AddToHUDLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
+	return h.layerFor(zIndexHUD).AddChild(children...)
+}
+
+// AddToFXLayer adds widgets to the FX layer (z=200), rendered above HUD.
+// Use for damage numbers, attack effects, and other temporary visuals.
+func (h *HexCellWidget) AddToFXLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
+	return h.layerFor(zIndexFX).AddChild(children...)
+}
+
+// RemoveChild removes a specific child widget from the unit layer.
+func (h *HexCellWidget) RemoveChild(w widget.PreferredSizeLocateableWidget) {
+	h.layerFor(zIndexUnit).RemoveChild(w)
+}
+
+// RemoveChildren removes all child widgets from all layers.
+func (h *HexCellWidget) RemoveChildren() {
+	for _, layer := range h.layers {
+		layer.RemoveChildren()
+	}
+}
+
+// --- Hit testing ---
+
+// HitTest returns true if the screen point (mx, my) falls inside the hex polygon.
+// Uses cube-coordinate rounding so the result matches the true hex shape,
+// not the rectangular bounding box that EbitenUI uses for mouse events.
+func (h *HexCellWidget) HitTest(mx, my int) bool {
+	rect := h.cachedRect
+	cx := float64(rect.Min.X + rect.Dx()/2)
+	cy := float64(rect.Min.Y + rect.Dy()/2)
+
+	dx := float64(mx) - cx
+	dy := float64(my) - cy
+
+	size := float64(HexRadius)
+
+	// Convert pixel offset to fractional axial coordinates.
+	q := (dx*math.Sqrt(3)/3 - dy/3) / size
+	r := (dy * 2 / 3) / size
+
+	// Third cube coordinate (q + r + s == 0).
+	s := -q - r
+
+	// Round to nearest hex center, then fix the coordinate with the largest
+	// rounding error to keep q+r+s == 0.
+	rq := math.Round(q)
+	rr := math.Round(r)
+	rs := math.Round(s)
+
+	dq := math.Abs(rq - q)
+	dr := math.Abs(rr - r)
+	ds := math.Abs(rs - s)
+
+	if dq > dr && dq > ds {
+		rq = -rr - rs
+	} else if dr > ds {
+		rr = -rq - rs
+	}
+
+	// The point is inside this hex only if rounded coords are (0, 0).
+	return rq == 0 && rr == 0
+}
+
+// CachedRect returns the current screen rectangle for this hex cell.
+// Used by Screen.renderGrid and other rendering passes that need the cell bounds.
+func (h *HexCellWidget) CachedRect() image.Rectangle {
+	return h.cachedRect
+}
+
+// SetupInputLayer delegates input layer setup to all z-index layers.
+// Required by EbitenUI to propagate input handling to child containers.
+func (h *HexCellWidget) SetupInputLayer(def input.DeferredSetupInputLayerFunc) {
+	for _, layer := range h.layers {
+		if il, ok := any(layer).(input.Layerer); ok {
+			il.SetupInputLayer(def)
+		}
+	}
+}
+
 // buildHexPath appends a pointy-top hexagon to path, rounding only corners
 // that are on the board boundary (both adjacent edges have no neighbor).
 func (h *HexCellWidget) buildHexPath(path *vector.Path) {
@@ -143,6 +326,7 @@ func (h *HexCellWidget) buildHexPath(path *vector.Path) {
 	}
 
 	hasNeighbor := [6]bool{}
+	// #nosec G602 -- i comes from ranging over a fixed-size [6] array.
 	for i, d := range neighborDirs {
 		neighbor := ds.HexCoord{Q: h.Coord.Q + d.Q, R: h.Coord.R + d.R}
 		_, hasNeighbor[i] = h.boardCells[neighbor]
@@ -158,12 +342,12 @@ func (h *HexCellWidget) buildHexPath(path *vector.Path) {
 		// Count the maximum run of consecutive missing neighbors,
 		// treating the array as circular.
 		best := 0
-		for start := 0; start < 6; start++ {
+		for start := range 6 {
 			if hasNeighbor[start] {
 				continue
 			}
 			count := 0
-			for j := 0; j < 6; j++ {
+			for j := range 6 {
 				if !hasNeighbor[(start+j)%6] {
 					count++
 				} else {
@@ -179,14 +363,14 @@ func (h *HexCellWidget) buildHexPath(path *vector.Path) {
 
 	vx := [6]float32{}
 	vy := [6]float32{}
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		angle := float64(i)*math.Pi/3 - math.Pi/2
 		vx[i] = cx + r*float32(math.Cos(angle))
 		vy[i] = cy + r*float32(math.Sin(angle))
 	}
 
 	started := false
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		next := (i + 1) % 6
 		prev := (i + 5) % 6
 
@@ -234,134 +418,11 @@ func (h *HexCellWidget) buildHexPath(path *vector.Path) {
 	path.Close()
 }
 
-// NOTE: this alternative buildHexPath could draw circle cells (set cornerRadius)
-// buildHexPath appends a pointy-top hexagon with rounded corners centered in cachedRect to path.
-// cornerRadius controls how much each vertex is chamfered — 0 gives sharp corners.
-//func (h *HexCellWidget) buildHexPath(path *vector.Path) {
-//	const cornerRadius = 0.0 // pixels
-//
-//	cx := float32(h.cachedRect.Min.X + h.cachedRect.Dx()/2)
-//	cy := float32(h.cachedRect.Min.Y + h.cachedRect.Dy()/2)
-//	r := float32(HexRadius)
-//
-//	// Compute all 6 vertices.
-//	vx := [6]float32{}
-//	vy := [6]float32{}
-//	for i := 0; i < 6; i++ {
-//		angle := float64(i)*math.Pi/3 - math.Pi/2
-//		vx[i] = cx + r*float32(math.Cos(angle))
-//		vy[i] = cy + r*float32(math.Sin(angle))
-//	}
-//
-//	for i := 0; i < 6; i++ {
-//		curr := i
-//		next := (i + 1) % 6
-//		prev := (i + 5) % 6
-//
-//		// Vectors from current vertex toward neighbors.
-//		toPrevX := vx[prev] - vx[curr]
-//		toPrevY := vy[prev] - vy[curr]
-//		toNextX := vx[next] - vx[curr]
-//		toNextY := vy[next] - vy[curr]
-//
-//		lenPrev := float32(math.Sqrt(float64(toPrevX*toPrevX + toPrevY*toPrevY)))
-//		lenNext := float32(math.Sqrt(float64(toNextX*toNextX + toNextY*toNextY)))
-//
-//		// Points on edges at cornerRadius distance from vertex.
-//		p1x := vx[curr] + toPrevX/lenPrev*cornerRadius
-//		p1y := vy[curr] + toPrevY/lenPrev*cornerRadius
-//		p2x := vx[curr] + toNextX/lenNext*cornerRadius
-//		p2y := vy[curr] + toNextY/lenNext*cornerRadius
-//
-//		if i == 0 {
-//			path.MoveTo(p1x, p1y)
-//		} else {
-//			path.LineTo(p1x, p1y)
-//		}
-//
-//		// Quadratic bezier through the vertex rounds the corner.
-//		path.QuadTo(vx[curr], vy[curr], p2x, p2y)
-//	}
-//
-//	path.Close()
-//}
-
-// RenderUnitLayer renders all widgets on the unit layer (z=0).
-// Call from PostRenderHook after RenderFill and grid stroke.
-func (h *HexCellWidget) RenderUnitLayer(screen *ebiten.Image) {
-	h.renderLayer(screen, zIndexUnit)
-}
-
-// RenderHUDLayer renders all widgets on the HUD layer (z=100).
-// Call from PostRenderHook after RenderUnitLayer.
-func (h *HexCellWidget) RenderHUDLayer(screen *ebiten.Image) {
-	h.renderLayer(screen, zIndexHUD)
-}
-
-// RenderFXLayer renders all widgets on the FX layer (z=200).
-// Call from PostRenderHook after RenderHUDLayer.
-func (h *HexCellWidget) RenderFXLayer(screen *ebiten.Image) {
-	h.renderLayer(screen, zIndexFX)
-}
-
 // renderLayer renders the container for the given z-index if it exists.
 // Called only via the named public methods above.
 func (h *HexCellWidget) renderLayer(screen *ebiten.Image, z int) {
 	if layer, ok := h.layers[z]; ok {
 		layer.Render(screen)
-	}
-}
-
-// --- Color ---
-
-// SetColor updates the hex fill color for the next RenderFill call.
-// Accepts any color.Color implementation (color.RGBA, color.NRGBA, etc).
-// No image allocation occurs — only a color.RGBA field is written.
-func (h *HexCellWidget) SetColor(c color.Color) {
-	r, g, b, a := c.RGBA()
-	h.bgColor = color.RGBA{
-		R: uint8(r >> 8),
-		G: uint8(g >> 8),
-		B: uint8(b >> 8),
-		A: uint8(a >> 8),
-	}
-}
-
-// --- Child widget management ---
-
-// AddChild adds widgets to the unit layer (z=0).
-// Implements ChildAdder for compatibility with buildBoardCard.
-func (h *HexCellWidget) AddChild(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
-	return h.layerFor(zIndexUnit).AddChild(children...)
-}
-
-// AddToUnitLayer adds widgets to the unit layer (z=0), rendered below HUD.
-// Use for unit portraits and other base-level visuals.
-func (h *HexCellWidget) AddToUnitLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
-	return h.layerFor(zIndexUnit).AddChild(children...)
-}
-
-// AddToHUDLayer adds widgets to the HUD layer (z=100), rendered above units.
-// Use for hp badges, status icons, and other UI overlays.
-func (h *HexCellWidget) AddToHUDLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
-	return h.layerFor(zIndexHUD).AddChild(children...)
-}
-
-// AddToFXLayer adds widgets to the FX layer (z=200), rendered above HUD.
-// Use for damage numbers, attack effects, and other temporary visuals.
-func (h *HexCellWidget) AddToFXLayer(children ...widget.PreferredSizeLocateableWidget) widget.RemoveChildFunc {
-	return h.layerFor(zIndexFX).AddChild(children...)
-}
-
-// RemoveChild removes a specific child widget from the unit layer.
-func (h *HexCellWidget) RemoveChild(w widget.PreferredSizeLocateableWidget) {
-	h.layerFor(zIndexUnit).RemoveChild(w)
-}
-
-// RemoveChildren removes all child widgets from all layers.
-func (h *HexCellWidget) RemoveChildren() {
-	for _, layer := range h.layers {
-		layer.RemoveChildren()
 	}
 }
 
@@ -379,62 +440,4 @@ func (h *HexCellWidget) layerFor(z int) *widget.Container {
 	}
 	h.layers[z] = c
 	return c
-}
-
-// --- Hit testing ---
-
-// HitTest returns true if the screen point (mx, my) falls inside the hex polygon.
-// Uses cube-coordinate rounding so the result matches the true hex shape,
-// not the rectangular bounding box that EbitenUI uses for mouse events.
-func (h *HexCellWidget) HitTest(mx, my int) bool {
-	rect := h.cachedRect
-	cx := float64(rect.Min.X + rect.Dx()/2)
-	cy := float64(rect.Min.Y + rect.Dy()/2)
-
-	dx := float64(mx) - cx
-	dy := float64(my) - cy
-
-	size := float64(HexRadius)
-
-	// Convert pixel offset to fractional axial coordinates.
-	q := (dx*math.Sqrt(3)/3 - dy/3) / size
-	r := (dy * 2 / 3) / size
-
-	// Third cube coordinate (q + r + s == 0).
-	s := -q - r
-
-	// Round to nearest hex center, then fix the coordinate with the largest
-	// rounding error to keep q+r+s == 0.
-	rq := math.Round(q)
-	rr := math.Round(r)
-	rs := math.Round(s)
-
-	dq := math.Abs(rq - q)
-	dr := math.Abs(rr - r)
-	ds_ := math.Abs(rs - s)
-
-	if dq > dr && dq > ds_ {
-		rq = -rr - rs
-	} else if dr > ds_ {
-		rr = -rq - rs
-	}
-
-	// The point is inside this hex only if rounded coords are (0, 0).
-	return rq == 0 && rr == 0
-}
-
-// CachedRect returns the current screen rectangle for this hex cell.
-// Used by Screen.renderGrid and other rendering passes that need the cell bounds.
-func (h *HexCellWidget) CachedRect() image.Rectangle {
-	return h.cachedRect
-}
-
-// SetupInputLayer delegates input layer setup to all z-index layers.
-// Required by EbitenUI to propagate input handling to child containers.
-func (h *HexCellWidget) SetupInputLayer(def input.DeferredSetupInputLayerFunc) {
-	for _, layer := range h.layers {
-		if il, ok := interface{}(layer).(input.Layerer); ok {
-			il.SetupInputLayer(def)
-		}
-	}
 }

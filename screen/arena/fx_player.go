@@ -5,11 +5,11 @@ import (
 	"log"
 	"math"
 
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
 	"github.com/setanarut/anim"
 )
 
@@ -19,6 +19,8 @@ type FxContext struct {
 	Coord ds.HexCoord // hex coord for program fx
 }
 
+// ActiveFxAnim is a single fx animation currently playing on screen,
+// either sprite-sheet-driven (player) or code-driven (programFx).
 type ActiveFxAnim struct {
 	player          *anim.AnimationPlayer
 	pos             image.Point
@@ -33,6 +35,9 @@ type ActiveFxAnim struct {
 	coord           ds.HexCoord // hex coord for program fx
 }
 
+// playAbilityFx plays the visual effects for the given ability, preferring
+// a registered composer over a plain fx-sequence registry entry, and
+// calling onDone immediately if neither is registered.
 func (s *Screen) playAbilityFx(abilityID ability.ID, unit *ds.Unit, target ds.HexCoord, onDone func()) {
 	if composer, ok := abilityComposerRegistry[abilityID]; ok {
 		composer(s, unit, target, onDone)
@@ -47,6 +52,9 @@ func (s *Screen) playAbilityFx(abilityID ability.ID, unit *ds.Unit, target ds.He
 	onDone()
 }
 
+// playFxGroups plays the fx groups in sequence starting at idx, advancing
+// to the next group once every step in the current group has finished,
+// and calling onDone after the last group completes.
 func (s *Screen) playFxGroups(groups []FxGroup, idx int, ctx FxContext, onDone func()) {
 	if idx >= len(groups) {
 		onDone()
@@ -129,6 +137,8 @@ func (s *Screen) playFxStep(step FxStep, ctx FxContext, onDone func()) {
 	})
 }
 
+// updateFxAnims advances all active fx animations by one frame, triggering
+// sounds, detecting completion, and removing finished animations.
 func (s *Screen) updateFxAnims() {
 	current := s.activeFxAnims
 	s.activeFxAnims = nil
@@ -168,6 +178,8 @@ func (s *Screen) updateFxAnims() {
 	}
 }
 
+// drawActiveFxAnims renders all active fx animations onto screen, skipping
+// any still in their delay period.
 func (s *Screen) drawActiveFxAnims(screen *ebiten.Image) {
 	for _, fx := range s.activeFxAnims {
 		if fx.delayFrames > 0 {
@@ -207,7 +219,7 @@ func (s *Screen) drawActiveFxAnims(screen *ebiten.Image) {
 func (s *Screen) playFxAt(name FxName, ctx FxContext, onDone func()) {
 	fx, ok := fxRegistry[name]
 	if !ok {
-		log.Printf("playFxAt: fx %q not found in fxRegistry", name)
+		log.Printf("playFxAt: fx %d not found in fxRegistry", name)
 		onDone()
 		return
 	}
@@ -224,6 +236,7 @@ func (s *Screen) scheduleDelayed(seconds float64, fn func()) {
 	s.delayedActions = append(s.delayedActions, delayedAction{frames: frames, fn: fn})
 }
 
+// delayedAction is a callback scheduled to run after a fixed number of frames.
 type delayedAction struct {
 	frames int
 	fn     func()

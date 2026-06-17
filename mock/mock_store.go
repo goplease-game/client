@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ds"
 )
 
 var savedSnapshots = map[string]ds.GameSnapshot{}

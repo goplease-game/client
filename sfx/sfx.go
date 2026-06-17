@@ -1,12 +1,13 @@
+// Package sfx ...
 package sfx
 
 import (
 	"bytes"
 	"log"
 
+	"github.com/goplease-game/client/asset"
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/vorbis"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
 )
 
 var audioCtx *audio.Context
@@ -15,7 +16,7 @@ func init() {
 	audioCtx = audio.NewContext(44100)
 }
 
-var volume float64 = 1.0
+var volume = 1.0
 
 // Volume returns the current global sound volume in range [0, 1].
 func Volume() float64 {

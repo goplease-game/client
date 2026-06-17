@@ -1,3 +1,4 @@
+// Package ui ...
 package ui
 
 import (
@@ -13,11 +14,15 @@ import (
 	"golang.org/x/image/font/gofont/goregular"
 )
 
+// regularSource and boldSource are the parsed font faces used to render
+// UI text in regular and bold weights.
 var (
 	regularSource *text.GoTextFaceSource
 	boldSource    *text.GoTextFaceSource
 )
 
+// init loads the embedded regular and bold font faces used by TextFace
+// and TextFaceBold.
 func init() {
 	var err error
 	regularSource, err = text.NewGoTextFaceSource(bytes.NewReader(goregular.TTF))
@@ -30,6 +35,8 @@ func init() {
 	}
 }
 
+// Button creates a styled button widget with the given label text,
+// wiring up click, press, and hover handlers for visual feedback.
 func Button(text string) (*widget.Button, error) {
 	face := TextFace(30)
 
@@ -63,19 +70,19 @@ func Button(text string) (*widget.Button, error) {
 			Bottom: 15,
 		}),
 		// Move the text down and right on press
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.GetWidget().CustomData = true
 		}),
 		// Move the text back to start on press released
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
+		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.GetWidget().CustomData = false
 		}),
 
 		// add a handler that reacts to clicking the button.
-		widget.ButtonOpts.ClickedHandler(func(args *widget.ButtonClickedEventArgs) {
-			println("button clicked")
+		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+			//
 		}),
 
 		// add a handler that reacts to entering the button with the cursor
@@ -111,6 +118,8 @@ func Button(text string) (*widget.Button, error) {
 	return button, nil
 }
 
+// buttonImage returns the nine-slice background images for a button's
+// idle, hover, and pressed states.
 func buttonImage() *widget.ButtonImage {
 	idle := image.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 255})
 
@@ -125,10 +134,12 @@ func buttonImage() *widget.ButtonImage {
 	}
 }
 
+// TextFace returns a regular-weight text face at the given size.
 func TextFace(size float64) text.Face {
 	return &text.GoTextFace{Source: regularSource, Size: size}
 }
 
+// TextFaceBold returns a bold-weight text face at the given size.
 func TextFaceBold(size float64) text.Face {
 	return &text.GoTextFace{Source: boldSource, Size: size}
 }

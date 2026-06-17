@@ -6,22 +6,23 @@ import (
 	stdImage "image"
 	"image/color"
 	"log"
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/ebitenui/ebitenui"
 	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/google/uuid"
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
-	game "github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
+// UI status labels and animation timing constants for the matchmaking screen.
 const (
 	ConnectingLabel   = "Connecting..."
 	SearchingOppLabel = "Searching for opponent…"
@@ -33,6 +34,8 @@ const (
 	spawnAt      = travelTicks / 2
 )
 
+// searchOppUnitColors is the palette used to tint the unit silhouettes
+// animated across the search screen.
 var searchOppUnitColors = []color.Color{
 	ui.RGBFromHex("B5BAFF"),
 	ui.RGBFromHex("AEE2FF"),
@@ -64,8 +67,8 @@ type unitAnim struct {
 
 // init loads a random tinted unit image and resets all movement state for a new pass.
 func (a *unitAnim) init(containerW, containerH float64) {
-	idx := rand.Intn(unitCount) + 1
-	col := searchOppUnitColors[rand.Intn(len(searchOppUnitColors))]
+	idx := rand.IntN(unitCount) + 1                                 //nolint:gosec
+	col := searchOppUnitColors[rand.IntN(len(searchOppUnitColors))] //nolint:gosec
 	img := asset.TintedImage(fmt.Sprintf("units/unit_%d_pic.png", idx), col, 64)
 	a.img = ebiten.NewImageFromImage(img)
 	iw := float64(a.img.Bounds().Dx())
@@ -226,39 +229,6 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 	return s
 }
 
-// spawnUnit initialises a new unitAnim from the current placeholder bounds and appends it to the active list.
-func (s *SearchScreen) spawnUnit() {
-	rect := s.animPlaceholder.GetWidget().Rect
-	a := &unitAnim{}
-	a.init(float64(rect.Dx()), float64(rect.Dy()))
-	s.units = append(s.units, a)
-}
-
-// updateUnits advances all active units, spawns the next unit when the leading one reaches
-// the midpoint, and removes units that have completed their path.
-func (s *SearchScreen) updateUnits() {
-	var spawned []*unitAnim
-
-	alive := s.units[:0]
-	for _, a := range s.units {
-		done := a.update()
-
-		if !a.spawnedNext && a.tick >= spawnAt {
-			a.spawnedNext = true
-			rect := s.animPlaceholder.GetWidget().Rect
-			next := &unitAnim{}
-			next.init(float64(rect.Dx()), float64(rect.Dy()))
-			spawned = append(spawned, next)
-		}
-
-		if !done {
-			alive = append(alive, a)
-		}
-	}
-
-	s.units = append(alive, spawned...)
-}
-
 // Update implements game.Screen. It drives the matchmaking loop, unit animation, and input handling.
 func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	s.tick++
@@ -308,6 +278,50 @@ func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 	}
 }
 
+// Draw implements game.Screen. It renders the UI and all active unit animations.
+func (s *SearchScreen) Draw(screen *ebiten.Image) {
+	s.ui.Draw(screen)
+	if s.animReady {
+		rect := s.animPlaceholder.GetWidget().Rect
+		for _, a := range s.units {
+			a.draw(screen, rect)
+		}
+	}
+}
+
+// spawnUnit initialises a new unitAnim from the current placeholder bounds and appends it to the active list.
+func (s *SearchScreen) spawnUnit() {
+	rect := s.animPlaceholder.GetWidget().Rect
+	a := &unitAnim{}
+	a.init(float64(rect.Dx()), float64(rect.Dy()))
+	s.units = append(s.units, a)
+}
+
+// updateUnits advances all active units, spawns the next unit when the leading one reaches
+// the midpoint, and removes units that have completed their path.
+func (s *SearchScreen) updateUnits() {
+	var spawned []*unitAnim
+
+	alive := s.units[:0]
+	for _, a := range s.units {
+		done := a.update()
+
+		if !a.spawnedNext && a.tick >= spawnAt {
+			a.spawnedNext = true
+			rect := s.animPlaceholder.GetWidget().Rect
+			next := &unitAnim{}
+			next.init(float64(rect.Dx()), float64(rect.Dy()))
+			spawned = append(spawned, next)
+		}
+
+		if !done {
+			alive = append(alive, a)
+		}
+	}
+
+	s.units = append(alive, spawned...) //nolint:gocritic
+}
+
 // handleMessage dispatches an incoming server message and returns the next screen if a transition is required.
 func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 	fmt.Printf("[search] received: %v\n", msg.Action)
@@ -320,7 +334,8 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 		s.statusLbl.Label = SearchingOppLabel
 	case ws.NewGameAction:
 		var data ds.NewGamePayload
-		if err := json.Unmarshal(msg.Data, &data); err != nil {
+		err := json.Unmarshal(msg.Data, &data)
+		if err != nil {
 			log.Fatalf("new game: failed to unmarshal: %v", err)
 		}
 		snap := ds.GameSnapshot{
@@ -339,15 +354,4 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 		s.statusLbl.Label = "Error: " + e.Message
 	}
 	return nil
-}
-
-// Draw implements game.Screen. It renders the UI and all active unit animations.
-func (s *SearchScreen) Draw(screen *ebiten.Image) {
-	s.ui.Draw(screen)
-	if s.animReady {
-		rect := s.animPlaceholder.GetWidget().Rect
-		for _, a := range s.units {
-			a.draw(screen, rect)
-		}
-	}
 }

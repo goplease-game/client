@@ -2,7 +2,7 @@ package scenario
 
 import (
 	"github.com/google/uuid"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ds"
 )
 
 const safeZoneSize = 2

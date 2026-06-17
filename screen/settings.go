@@ -8,11 +8,11 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	game "github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 // SettingsScreen shows game settings. Currently only sound volume.
@@ -64,7 +64,7 @@ func NewSettingsScreen(previous game.Screen) *SettingsScreen {
 	)
 
 	volumeSlider := widget.NewSlider(
-		widget.SliderOpts.Direction(widget.DirectionHorizontal),
+		widget.SliderOpts.Orientation(widget.DirectionHorizontal),
 		widget.SliderOpts.MinMax(0, 100),
 		widget.SliderOpts.Images(sliderTrackImage(), sliderHandleImage()),
 		widget.SliderOpts.FixedHandleSize(20),
@@ -85,15 +85,13 @@ func NewSettingsScreen(previous game.Screen) *SettingsScreen {
 	)
 	volumeSlider.Current = int(sfx.Volume() * 100)
 
-	backButton, err := secondaryButton("Back", 12, func(args *widget.ButtonClickedEventArgs) {
-		if err := config.Save(); err != nil {
+	backButton := secondaryButton("Back", 12, func(_ *widget.ButtonClickedEventArgs) {
+		err := config.Save()
+		if err != nil {
 			log.Printf("settings: failed to save config: %v", err)
 		}
 		s.nextScreen = s.previous
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	panel.AddChild(title)
 	panel.AddChild(volumeLabel)
@@ -107,6 +105,8 @@ func NewSettingsScreen(previous game.Screen) *SettingsScreen {
 	return s
 }
 
+// Update advances the settings UI and returns the next screen to
+// transition to once the player presses Back.
 func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
 	s.ui.Update()
 
@@ -119,14 +119,18 @@ func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
 	return s, nil
 }
 
+// Draw renders the settings UI to screen.
 func (s *SettingsScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 }
 
+// volumeLabelText formats volume (0.0-1.0) as a percentage label,
+// e.g. "Volume: 50%".
 func volumeLabelText(volume float64) string {
 	return fmt.Sprintf("Volume: %d%%", int(volume*100))
 }
 
+// sliderTrackImage returns the background image for the volume slider's track.
 func sliderTrackImage() *widget.SliderTrackImage {
 	idle := image.NewNineSliceColor(ui.RGBFromHex("#2A3540"))
 	return &widget.SliderTrackImage{
@@ -136,6 +140,7 @@ func sliderTrackImage() *widget.SliderTrackImage {
 	}
 }
 
+// sliderHandleImage returns the button image for the volume slider's draggable handle.
 func sliderHandleImage() *widget.ButtonImage {
 	idle := image.NewNineSliceColor(menuButtonBgColor)
 	hover := image.NewNineSliceColor(menuButtonHoverBgColor)

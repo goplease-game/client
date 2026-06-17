@@ -1,17 +1,17 @@
+// Package screen ...
 package screen
 
 import (
 	"fmt"
 	"image/color"
-	"log"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/themes"
 	"github.com/ebitenui/ebitenui/widget"
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	game "github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"github.com/pkg/browser"
 	"golang.org/x/image/colornames"
 )
@@ -115,12 +115,9 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 		body.AddChild(text)
 	}
 
-	backButton, err := secondaryButton("Back", 14, func(args *widget.ButtonClickedEventArgs) {
+	backButton := secondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.previous
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	panel.AddChild(title)
 	panel.AddChild(body)
@@ -133,6 +130,8 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 	return s
 }
 
+// Update advances the about screen UI and returns the previous screen
+// once Back is pressed.
 func (s *AboutScreen) Update(_ *game.Game) (game.Screen, error) {
 	s.ui.Update()
 
@@ -145,6 +144,7 @@ func (s *AboutScreen) Update(_ *game.Game) (game.Screen, error) {
 	return s, nil
 }
 
+// Draw renders the about screen UI.
 func (s *AboutScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 }

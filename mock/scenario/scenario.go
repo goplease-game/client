@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ds"
 )
 
 const Default = ClassicFairArena

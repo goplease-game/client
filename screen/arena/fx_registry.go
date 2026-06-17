@@ -1,7 +1,9 @@
 package arena
 
+// FxName identifies a visual/audio effect sequence that can be played on the board.
 type FxName int
 
+// Effect identifiers used to look up definitions in fxRegistry.
 const (
 	fxNone FxName = iota
 	fxSwordAttack
@@ -24,6 +26,7 @@ const (
 	fxPurify
 )
 
+// fxRegistry maps each FxName to its sprite, sound, and timing definition.
 var fxRegistry = map[FxName]FxDefiner{
 	fxSwordAttack: FxStep{
 		Sprite: "sword_attack", Sound: "swoosh.ogg",

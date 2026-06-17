@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ds"
 )
 
 // HexRadius is the center-to-vertex radius of a hex cell in pixels.
@@ -77,7 +77,7 @@ func (l *HexLayout) Layout(widgets []widget.PreferredSizeLocateableWidget, rect 
 
 		w.GetWidget().SetLocation(r)
 
-		if h, ok := w.(interface{ SetLocation(image.Rectangle) }); ok {
+		if h, ok := w.(interface{ SetLocation(img image.Rectangle) }); ok {
 			h.SetLocation(r)
 		}
 	}

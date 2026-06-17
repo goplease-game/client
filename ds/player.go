@@ -1,5 +1,7 @@
 package ds
 
+// Player represents a participant in a match, tracking their hand of units,
+// placement progress, and the Phantom AP carried over from unequal unit counts.
 type Player struct {
 	ID          string `json:"id"` // uuid
 	Name        string `json:"name"`
@@ -9,5 +11,5 @@ type Player struct {
 
 	PhantomAP int `json:"phantom_ap"`
 
-	UnitsPlacedThisRound int
+	UnitsPlacedThisRound int `json:"-"`
 }

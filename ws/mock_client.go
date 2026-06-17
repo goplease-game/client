@@ -5,45 +5,59 @@ import (
 	"log"
 	"time"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/mock"
 )
 
+// mockDelay is the artificial pause between mock actions, simulating
+// network and opponent "thinking" latency.
 const (
 	mockDelay = 800 * time.Millisecond
 )
 
+// MockClient is a Client implementation that simulates the server locally
+// for practice mode, driving bot turns and game state in-process instead
+// of over a real WebSocket connection.
 type MockClient struct {
 	inbox  chan InMessage
 	status ConnStatus
 }
 
+// NewMockClient creates a new MockClient with disconnected status.
 func NewMockClient() *MockClient {
 	return &MockClient{
-		inbox:  make(chan InMessage, 128),
+		inbox:  make(chan InMessage, 128), //nolint:mnd
 		status: StatusDisconnected,
 	}
 }
 
+// Inbox returns the channel on which simulated server messages are delivered.
 func (m *MockClient) Inbox() <-chan InMessage { return m.inbox }
-func (m *MockClient) Status() ConnStatus      { return m.status }
 
+// Status returns the current connection status.
+func (m *MockClient) Status() ConnStatus { return m.status }
+
+// Connect marks the mock client as connected and sends the initial connected message.
 func (m *MockClient) Connect(playerID string) {
 	m.status = StatusConnected
 	log.Printf("[mock] connected as %s", playerID)
 	m.inbox <- InMessage{Action: ConnectedAction}
 }
 
+// Disconnect marks the mock client as disconnected.
 func (m *MockClient) Disconnect() {
 	m.status = StatusDisconnected
 }
 
+// Send simulates sending msg to the server by handling its logic asynchronously.
 func (m *MockClient) Send(msg OutMessage) {
 	log.Printf("[mock] client sent: %s", msg.Action)
 	go m.handleLogic(msg)
 }
 
+// handleLogic processes an outgoing message as the mock server would,
+// dispatching to the appropriate handler based on its action.
 func (m *MockClient) handleLogic(msg OutMessage) {
 	switch msg.Action {
 	case NewGameAction:
@@ -56,21 +70,23 @@ func (m *MockClient) handleLogic(msg OutMessage) {
 		m.onReadyToPlay()
 
 	case UnitPlacedAction:
-		m.onUnitPlaced(msg.Data.(ds.UnitPlacedPayload))
+		m.onUnitPlaced(msg.Data.(ds.UnitPlacedPayload)) //nolint:forcetypeassert
 
 	case UnitMovedAction:
-		m.onUnitMoved(msg.Data.(ds.UnitMovedPayload))
+		m.onUnitMoved(msg.Data.(ds.UnitMovedPayload)) //nolint:forcetypeassert
 
 	case EndTurnAction:
 		m.onEndTurn()
 	case UseAbility:
-		m.onAbilityUsed(msg.Data.(ds.UseAbilityPayload))
+		m.onAbilityUsed(msg.Data.(ds.UseAbilityPayload)) //nolint:forcetypeassert
 
 	case CancelMatchAction:
 		m.inbox <- InMessage{Action: MatchCancelledAction}
 	}
 }
 
+// onNewGame loads the mock game data, initializes the game state, and
+// notifies the client that a new game has started.
 func (m *MockClient) onNewGame() {
 	data, err := mock.LoadData("new_game.json")
 	if err != nil {
@@ -78,7 +94,8 @@ func (m *MockClient) onNewGame() {
 	}
 
 	var payload ds.NewGamePayload
-	if err = json.Unmarshal(data, &payload); err != nil {
+	err = json.Unmarshal(data, &payload)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -86,10 +103,14 @@ func (m *MockClient) onNewGame() {
 	m.inbox <- InMessage{Action: NewGameAction, Data: data}
 }
 
+// onGameOver sends the given end-of-game action to the client.
 func (m *MockClient) onGameOver(action Action) {
 	m.inbox <- InMessage{Action: action}
 }
 
+// onReadyToPlay starts the match, either skipping straight to the play
+// phase or beginning the placement phase depending on whether either
+// player still has units in hand.
 func (m *MockClient) onReadyToPlay() {
 	m.send(WaitingForOpponent)
 	time.Sleep(mockDelay)
@@ -192,6 +213,8 @@ func (m *MockClient) onAbilityUsed(load ds.UseAbilityPayload) {
 	}
 }
 
+// sendApplyStates marshals and sends the given apply states to the client,
+// doing nothing if there are none to send.
 func (m *MockClient) sendApplyStates(st ...ds.ApplyState) {
 	if len(st) == 0 {
 		return
@@ -203,9 +226,10 @@ func (m *MockClient) sendApplyStates(st ...ds.ApplyState) {
 	}
 
 	m.send(ApplyState, data)
-
 }
 
+// checkGameOver checks whether the match has ended and, if so, notifies
+// the client of the result.
 func (m *MockClient) checkGameOver() {
 	if isGO, playerIdx := mock.CheckGameOver(); isGO {
 		if playerIdx == 0 {
@@ -259,7 +283,9 @@ func (m *MockClient) playUnit(unit *ds.Unit) {
 	m.onEndTurn()
 }
 
-// simulateMockUnitTurn ...
+// simulateMockUnitTurn replays the mock player's simulated actions into the
+// inbox as if they came from the server, then applies any resulting
+// on-move effects once the turn's actions have finished.
 func (m *MockClient) simulateMockUnitTurn(unit *ds.Unit) {
 	actions := mock.SimulateUnitTurn(unit)
 
@@ -310,6 +336,8 @@ func (m *MockClient) runPlacementPhase() {
 	m.advanceGameLoop()
 }
 
+// advancePlayPhase moves to the placement phase if no unit is currently
+// active, otherwise plays the active unit's turn.
 func (m *MockClient) advancePlayPhase() {
 	gs := mock.GetGameState()
 	activeUnit := mock.ActiveUnit()
@@ -362,7 +390,7 @@ func (m *MockClient) startNewRound() {
 
 	m.send(NewRound)
 
-	if gs.UnitsPerPlacementPhase >= 2 {
+	if gs.UnitsPerPlacementPhase >= 2 { //nolint:mnd
 		gs.UnitsPerPlacementPhase--
 	}
 	gs.Players[0].UnitsPlacedThisRound = 0
@@ -372,6 +400,8 @@ func (m *MockClient) startNewRound() {
 	m.advanceGameLoop()
 }
 
+// send delivers action (with optional data) to the client's inbox, then
+// checks for game over if currently in the play phase.
 func (m *MockClient) send(action Action, dataOpt ...json.RawMessage) {
 	msg := InMessage{Action: action}
 	if len(dataOpt) > 0 {
@@ -385,6 +415,7 @@ func (m *MockClient) send(action Action, dataOpt ...json.RawMessage) {
 	}
 }
 
+// sendErr sends an error response with the given message to the client.
 func (m *MockClient) sendErr(e string) {
 	v := ds.ErrorResponse{Message: e}
 	data, err := json.Marshal(v)
@@ -395,6 +426,7 @@ func (m *MockClient) sendErr(e string) {
 	m.send(ErrorAction, data)
 }
 
+// sendPlayUnit notifies the client that the given unit should be played.
 func (m *MockClient) sendPlayUnit(unitID string) {
 	data, err := json.Marshal(ds.PlayUnitPayload{UnitID: unitID})
 	if err != nil {
@@ -403,6 +435,9 @@ func (m *MockClient) sendPlayUnit(unitID string) {
 	m.inbox <- InMessage{Action: PlayUnitAction, Data: data}
 }
 
+// getPlacementActor returns the index of the player who should place a
+// unit next, prioritizing whichever player has placed fewer units this
+// round, with player 1 as the tie-breaker.
 func (m *MockClient) getPlacementActor() int {
 	gs := mock.GetGameState()
 	p1 := gs.Players[0].UnitsPlacedThisRound

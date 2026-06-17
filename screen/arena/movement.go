@@ -1,17 +1,14 @@
 package arena
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"slices"
+
+	"github.com/goplease-game/client/ds"
 )
 
 // isReachableHex reports whether coord is present in the precomputed reachable list.
 func isReachableHex(cells []ds.HexCoord, coord ds.HexCoord) bool {
-	for _, c := range cells {
-		if c == coord {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(cells, coord)
 }
 
 // moveUnit updates the local board state to reflect a unit moving to to.

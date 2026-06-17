@@ -1,10 +1,11 @@
+// Package game ...
 package game
 
 import (
 	"github.com/google/uuid"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 )
 
 // Game is the root ebiten.Game implementation.
@@ -16,6 +17,8 @@ type Game struct {
 	PlayerID string // stable UUID for this client session
 }
 
+// New creates and initializes a new Game instance with a generated player ID,
+// the provided server client, and an initial screen.
 func New(server ws.Client, s Screen) *Game {
 	g := &Game{
 		PlayerID: uuid.NewString(),
@@ -26,9 +29,11 @@ func New(server ws.Client, s Screen) *Game {
 	return g
 }
 
-// SwitchTo replaces the active screen.
+// SwitchTo replaces the currently active screen with the provided one.
 func (g *Game) SwitchTo(s Screen) { g.screen = s }
 
+// Update updates the game state by delegating the logic to the active screen
+// and handles transitions to the next screen if necessary.
 func (g *Game) Update() error {
 	next, err := g.screen.Update(g)
 	if err != nil {
@@ -40,11 +45,15 @@ func (g *Game) Update() error {
 	return nil
 }
 
+// Draw renders the game graphics by delegating the drawing operations
+// to the currently active screen.
 func (g *Game) Draw(screen *ebiten.Image) {
 	g.screen.Draw(screen)
 }
 
-func (g *Game) Layout(outsideW, outsideH int) (int, int) {
+// Layout accepts the outside window dimensions and returns the logical
+// game screen dimensions retrieved from the configuration.
+func (g *Game) Layout(_, _ int) (int, int) {
 	conf := config.Get()
 	return conf.WindowW, conf.WindowH
 }

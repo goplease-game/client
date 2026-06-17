@@ -1,5 +1,6 @@
 package status
 
+// Statuses maps each status Type to its static definition.
 var Statuses = map[Type]*Status{
 	Rallied:        ralliedStatus,
 	Provoked:       provokedStatus,

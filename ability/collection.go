@@ -1,43 +1,38 @@
 package ability
 
-import "github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+import "github.com/goplease-game/client/ability/status"
 
+// Game ability identifiers used to distinguish unique combat skills and spells.
 const (
 	BasicMeleeAttack ID = "basic_melee_attack"
 	BasicRangeAttack ID = "basic_range_attack"
 	BasicMagicAttack ID = "basic_magic_attack"
 
-	// Tank
 	Fortify     ID = "fortify"
 	Provoke     ID = "provoke"
 	ShieldBash  ID = "shield_bash"
 	UndyingWill ID = "undying_will"
 
-	// warrior
 	BattleCry   ID = "battle_cry"
 	IdolihuSpin ID = "idolihu_spin"
 	PowerPush   ID = "power_push"
 	Frenzy      ID = "frenzy"
 
-	// ranger
 	PiercingShot  ID = "piercing_shot"
 	HuntersMark   ID = "hunters_mark"
 	HamstringShot ID = "hamstring_shot"
 	CoverFire     ID = "cover_fire"
 
-	// rogue
 	ShadowStep  ID = "shadow_step"
 	GangUp      ID = "gang_up"
 	Eliminate   ID = "eliminate"
 	Opportunity ID = "opportunity"
 
-	// mage
 	Translocation ID = "translocation"
 	TimeWarp      ID = "time_warp"
 	Purge         ID = "purge"
 	FocusField    ID = "focus_field"
 
-	// support
 	Heal           ID = "heal"
 	Equalize       ID = "equalize"
 	Purify         ID = "purify"
@@ -52,8 +47,11 @@ const (
 // - 2/3       — two distinct possible values
 // - 2–5       — damage range
 
+// HintCurrentATK defines the placeholder string used in damage hints
+// to represent the unit's current attack power.
 const HintCurrentATK = "ATK"
 
+// Abilities maps each unique ability ID to its corresponding structural configuration and combat rules.
 var Abilities = map[ID]Ability{
 	BasicMeleeAttack: {
 		Type:        Skill,

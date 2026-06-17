@@ -3,10 +3,10 @@ package arena
 import (
 	"fmt"
 
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
 

@@ -2,22 +2,22 @@ package screen
 
 import (
 	"image/color"
-	"log"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/mock"
+	"github.com/goplease-game/client/mock/scenario"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
-	game "github.com/ognev-dev/goplease-ebitengine-client"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
 	"golang.org/x/image/colornames"
 )
 
+// Shared color palette for the main menu UI.
 var (
 	nameColor                = ui.RGBFromHex("#00a8e8")
 	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
@@ -34,6 +34,8 @@ type MainScreen struct {
 	exit       bool
 }
 
+// NewMainScreen creates the main menu screen with Play, Practice, Settings,
+// About, and (on non-WASM builds) Exit buttons.
 func NewMainScreen(server ws.Client) *MainScreen {
 	s := &MainScreen{
 		server: server,
@@ -45,9 +47,6 @@ func NewMainScreen(server ws.Client) *MainScreen {
 	)
 
 	footer := widget.NewContainer(
-		//widget.ContainerOpts.BackgroundImage(
-		//	image.NewNineSliceColor(colornames.Steelblue),
-		//),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(5),
@@ -78,6 +77,8 @@ func NewMainScreen(server ws.Client) *MainScreen {
 	return s
 }
 
+// Update implements game.Screen. It drives the main menu UI and exits or
+// transitions to the next screen when requested.
 func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 	if s.exit {
 		return nil, ebiten.Termination
@@ -94,15 +95,14 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 	return s, nil
 }
 
+// Draw implements game.Screen. It renders the main menu UI.
 func (s *MainScreen) Draw(screen *ebiten.Image) {
 	s.ui.Draw(screen)
 }
 
+// mainMenu builds the title and menu button column shown on the main screen.
 func (s *MainScreen) mainMenu() *widget.Container {
 	c := widget.NewContainer(
-		//widget.ContainerOpts.BackgroundImage(
-		//	image.NewNineSliceColor(colornames.Steelblue),
-		//),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -114,9 +114,6 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	)
 
 	menuC := widget.NewContainer(
-		//widget.ContainerOpts.BackgroundImage(
-		//	image.NewNineSliceColor(colornames.Goldenrod),
-		//),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(5),
@@ -141,43 +138,28 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
-	playButton, err := mainMenuButton("PLAY", 30, func(args *widget.ButtonClickedEventArgs) {
+	playButton := mainMenuButton("PLAY", 30, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewSearchScreen(s.server)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	practiceButton, err := mainMenuButton("Practice", 16, func(args *widget.ButtonClickedEventArgs) {
+	practiceButton := mainMenuButton("Practice", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.server.Disconnect()
 		s.nextScreen = newPracticeScreen()
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	settButton, err := mainMenuButton("Settings", 16, func(args *widget.ButtonClickedEventArgs) {
+	settButton := mainMenuButton("Settings", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewSettingsScreen(s)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	aboutButton, err := mainMenuButton("About", 16, func(args *widget.ButtonClickedEventArgs) {
+	aboutButton := mainMenuButton("About", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewAboutScreen(s)
 	})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	var exitButton *widget.Button
 	if !config.IsWASM() {
-		exitButton, err = mainMenuButton("Exit", 14, func(args *widget.ButtonClickedEventArgs) {
+		exitButton = mainMenuButton("Exit", 14, func(_ *widget.ButtonClickedEventArgs) {
 			s.exit = true
 		})
-		if err != nil {
-			log.Fatal(err)
-		}
 	}
 
 	menuC.AddChild(titleText)
@@ -195,7 +177,9 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	return c
 }
 
-func mainMenuButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) (*widget.Button, error) {
+// mainMenuButton creates a primary menu button with hover sound, hover
+// text size change, and a press-down text shift.
+func mainMenuButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
 	tf := ui.TextFace(size)
 	tfHover := ui.TextFace(size + 5)
 	var button *widget.Button
@@ -222,30 +206,32 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 			Top:    15,
 			Bottom: 15,
 		}),
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.GetWidget().CustomData = true
 		}),
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
+		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.GetWidget().CustomData = false
 		}),
 		widget.ButtonOpts.ClickedHandler(clickHandler),
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
+		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
 			sfx.Play("button_hover.ogg")
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.Text().SetFace(&tfHover)
 			button.GetWidget().Render(nil)
 		}),
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
+		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.Text().SetFace(&tf)
 		}),
 	)
 
-	return button, nil
+	return button
 }
 
+// mainMenuButtonImage returns the nine-slice background images for
+// primary menu buttons.
 func mainMenuButtonImage() *widget.ButtonImage {
 	idle := image.NewNineSliceColor(menuButtonBgColor)
 	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
@@ -258,6 +244,8 @@ func mainMenuButtonImage() *widget.ButtonImage {
 	}
 }
 
+// newPracticeScreen loads the default scenario and starts an arena screen
+// backed by a connected mock client.
 func newPracticeScreen() game.Screen {
 	snap := mock.LoadScenario(scenario.Default)
 	mockCl := ws.NewMockClient()
@@ -266,7 +254,9 @@ func newPracticeScreen() game.Screen {
 	return NewArenaScreen(snap, mockCl, true)
 }
 
-func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) (*widget.Button, error) {
+// secondaryButton creates a smaller menu button styled like
+// mainMenuButton, used for secondary actions like Back.
+func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
 	tf := ui.TextFace(size)
 	tfHover := ui.TextFace(size + 5)
 	var button *widget.Button
@@ -293,26 +283,26 @@ func secondaryButton(text string, size float64, clickHandler widget.ButtonClicke
 			Top:    10,
 			Bottom: 10,
 		}),
-		widget.ButtonOpts.PressedHandler(func(args *widget.ButtonPressedEventArgs) {
+		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.GetWidget().CustomData = true
 		}),
-		widget.ButtonOpts.ReleasedHandler(func(args *widget.ButtonReleasedEventArgs) {
+		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.GetWidget().CustomData = false
 		}),
 		widget.ButtonOpts.ClickedHandler(clickHandler),
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
+		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
 			sfx.Play("button_hover.ogg")
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.Text().SetFace(&tfHover)
 			button.GetWidget().Render(nil)
 		}),
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
+		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.Text().SetFace(&tf)
 		}),
 	)
 
-	return button, nil
+	return button
 }

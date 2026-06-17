@@ -1,8 +1,8 @@
 package scenario
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/ds"
 )
 
 const MistWithCompany = "Mist with company"

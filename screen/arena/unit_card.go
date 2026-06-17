@@ -3,14 +3,15 @@ package arena
 import (
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
 
@@ -51,7 +52,7 @@ func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
 // buildBoardCard adds a unit portrait and HUD badges to a ChildAdder (hex cell or container).
 // The portrait goes to the unit layer; the HP badge goes to the HUD layer.
 // If canMove is true, a walk indicator badge is also added.
-func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCardRefs {
+func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) {
 	var img *ebiten.Image
 	if u.HasStatus(status.Stunned) {
 		img = asset.Image(unitStunnedPic, unitIconSize)
@@ -78,15 +79,9 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) UnitCard
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 16, -6))
 	}
 
-	if s.activeUnitID == u.ID {
-		//c.AddToHUDLayer(s.apBadge(u))
-	}
-
 	if canMove {
-		c.AddToHUDLayer(walkBadge(35, 40, false))
+		c.AddToHUDLayer(walkBadge(35, 40))
 	}
-
-	return UnitCardRefs{Icon: icon}
 }
 
 // buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
@@ -118,7 +113,7 @@ func (s *Screen) buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 	}
 
 	if u.ID == s.activeUnitID && !s.activeUnitMoved {
-		c.AddToHUDLayer(walkBadge(40, -15, true))
+		c.AddToHUDLayer(walkBadge(40, -15))
 	}
 
 	statusIcons(c, u)
@@ -131,9 +126,7 @@ func (s *Screen) drawAPMarkers(screen *ebiten.Image, u *ds.Unit, cell *ui.HexCel
 	phantomAvail := 0
 	if s.player.PhantomAP > 0 {
 		phantomAvail = s.maxPhantomAPPerUnitPerTurn - u.PhantomAPUsedThisTurn
-		if phantomAvail > s.player.PhantomAP {
-			phantomAvail = s.player.PhantomAP
-		}
+		phantomAvail = min(phantomAvail, s.player.PhantomAP)
 	}
 	total += phantomAvail
 	if total == 0 {
@@ -152,7 +145,7 @@ func (s *Screen) drawAPMarkers(screen *ebiten.Image, u *ds.Unit, cell *ui.HexCel
 	} else {
 		totalSpread := float64(total-1) * spreadPerMarker
 		startAngle := 270*math.Pi/180.0 - totalSpread/2
-		for i := 0; i < total; i++ {
+		for i := range total {
 			angles = append(angles, startAngle+float64(i)*spreadPerMarker)
 		}
 	}
@@ -177,7 +170,7 @@ func (s *Screen) drawAPMarkers(screen *ebiten.Image, u *ds.Unit, cell *ui.HexCel
 
 // walkBadge returns a small container with a walk icon, anchored to the
 // bottom-left corner of the hex cell to indicate the unit can still move.
-func walkBadge(top, left int, flat bool) *widget.Container {
+func walkBadge(top, left int) *widget.Container {
 	const iconSize = 32
 
 	badge := widget.NewContainer(
@@ -208,47 +201,17 @@ func walkBadge(top, left int, flat bool) *widget.Container {
 // hpBadge returns a small container that displays a heart icon with the HP
 // value overlaid, anchored slightly outside the top-left corner of the hex cell.
 func hpBadge(hp, top, left int) *widget.Container {
-	const iconSize = 30
-
-	badge := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(iconSize, iconSize),
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionStart,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: top, Left: left},
-			}),
-		),
-	)
-
-	badge.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(asset.Image("heart_o.png", iconSize)),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
-
-	tf := ui.TextFaceBold(14)
-	badge.AddChild(widget.NewText(
-		widget.TextOpts.Text(fmt.Sprintf("%d", hp), &tf, colornames.White),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
-
-	return badge
+	return badgeContainer(hp, top, left, "heart_o.png")
 }
 
 // shieldBadge returns a small container displaying a shield icon with the shield
 // value overlaid, anchored next to the HP badge at the top of the hex cell.
 func shieldBadge(value, top, left int) *widget.Container {
+	return badgeContainer(value, top, left, "shield_o.png")
+}
+
+// badgeContainer returns a small container displaying a shield or heart.
+func badgeContainer(value, top, left int, img string) *widget.Container {
 	const iconSize = 30
 
 	badge := widget.NewContainer(
@@ -264,7 +227,7 @@ func shieldBadge(value, top, left int) *widget.Container {
 	)
 
 	badge.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(asset.Image("shield_o.png", iconSize)),
+		widget.GraphicOpts.Image(asset.Image(img, iconSize)),
 		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -275,7 +238,7 @@ func shieldBadge(value, top, left int) *widget.Container {
 
 	tf := ui.TextFaceBold(14)
 	badge.AddChild(widget.NewText(
-		widget.TextOpts.Text(fmt.Sprintf("%d", value), &tf, colornames.White),
+		widget.TextOpts.Text(strconv.Itoa(value), &tf, colornames.White),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,

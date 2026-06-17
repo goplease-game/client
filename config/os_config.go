@@ -3,7 +3,6 @@
 package config
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,7 +33,7 @@ func (*osConfig) load() ([]byte, error) {
 		return defaultConfig, nil
 	}
 
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath) //nolint:gosec
 	if err != nil {
 		err = fmt.Errorf("read file '%s': %w", configPath, err)
 		return nil, err
@@ -52,13 +51,13 @@ func (*osConfig) save(data []byte) error {
 	}
 
 	configDir := filepath.Join(dir, osUserConfigGameDir)
-	err = os.MkdirAll(configDir, 0o755)
+	err = os.MkdirAll(configDir, 0o750)
 	if err != nil {
 		return fmt.Errorf("save config: mkdir %s: %w", configDir, err)
 	}
 
 	configPath := filepath.Join(configDir, configFilename)
-	err = os.WriteFile(configPath, data, 0o644)
+	err = os.WriteFile(configPath, data, 0o600)
 	if err != nil {
 		return fmt.Errorf("save config: write %s: %w", configPath, err)
 	}

@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+// RGBFromHex parses a "RRGGBB" hex color string (with or without a leading
+// '#') into an opaque color.Color.
 func RGBFromHex(hex string) color.Color {
 	hex = strings.TrimPrefix(hex, "#")
 
@@ -16,19 +18,21 @@ func RGBFromHex(hex string) color.Color {
 
 	value, err := strconv.ParseUint(hex, 16, 32)
 	if err != nil {
-		log.Fatalf("rgbFromHex: parse hex: %s: %s", len(hex), err)
+		log.Fatalf("rgbFromHex: parse hex %q: %s", hex, err)
 	}
 
 	return color.NRGBA{
-		R: uint8(value >> 16),
-		G: uint8(value >> 8),
-		B: uint8(value),
+		R: uint8(value >> 16), //nolint:gosec
+		G: uint8(value >> 8),  //nolint:gosec
+		B: uint8(value),       //nolint:gosec
 		A: 0xff,
 	}
 }
 
+// LightenRGB returns a copy of c with each RGB channel increased by
+// amount, clamped to the valid 0-255 range.
 func LightenRGB(c color.Color, amount int) color.Color {
-	rgba := color.NRGBAModel.Convert(c).(color.NRGBA)
+	rgba := color.NRGBAModel.Convert(c).(color.NRGBA) //nolint:forcetypeassert
 
 	change := func(val uint8) uint8 {
 		res := int(val) + amount
@@ -48,13 +52,17 @@ func LightenRGB(c color.Color, amount int) color.Color {
 	return rgba
 }
 
+// DarkenRGB returns a copy of c with each RGB channel decreased by
+// amount, clamped to the valid 0-255 range.
 func DarkenRGB(c color.Color, amount int) color.Color {
 	return LightenRGB(c, -amount)
 }
 
+// LerpColor linearly interpolates between colors a and b by t, where
+// t=0 returns a and t=1 returns b.
 func LerpColor(a, b color.Color, t float64) color.NRGBA {
-	c1 := color.NRGBAModel.Convert(a).(color.NRGBA)
-	c2 := color.NRGBAModel.Convert(b).(color.NRGBA)
+	c1 := color.NRGBAModel.Convert(a).(color.NRGBA) //nolint:forcetypeassert
+	c2 := color.NRGBAModel.Convert(b).(color.NRGBA) //nolint:forcetypeassert
 
 	lerp := func(x, y uint8, t float64) uint8 {
 		return uint8(float64(x) + (float64(y)-float64(x))*t)

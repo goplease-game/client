@@ -3,12 +3,12 @@ package arena
 import (
 	"log"
 
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 )
 
 // abilityComposerRegistry maps ability IDs to custom fx composers.
@@ -19,6 +19,8 @@ var abilityComposerRegistry = map[ability.ID]AbilityFxComposer{
 	ability.Translocation: playTranslocationFx,
 }
 
+// AbilityFxComposer is a custom fx sequence for a single ability, given
+// full control over playback instead of the declarative Start/End fx model.
 type AbilityFxComposer func(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func())
 
 // abilityFxComposer plays the Start and End fx of an AbilityFx
@@ -109,6 +111,8 @@ func (s *Screen) abilityFxComposer(abFx AbilityFx, abilityID ability.ID, unit *d
 	}
 }
 
+// playShadowStepFx plays the Shadow Step teleport sequence: fade out at
+// the origin, move the unit, then fade in at the target.
 func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func()) {
 	unitImg := unitImage(unit.TemplateID, unitIconSize)
 
@@ -144,7 +148,9 @@ func playShadowStepFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func(
 	})
 }
 
-func playTranslocationFx(s *Screen, unit *ds.Unit, target ds.HexCoord, onDone func()) {
+// playTranslocationFx swaps the positions of the caster and the unit at
+// target, animating both units moving simultaneously.
+func playTranslocationFx(s *Screen, unit *ds.Unit, target ds.HexCoord, _ func()) {
 	sfx.Play("translocation.ogg")
 
 	opp := s.unitAtCoord(target)
@@ -221,11 +227,11 @@ func (s *Screen) abilityTargetsForFx(ab ability.Ability, unit *ds.Unit) []ds.Hex
 
 	switch ab.Area {
 	case ability.AreaCircle:
-		cells = hex.CellsInRange(unit.Pos, ab.AreaRadius, s.board)
+		cells = grid.CellsInRange(unit.Pos, ab.AreaRadius, s.board)
 	case ability.AreaLine:
 		cells = hexAllLines(unit.Pos, ab.AreaRadius, s.board)
 	default:
-		cells = hex.CellsInRange(unit.Pos, ab.Range, s.board)
+		cells = grid.CellsInRange(unit.Pos, ab.Range, s.board)
 	}
 
 	var targets []ds.HexCoord

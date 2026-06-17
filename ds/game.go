@@ -1,5 +1,6 @@
 package ds
 
+// GameSnapshot is a serializable snapshot of the full game state.
 type GameSnapshot struct {
 	ArenaID         string  `json:"arena_id"`
 	Board           Board   `json:"board"`
@@ -13,6 +14,8 @@ type GameSnapshot struct {
 	MaxPhantomAPPerUnitPerTurn int `json:"max_phantom_ap_per_unit_per_turn"`
 }
 
+// NewGamePayload is sent to the client when a new match starts, containing
+// the initial board, player, and match configuration.
 type NewGamePayload struct {
 	ArenaID                    string  `json:"arena_id"`
 	Board                      Board   `json:"board"`
@@ -22,6 +25,7 @@ type NewGamePayload struct {
 	MaxPhantomAPPerUnitPerTurn int     `json:"max_phantom_ap_per_unit_per_turn"`
 }
 
+// ErrorResponse is sent to the client to report an error condition.
 type ErrorResponse struct {
 	Message string `json:"message"`
 }

@@ -1,3 +1,4 @@
+// Package arena ...
 package arena
 
 import (
@@ -5,16 +6,17 @@ import (
 	stdImg "image"
 	"image/color"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
 	"golang.org/x/image/colornames"
 )
 
@@ -180,7 +182,7 @@ func (s *Screen) buildCooldownOverlay(remaining int) *widget.Container {
 		),
 	)
 	overlay.AddChild(widget.NewText(
-		widget.TextOpts.Text(fmt.Sprintf("%d", remaining), &abilityCooldownCounterTF, abilityCooldownCounterColor),
+		widget.TextOpts.Text(strconv.Itoa(remaining), &abilityCooldownCounterTF, abilityCooldownCounterColor),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
@@ -246,7 +248,7 @@ func (s *Screen) buildAbilityToolTip(ab ability.Ability) *widget.Container {
 
 	if ab.DamageHint != "" {
 		if u := s.unitByID(s.activeUnitID); u != nil {
-			val := strings.ReplaceAll(ab.DamageHint, ability.HintCurrentATK, fmt.Sprintf("%d", u.CurrentAtk))
+			val := strings.ReplaceAll(ab.DamageHint, ability.HintCurrentATK, strconv.Itoa(u.CurrentAtk))
 			c.AddChild(buildToolTipRow("Damage: "+val, colornames.Orange))
 		}
 	}

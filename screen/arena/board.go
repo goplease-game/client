@@ -5,8 +5,8 @@ import (
 	"sort"
 
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/ui"
 )
 
 // createBoardContainer builds the EbitenUI container that holds all hex cell

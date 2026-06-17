@@ -1,9 +1,12 @@
 package arena
 
 import (
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
+	"github.com/goplease-game/client/ability"
 )
 
+// abilityFxRegistry maps ability IDs to their declarative Start/End fx
+// and playback mode. Abilities needing more complex sequencing are
+// defined in abilityComposerRegistry instead.
 var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.BasicMeleeAttack: {Start: fxSwordAttack, End: fxSwordHit, PlayMode: FxDelayed, Delay: 0.1},
 	ability.BasicRangeAttack: {Start: fxArrowShoot, End: fxArrowHit},
@@ -28,7 +31,7 @@ var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.Eliminate:   {Start: fxSwordAttack, End: fxSwordHit, PlayMode: FxDelayed, Delay: 0.1},
 	ability.Opportunity: {Start: fxSwordAttack, End: fxSwordHit, PlayMode: FxDelayed, Delay: 0.1},
 
-	//ability.Translocation: defined in abilityComposerRegistry
+	// ability.Translocation: defined in abilityComposerRegistry
 	ability.TimeWarp: {Start: fxNone, End: fxTimeWarp},
 	ability.Purge:    {Start: fxNone, End: fxPurge},
 
@@ -38,6 +41,8 @@ var abilityFxRegistry = map[ability.ID]AbilityFx{
 	ability.BottomlessVial: {Start: fxPurify, End: fxNone},
 }
 
+// FxPlayMode controls the timing relationship between an AbilityFx's
+// Start and End effects.
 type FxPlayMode int
 
 const (
@@ -49,6 +54,8 @@ const (
 	FxDelayed
 )
 
+// AbilityFx declares the Start and End visual effects played for an
+// ability, along with how they're timed relative to each other.
 type AbilityFx struct {
 	Start    FxName
 	End      FxName

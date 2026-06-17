@@ -4,9 +4,9 @@ import (
 	"log"
 	"math"
 
-	ab "github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	ab "github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
 )
 
 // Scenario is a behavioral function for a unit.
@@ -40,8 +40,8 @@ func priorityTarget(u *ds.Unit) *ds.Unit {
 			best = e
 			continue
 		}
-		distBest := hex.Distance(u.Pos, best.Pos)
-		distE := hex.Distance(u.Pos, e.Pos)
+		distBest := grid.Distance(u.Pos, best.Pos)
+		distE := grid.Distance(u.Pos, e.Pos)
 		if distE < distBest || (distE == distBest && e.CurrentHP < best.CurrentHP) {
 			best = e
 		}
@@ -105,7 +105,7 @@ func simulateUseAbility(u *ds.Unit, abilityID ab.ID, targetPos ds.HexCoord) []Si
 	states, err := HandleAbility(ds.UseAbilityPayload{
 		UnitID:    u.ID,
 		AbilityID: abilityID,
-		Target:    targetPos,
+		Target:    &targetPos,
 	})
 	if err != nil {
 		log.Fatalf("[simulateUseAbility] HandleAbility: %s", err.Error())
@@ -116,7 +116,7 @@ func simulateUseAbility(u *ds.Unit, abilityID ab.ID, targetPos ds.HexCoord) []Si
 			data: ds.UseAbilityPayload{
 				UnitID:    u.ID,
 				AbilityID: abilityID,
-				Target:    targetPos,
+				Target:    &targetPos,
 			},
 		},
 		{
@@ -171,7 +171,7 @@ func scenarioBasProvokeDefendSquishies(u *ds.Unit) []SimAction {
 		}
 		// Check if any enemy is adjacent to this ally.
 		for _, enemy := range findAllEnemies(u) {
-			if hex.Distance(ally.Pos, enemy.Pos) > 1 {
+			if grid.Distance(ally.Pos, enemy.Pos) > 1 {
 				continue
 			}
 			// Enemy is threatening a squishy — provoke from current position if possible.
@@ -291,7 +291,7 @@ func scenarioGritPowerPush(u *ds.Unit) []SimAction {
 	}
 
 	// Prefer using PowerPush when the target is blocked (alt damage triggers).
-	pushDest := hex.OppositeHex(u.Pos, target.Pos)
+	pushDest := grid.OppositeHex(u.Pos, target.Pos)
 	cell, exists := gameState.Board.Cells[pushDest]
 	blocked := !exists || (cell.Unit != nil)
 	if !blocked {
@@ -417,7 +417,7 @@ func scenarioSilverShadowStepForGangUp(u *ds.Unit) []SimAction {
 		if !ally.IsAlly(u) || ally.ID == u.ID {
 			continue
 		}
-		if hex.Distance(ally.Pos, target.Pos) == 1 {
+		if grid.Distance(ally.Pos, target.Pos) == 1 {
 			allyOpposite = ally
 			break
 		}
@@ -427,12 +427,12 @@ func scenarioSilverShadowStepForGangUp(u *ds.Unit) []SimAction {
 	}
 
 	// The ideal position is directly opposite the ally relative to target.
-	dest := hex.OppositeHex(allyOpposite.Pos, target.Pos)
+	dest := grid.OppositeHex(allyOpposite.Pos, target.Pos)
 	cell, ok := gameState.Board.Cells[dest]
 	if !ok || cell.Unit != nil {
 		return nil
 	}
-	if hex.Distance(u.Pos, dest) > ab.ByID(ab.ShadowStep).Range {
+	if grid.Distance(u.Pos, dest) > ab.ByID(ab.ShadowStep).Range {
 		return nil
 	}
 
@@ -498,12 +498,12 @@ func scenarioMistTranslocationRescueAlly(u *ds.Unit) []SimAction {
 			if ally.ID == u.ID {
 				continue
 			}
-			if hex.Distance(u.Pos, ally.Pos) > transRange {
+			if grid.Distance(u.Pos, ally.Pos) > transRange {
 				continue
 			}
 			threatened := false
 			for _, enemy := range findAllEnemies(u) {
-				if hex.Distance(enemy.Pos, ally.Pos) <= 1 {
+				if grid.Distance(enemy.Pos, ally.Pos) <= 1 {
 					threatened = true
 					break
 				}

@@ -3,7 +3,7 @@ package arena
 import (
 	"image/color"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/goplease-game/client/ui"
 	"golang.org/x/image/colornames"
 )
 
@@ -65,20 +65,20 @@ var (
 	abilityEnemyTargetCellColor = ui.RGBFromHex("D70654")
 	abilityAllyTargetCellColor  = ui.RGBFromHex("08CB00")
 	abilityRangeCellColor       = ui.RGBFromHex("7c9493")
-	// pulse colors for selected ability card
+	// pulse colors for selected ability card.
 	activeAbilityBgColor        = ui.RGBFromHex("48A111")
 	activeAbilityFgColor        = ui.RGBFromHex("f5df4d")
 	abilitySelectedPulseColor1  = activeAbilityFgColor
 	abilitySelectedPulseColor2  = activeAbilityBgColor
 	abilityCooldownCounterColor = colornames.White
 
-	// Unit status tooltip
+	// Unit status tooltip.
 	neutralStatusNameColor  = "f8f8ff"
 	positiveStatusNameColor = "98fb98"
 	negativeStatusNameColor = "ff6347"
 	statusDurationColor     = "87ceeb"
 
-	// game menu
+	// game menu.
 	nameColor                = ui.RGBFromHex("#00a8e8")
 	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
 	menuButtonHoverBgColor   = ui.LightenRGB(menuButtonBgColor, 35)

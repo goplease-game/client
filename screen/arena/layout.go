@@ -6,10 +6,10 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/asset"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
-	"github.com/ognev-dev/goplease-ebitengine-client/ws"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/ws"
 	"golang.org/x/image/colornames"
 )
 
@@ -360,19 +360,19 @@ func (s *Screen) createGameMenu() *widget.Container {
 	)
 
 	if s.OnRestartScreen != nil {
-		menu.AddChild(s.menuButton("Restart", func(args *widget.ButtonClickedEventArgs) {
+		menu.AddChild(s.menuButton("Restart", func(_ *widget.ButtonClickedEventArgs) {
 			s.closeGameMenu()
 			s.nextScreen = s.OnRestartScreen()
 		}))
 	}
 
-	menu.AddChild(s.menuButton("Surrender", func(args *widget.ButtonClickedEventArgs) {
+	menu.AddChild(s.menuButton("Surrender", func(_ *widget.ButtonClickedEventArgs) {
 		s.closeGameMenu()
 		s.server.Send(ws.OutMessage{
 			Action: ws.Surrender,
 		})
 	}))
-	menu.AddChild(s.menuButton("Exit", func(args *widget.ButtonClickedEventArgs) {
+	menu.AddChild(s.menuButton("Exit", func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.OnExitScreen()
 	}))
 

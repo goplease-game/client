@@ -3,8 +3,8 @@ package mock
 import (
 	"log"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
+	"github.com/goplease-game/client/ability/status"
+	"github.com/goplease-game/client/ds"
 )
 
 type statusHandler struct {

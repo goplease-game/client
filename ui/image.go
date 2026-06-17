@@ -6,21 +6,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-func CreateCircleImage(size int, clr color.Color) *ebiten.Image {
-	img := ebiten.NewImage(size, size)
-	cx, cy, r := float32(size/2), float32(size/2), float32(size/2)-1
-	for y := 0; y < size; y++ {
-		for x := 0; x < size; x++ {
-			dx, dy := float32(x)-cx, float32(y)-cy
-			if dx*dx+dy*dy <= r*r {
-				img.Set(x, y, clr)
-			}
-		}
-	}
-
-	return img
-}
-
+// TintImage returns a copy of src tinted with iconColor, preserving the
+// original per-pixel brightness and alpha (e.g. for recoloring status icons).
 func TintImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
 	bounds := src.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
@@ -28,8 +15,8 @@ func TintImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
 
 	tr, tg, tb, _ := iconColor.RGBA()
 
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			cr, cg, cb, ca := src.At(x, y).RGBA()
 			if ca == 0 {
 				continue
@@ -41,32 +28,7 @@ func TintImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
 				R: uint8(float32(tr>>8) * brightness),
 				G: uint8(float32(tg>>8) * brightness),
 				B: uint8(float32(tb>>8) * brightness),
-				A: uint8(ca >> 8),
-			})
-		}
-	}
-
-	return result
-}
-
-// TintImageAlpha returns a copy of src with the given alpha applied to all pixels.
-// alpha 0 = fully transparent, 255 = fully opaque.
-func TintImageAlpha(src *ebiten.Image, alpha uint8) *ebiten.Image {
-	bounds := src.Bounds()
-	w, h := bounds.Dx(), bounds.Dy()
-	result := ebiten.NewImage(w, h)
-
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			cr, cg, cb, ca := src.At(x, y).RGBA()
-			if ca == 0 {
-				continue
-			}
-			result.Set(x, y, color.NRGBA{
-				R: uint8(cr >> 8),
-				G: uint8(cg >> 8),
-				B: uint8(cb >> 8),
-				A: uint8(uint32(alpha) * ca / 255 >> 8),
+				A: uint8(ca >> 8), //nolint:gosec
 			})
 		}
 	}

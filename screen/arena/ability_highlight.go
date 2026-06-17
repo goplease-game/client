@@ -3,9 +3,9 @@ package arena
 import (
 	"fmt"
 
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ds"
-	"github.com/ognev-dev/goplease-ebitengine-client/hex"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/grid"
 )
 
 var hexDirections = [6]ds.HexCoord{
@@ -38,11 +38,11 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 
 	switch ab.Area {
 	case ability.AreaCircle:
-		cells = hex.CellsInRange(caster.Pos, ab.AreaRadius, s.board)
+		cells = grid.CellsInRange(caster.Pos, ab.AreaRadius, s.board)
 	case ability.AreaLine:
 		cells = hexAllLines(caster.Pos, ab.AreaRadius, s.board)
 	default:
-		cells = hex.CellsInRange(caster.Pos, rangeN, s.board)
+		cells = grid.CellsInRange(caster.Pos, rangeN, s.board)
 	}
 
 	fmt.Printf("HAB: %s: cells: %d\n", ab.Name, len(cells))
@@ -104,38 +104,12 @@ func (s *Screen) clearAbilityHighlight() {
 	s.abilityHighlightCells = nil
 }
 
-// isValidTarget reports whether target is a valid target for ab cast by caster,
-// based on the ability's TargetMode.
-//func (s *Screen) isValidTarget(ab ability.Ability, caster *ds.Unit, target ds.Unit) bool {
-//	if target.IsDead {
-//		return false
-//	}
-//
-//	// If caster is provoked — only the provoker is a valid target.
-//	if provokerID := getProvokingUnitID(caster); provokerID != "" {
-//		return target.IsOpponent && target.ID == provokerID
-//	}
-//
-//	switch ab.TargetMode {
-//	case ability.TargetEnemies:
-//		return target.IsEnemy(caster)
-//	case ability.TargetAllies:
-//		return target.IsAlly(caster) && target.ID != caster.ID
-//	case ability.TargetAlliesAndSelf:
-//		return target.IsAlly(caster)
-//	case ability.TargetAny:
-//		return true
-//	default:
-//		return false
-//	}
-//}
-
 // hexLine returns cells in a straight line from `from` in direction `dir`
 // up to `length` steps. Only returns cells that exist on the board.
 func hexLine(from ds.HexCoord, dir ds.HexCoord, length int, board ds.Board) []ds.HexCoord {
 	var result []ds.HexCoord
 	cur := from
-	for i := 0; i < length; i++ {
+	for range length {
 		cur = ds.HexCoord{Q: cur.Q + dir.Q, R: cur.R + dir.R}
 		if _, ok := board.Cells[cur]; !ok {
 			// Cell doesn't exist on board — stop this ray.
@@ -148,9 +122,10 @@ func hexLine(from ds.HexCoord, dir ds.HexCoord, length int, board ds.Board) []ds
 
 // hexAllLines returns cells in all 6 directions from `from` up to `length` steps.
 func hexAllLines(from ds.HexCoord, length int, board ds.Board) []ds.HexCoord {
-	var result []ds.HexCoord
+	var result []ds.HexCoord //nolint:prealloc
 	for _, dir := range hexDirections {
 		result = append(result, hexLine(from, dir, length, board)...)
 	}
+
 	return result
 }

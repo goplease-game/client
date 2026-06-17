@@ -8,10 +8,10 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/config"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock"
-	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
-	"github.com/ognev-dev/goplease-ebitengine-client/ui"
+	"github.com/goplease-game/client/config"
+	"github.com/goplease-game/client/mock"
+	"github.com/goplease-game/client/mock/scenario"
+	"github.com/goplease-game/client/ui"
 	"golang.org/x/image/colornames"
 )
 
@@ -201,7 +201,8 @@ func (s *Screen) buildSaveSection() *widget.Container {
 			if name == "" {
 				name = fmt.Sprintf("save_%d", time.Now().Unix())
 			}
-			if err := mock.SaveState(name, s.takeSnapshot()); err != nil {
+			err := mock.SaveState(name, s.takeSnapshot())
+			if err != nil {
 				statusErr.Label = "Error: " + err.Error()
 				statusOk.Label = ""
 			} else {

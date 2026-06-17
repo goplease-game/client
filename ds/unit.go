@@ -1,11 +1,15 @@
 package ds
 
 import (
+	"slices"
+
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability"
-	"github.com/ognev-dev/goplease-ebitengine-client/ability/status"
+	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/client/ability/status"
 )
 
+// Unit represents a single combat unit on the board, including its stats,
+// abilities, cooldowns, and statuses.
 type Unit struct {
 	ID          string `json:"id"`
 	TemplateID  int    `json:"template_id"`
@@ -38,20 +42,18 @@ type Unit struct {
 	Graphic *widget.Graphic `json:"-"`
 }
 
+// HasAbility reports whether the unit has the given ability.
 func (u *Unit) HasAbility(id ability.ID) bool {
-	for _, abID := range u.Abilities {
-		if abID == id {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(u.Abilities, id)
 }
 
+// AbilityReady reports whether the given ability is off cooldown.
 func (u *Unit) AbilityReady(id ability.ID) bool {
-	return !(u.Cooldowns[id] > 0)
+	return u.Cooldowns[id] <= 0
 }
 
+// SetCooldown sets the cooldown for the given ability, removing the entry
+// entirely when cd is zero.
 func (u *Unit) SetCooldown(id ability.ID, cd int) {
 	if u.Cooldowns == nil {
 		u.Cooldowns = make(map[ability.ID]int)
@@ -65,11 +67,14 @@ func (u *Unit) SetCooldown(id ability.ID, cd int) {
 	u.Cooldowns[id] = cd
 }
 
+// HasStatus reports whether the unit currently has the given status type.
 func (u *Unit) HasStatus(t status.Type) bool {
 	_, ok := u.Statuses[t]
 	return ok
 }
 
+// AddStatus applies the given status value to the unit, replacing any
+// existing value for the same status type.
 func (u *Unit) AddStatus(value status.Value) {
 	if u.Statuses == nil {
 		u.Statuses = make(map[status.Type]status.Value)
@@ -78,14 +83,17 @@ func (u *Unit) AddStatus(value status.Value) {
 	u.Statuses[value.Status.Type] = value
 }
 
+// RemoveStatus removes the given status type from the unit.
 func (u *Unit) RemoveStatus(t status.Type) {
 	delete(u.Statuses, t)
 }
 
+// IsEnemy reports whether the given unit belongs to a different owner.
 func (u *Unit) IsEnemy(to *Unit) bool {
 	return u.OwnerID != to.OwnerID
 }
 
+// IsAlly reports whether the given unit belongs to the same owner.
 func (u *Unit) IsAlly(to *Unit) bool {
 	return !u.IsEnemy(to)
 }
@@ -151,25 +159,30 @@ func (u *Unit) ReachableCells(board Board) []HexCoord {
 	return result
 }
 
+// PlaceUnitPayload is the payload for placing a unit on the board at a specific coordinate.
 type PlaceUnitPayload struct {
 	Coord HexCoord `json:"coord"`
 	Unit  *Unit    `json:"unit"`
 }
 
+// UnitMovedPayload is the payload broadcast when a unit moves to a new coordinate.
 type UnitMovedPayload struct {
 	Coord  HexCoord `json:"coord"`
 	UnitID string   `json:"unit_id"`
 }
 
+// PlayUnitPayload is the payload for playing a unit from hand onto the board.
 type PlayUnitPayload struct {
 	UnitID string `json:"unit_id"`
 }
 
+// UnitPlacedPayload is the payload broadcast when a unit is placed on the board.
 type UnitPlacedPayload struct {
 	Coord      HexCoord `json:"coord"`
 	TemplateID int      `json:"template_id"`
 }
 
+// ActiveUnitChangedPayload is the payload broadcast when the active unit changes.
 type ActiveUnitChangedPayload struct {
 	UnitID string `json:"unit_id"`
 }
