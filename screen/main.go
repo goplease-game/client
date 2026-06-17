@@ -9,6 +9,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/hajimehoshi/ebiten/v2"
 	game "github.com/ognev-dev/goplease-ebitengine-client"
+	"github.com/ognev-dev/goplease-ebitengine-client/config"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock"
 	"github.com/ognev-dev/goplease-ebitengine-client/mock/scenario"
 	"github.com/ognev-dev/goplease-ebitengine-client/sfx"
@@ -169,11 +170,14 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		log.Fatal(err)
 	}
 
-	exitButton, err := mainMenuButton("Exit", 14, func(args *widget.ButtonClickedEventArgs) {
-		s.exit = true
-	})
-	if err != nil {
-		log.Fatal(err)
+	var exitButton *widget.Button
+	if !config.IsWASM() {
+		exitButton, err = mainMenuButton("Exit", 14, func(args *widget.ButtonClickedEventArgs) {
+			s.exit = true
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	menuC.AddChild(titleText)
@@ -181,7 +185,10 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	menuC.AddChild(practiceButton)
 	menuC.AddChild(settButton)
 	menuC.AddChild(aboutButton)
-	menuC.AddChild(exitButton)
+
+	if exitButton != nil {
+		menuC.AddChild(exitButton)
+	}
 
 	c.AddChild(menuC)
 

@@ -3,28 +3,44 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"os"
-	"path/filepath"
+	"runtime"
 	"sync"
 
 	"gopkg.in/yaml.v3"
 )
 
+// defaultConfig holds the embedded contents of config_defaults.yaml, used as
+// the source of default values when no user config file exists yet.
+//
 //go:embed config_defaults.yaml
 var defaultConfig []byte
 
 const (
-	configFilename      = "config.yaml"
+	// configFilename is the name of the config file stored in the user config directory.
+	configFilename = "config.yaml"
+	// osUserConfigGameDir is the name of the application's subdirectory within the OS user config directory.
 	osUserConfigGameDir = "goplease"
 )
 
+// manager abstracts platform-specific loading and saving of the raw config bytes.
+type manager interface {
+	// load returns the raw config bytes, e.g. read from the user config directory.
+	load() ([]byte, error)
+	// save persists the given raw config bytes.
+	save([]byte) error
+}
+
+// ConfigT holds the application's runtime configuration, combining values
+// loaded from YAML with values derived at load time (e.g. window dimensions).
 type ConfigT struct {
 	Resolution string `yaml:"resolution"`
 	WindowW    int    `yaml:"-"`
 	WindowH    int    `yaml:"-"`
 
+	// ServerAddr is the address of the game server to connect to.
 	ServerAddr string `yaml:"server_addr"`
 
+	// Volume is the audio volume level.
 	Volume float64 `yaml:"volume"`
 
 	DevMode struct {
@@ -34,14 +50,32 @@ type ConfigT struct {
 	} `yaml:"dev_mode"`
 }
 
+// loadConfigOnce ensures the config is loaded and parsed only once.
 var loadConfigOnce sync.Once
+
+// loadedConfig caches the config loaded by Get; nil until the first call.
 var loadedConfig *ConfigT
 
-// Get returns config from user config dir or from config_defaults.yaml
+// confM is the platform-specific manager used to load and save the config.
+// It is nil until the first call to Get, which initializes it via newConfigManager.
+var confM manager
+
+// Get returns the application config, loading and parsing it from the user
+// config directory (falling back to config_defaults.yaml) on the first call
+// and returning the cached value on subsequent calls. It panics if loading,
+// unmarshaling, or resolution parsing fails.
 func Get() *ConfigT {
 	loadConfigOnce.Do(func() {
 		var err error
-		conf, err := loadConfig()
+
+		confM = newConfigManager()
+		data, err := confM.load()
+		if err != nil {
+			panic(err)
+		}
+
+		conf := new(ConfigT)
+		err = yaml.Unmarshal(data, conf)
 		if err != nil {
 			panic(err)
 		}
@@ -60,44 +94,20 @@ func Get() *ConfigT {
 	return loadedConfig
 }
 
-func resolveConfig() ([]byte, error) {
-	dir, err := os.UserConfigDir()
+// Save marshals the current config to YAML and persists it via the
+// platform-specific manager. It calls Get to obtain the config, which also
+// guarantees the manager has been initialized.
+func Save() error {
+	data, err := yaml.Marshal(Get())
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("save config: marshal: %w", err)
 	}
 
-	configDir := filepath.Join(dir, osUserConfigGameDir)
-	configPath := filepath.Join(configDir, configFilename)
-	_, err = os.Stat(configPath)
-	if os.IsNotExist(err) {
-		return defaultConfig, nil
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		err = fmt.Errorf("read file '%s': %w", configPath, err)
-		return nil, err
-	}
-
-	return data, nil
+	return confM.save(data)
 }
 
-// ConfigFromFile returns new config from given YAML file.
-func loadConfig() (*ConfigT, error) {
-	data, err := resolveConfig()
-	if err != nil {
-		return nil, fmt.Errorf("loadConfig: %w", err)
-	}
-
-	conf := new(ConfigT)
-	err = yaml.Unmarshal(data, conf)
-	if err != nil {
-		return nil, err
-	}
-
-	return conf, err
-}
-
+// parseResolution parses a resolution string in "WIDTHxHEIGHT" format (e.g.
+// "800x600") and returns the corresponding width and height.
 func parseResolution(res string) (width, height int, err error) {
 	_, err = fmt.Sscanf(res, "%dx%d", &width, &height)
 	if err != nil {
@@ -106,29 +116,7 @@ func parseResolution(res string) (width, height int, err error) {
 	return width, height, nil
 }
 
-// Save writes the current config to the user config directory as YAML.
-func Save() error {
-	conf := Get()
-
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return fmt.Errorf("save config: %w", err)
-	}
-
-	configDir := filepath.Join(dir, osUserConfigGameDir)
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		return fmt.Errorf("save config: mkdir %s: %w", configDir, err)
-	}
-
-	data, err := yaml.Marshal(conf)
-	if err != nil {
-		return fmt.Errorf("save config: marshal: %w", err)
-	}
-
-	configPath := filepath.Join(configDir, configFilename)
-	if err := os.WriteFile(configPath, data, 0o644); err != nil {
-		return fmt.Errorf("save config: write %s: %w", configPath, err)
-	}
-
-	return nil
+// IsWASM reports whether the binary is running in a WebAssembly (GOARCH=wasm) build.
+func IsWASM() bool {
+	return runtime.GOARCH == "wasm"
 }

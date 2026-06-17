@@ -1,5 +1,5 @@
 resolution: 900x750
-server_addr: localhost:8090
+server_addr: ws://localhost:8080/play/
 
 volume: 1
 
