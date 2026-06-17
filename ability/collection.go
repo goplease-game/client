@@ -87,18 +87,17 @@ var Abilities = map[ID]Ability{
 		DamageHint:  HintCurrentATK,
 	},
 
-	// --- TANK ---
 	Fortify: {
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Fortify",
-		Description: "You and adjacent allies gain +3 Shield. Shield decays by 1 at the end of turn.",
+		Description: "You and adjacent allies gain +4 Shield. Shield decays by 1 at the end of turn.",
 		Cooldown:    3,
 		Activation:  Instant,
 		TargetMode:  TargetAlliesAndSelf,
 		Area:        AreaCircle,
 		AreaRadius:  2,
-		Effect:      Effect{AddShield: 3},
+		Effect:      Effect{AddShield: 4},
 	},
 	Provoke: {
 		Type:        Skill,
@@ -127,12 +126,11 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   true,
 		Name:        "Undying Will",
-		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 5 Shield.",
+		Description: "When receiving fatal damage, prevent death: set HP to 1 and gain 10 Shield.",
 		Cooldown:    5,
 		Effect:      Effect{HealHP: 1, AddShield: 10},
 	},
 
-	// --- WARRIOR ---
 	BattleCry: {
 		Type:        Skill,
 		IsPassive:   false,
@@ -161,13 +159,13 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Power Push",
-		Description: "Deals 2 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 4 damage instead and stuns.",
+		Description: "Deals 2 damage and pushes the target back 1 tile. If the target cannot be pushed, deals 3 damage instead and stuns.",
 		Cooldown:    2,
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
 		DamageHint:  "2/4",
-		Effect:      Effect{DealDamage: 2, DealAltDamage: 4, ApplyStatus: status.Stunned},
+		Effect:      Effect{DealDamage: 2, DealAltDamage: 3, ApplyStatus: status.Stunned},
 	},
 	Frenzy: {
 		Type:        Skill,
@@ -178,11 +176,11 @@ var Abilities = map[ID]Ability{
 		Effect:      Effect{ApplyStatus: status.Frenzied},
 	},
 
-	// --- RANGER ---
 	PiercingShot: {
-		Type:        Skill,
-		IsPassive:   false,
-		Name:        "Piercing Shot",
+		Type:      Skill,
+		IsPassive: false,
+		Name:      "Piercing Shot",
+		// TODO rework ATK: 100%/50%/50% -> 4/2/1 | 3/1/1
 		Description: "Fires a piercing shot that deals 3 damage to each enemy in a straight line.",
 		Cooldown:    2,
 		TargetMode:  TargetEnemies,
@@ -226,7 +224,6 @@ var Abilities = map[ID]Ability{
 		Effect:      Effect{DealDamage: 3},
 	},
 
-	// --- ROGUE ---
 	ShadowStep: {
 		Type:        Spell,
 		IsPassive:   false,
@@ -242,13 +239,13 @@ var Abilities = map[ID]Ability{
 		Type:        Skill,
 		IsPassive:   false,
 		Name:        "Gang Up",
-		Description: "Executes a melee attack. Deals +2 bonus damage if an ally is on the opposite side of the target",
+		Description: "Executes a melee attack. Deals +3 bonus damage if an ally is on the opposite side of the target",
 		Cooldown:    2,
 		Range:       1,
 		TargetMode:  TargetEnemies,
 		Activation:  SelectEnemy,
-		DamageHint:  "ATK/ATK+2",
-		Effect:      Effect{BonusDamage: 2},
+		DamageHint:  "ATK/ATK+3",
+		Effect:      Effect{BonusDamage: 3},
 	},
 	Eliminate: {
 		Type:        Skill,
@@ -272,7 +269,6 @@ var Abilities = map[ID]Ability{
 		DamageHint:  HintCurrentATK,
 	},
 
-	// --- MAGE ---
 	Translocation: {
 		Type:        Spell,
 		IsPassive:   false,
