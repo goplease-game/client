@@ -23,6 +23,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: lint
+    env:
+      GOOS: js
+      GOARCH: wasm
 
     steps:
       - uses: actions/checkout@v4
@@ -30,9 +33,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
-        env:
-          GOOS: js
-          GOARCH: wasm
 
       - name: Generate config
         run: |
