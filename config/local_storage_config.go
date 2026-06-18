@@ -3,7 +3,6 @@
 package config
 
 import (
-	_ "embed"
 	"syscall/js"
 )
 
