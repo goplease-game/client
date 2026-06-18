@@ -1,17 +1,22 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/goplease-game/client/config"
-	"github.com/gorilla/websocket"
 )
 
-const pingInterval = time.Second * 30
+const (
+	pingInterval = time.Second * 30
+	dialTimeout  = time.Second * 10
+	pingTimeout  = time.Second * 5
+)
 
 // WSClient manages a single WebSocket connection.
 // It is safe to call Send from any goroutine.
@@ -105,7 +110,9 @@ func (c *WSClient) dial(playerID string) {
 
 	// Retry loop with backoff (3 attempts).
 	for attempt := range 3 {
-		conn, _, err = websocket.DefaultDialer.Dial(wsURL(), nil)
+		ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+		conn, _, err = websocket.Dial(ctx, wsURL(), nil)
+		cancel()
 		if err == nil {
 			break
 		}
@@ -135,10 +142,12 @@ func (c *WSClient) dial(playerID string) {
 // inbox until the connection errors or closes.
 func (c *WSClient) readLoop(conn *websocket.Conn) {
 	defer c.close()
+	ctx := context.Background()
 	for {
-		_, raw, err := conn.ReadMessage()
+		_, raw, err := conn.Read(ctx)
 		if err != nil {
-			if !websocket.IsCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+			code := websocket.CloseStatus(err)
+			if code != websocket.StatusNormalClosure && code != websocket.StatusGoingAway {
 				log.Printf("[ws] read error: %v", err)
 			}
 			return
@@ -162,7 +171,11 @@ func (c *WSClient) readLoop(conn *websocket.Conn) {
 
 // writeLoop sends queued outgoing messages and periodic pings on conn
 // until the connection errors or a stop is requested.
+// Note: Ping is a no-op when running as wasm in the browser — the
+// browser's network stack handles WebSocket keepalive transparently,
+// so this only provides dead-connection detection on native builds.
 func (c *WSClient) writeLoop(conn *websocket.Conn) {
+	ctx := context.Background()
 	ticker := time.NewTicker(pingInterval)
 	defer ticker.Stop()
 	for {
@@ -170,21 +183,22 @@ func (c *WSClient) writeLoop(conn *websocket.Conn) {
 		case data := <-c.outbox:
 			c.logMessage(data, true)
 
-			err := conn.WriteMessage(websocket.TextMessage, data)
+			err := conn.Write(ctx, websocket.MessageText, data)
 			if err != nil {
 				log.Printf("[ws] write error: %v", err)
 				c.close()
 				return
 			}
 		case <-ticker.C:
-			err := conn.WriteMessage(websocket.PingMessage, nil)
+			pingCtx, cancel := context.WithTimeout(ctx, pingTimeout)
+			err := conn.Ping(pingCtx)
+			cancel()
 			if err != nil {
 				c.close()
 				return
 			}
 		case <-c.stop:
-			_ = conn.WriteMessage(websocket.CloseMessage,
-				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+			_ = conn.Close(websocket.StatusNormalClosure, "")
 			return
 		}
 	}
@@ -196,10 +210,11 @@ func (c *WSClient) close() {
 	c.stopOnce.Do(func() {
 		c.mu.Lock()
 		c.status = StatusDisconnected
-		if c.conn != nil {
-			_ = c.conn.Close()
-		}
+		conn := c.conn
 		c.mu.Unlock()
+		if conn != nil {
+			_ = conn.CloseNow()
+		}
 		close(c.stop)
 	})
 }

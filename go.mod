@@ -3,10 +3,11 @@ module github.com/goplease-game/client
 go 1.26.0
 
 require (
+	github.com/coder/websocket v1.8.15
 	github.com/ebitenui/ebitenui v0.7.3
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/setanarut/anim v1.4.0
 	golang.org/x/image v0.31.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -23,7 +24,6 @@ require (
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
