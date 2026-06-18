@@ -1,8 +1,97 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>goplease</title>
+    <style>
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: #3e3e3e;
+            overflow: hidden;
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: #3e3e3e;
+            color: #ccc;
+            font-family: system-ui, sans-serif;
+            font-size: 14px;
+            z-index: 1000;
+            transition: opacity 0.25s ease;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 4px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #cfcfcf;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #loader.error .spinner { display: none; }
+        #loader-text.error { color: #e06c75; }
+    </style>
+</head>
+<body>
+
+<div id="loader">
+    <div class="spinner"></div>
+    <div id="loader-text">Loading…</div>
+</div>
+
 <script src="wasm_exec.js"></script>
 <script>
-    const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("goplease.wasm"), go.importObject).then(result => {
-        go.run(result.instance);
+    const loader = document.getElementById("loader");
+    const loaderText = document.getElementById("loader-text");
+
+    function hideLoader() {
+        loader.classList.add("hidden");
+        setTimeout(() => loader.remove(), 300);
+    }
+
+    function showError(message) {
+        loaderText.textContent = message;
+        loaderText.classList.add("error");
+        loader.classList.add("error");
+    }
+
+    // Ebitengine inserts its own <canvas> once the program starts running;
+    // hide the loader as soon as that happens.
+    const observer = new MutationObserver(() => {
+        if (document.querySelector("canvas")) {
+            hideLoader();
+            observer.disconnect();
+        }
     });
+    observer.observe(document.body, { childList: true });
+
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch("goplease.wasm"), go.importObject)
+        .then(result => go.run(result.instance))
+        .catch(err => {
+            console.error(err);
+            showError("Failed to load. Please refresh the page.");
+            observer.disconnect();
+        });
 </script>
+
+</body>
+</html>
