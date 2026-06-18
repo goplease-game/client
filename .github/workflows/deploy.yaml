@@ -1,0 +1,73 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.10.1
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Generate config
+        run: |
+          cat > config/config_defaults.yaml << EOF
+          resolution: 900x750
+          server_addr: wss://game.gopl.dev/play/
+          volume: 1
+          EOF
+
+      - name: Build client
+        run: env GOOS=js GOARCH=wasm go build -o asset/wasm/goplease.wasm cmd/game/main.go
+
+      - name: Copy wasm_exec.js
+        run: cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" asset/wasm/
+
+      - name: Create archive
+        run: tar -czf artifact.tar.gz -C asset/wasm .
+
+      - name: Upload archive to droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "artifact.tar.gz"
+          target: "/tmp"
+
+      - name: Unpack archive on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            sudo mkdir -p /var/www/goplease/home
+            sudo tar -xzf /tmp/artifact.tar.gz -C /var/www/goplease/home
+            sudo chown -R caddy:caddy /var/www/goplease/home
+            sudo chmod -R 755 /var/www/goplease/home
+            rm /tmp/artifact.tar.gz
+
+
