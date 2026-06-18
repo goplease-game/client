@@ -49,7 +49,7 @@ jobs:
         run: env GOOS=js GOARCH=wasm go build -o asset/wasm/goplease.wasm cmd/game/main.go
 
       - name: Copy wasm_exec.js
-        run: cp "$(go env GOROOT)/misc/wasm/wasm_exec.js" asset/wasm/
+        run: cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" asset/wasm/
 
       - name: Create archive
         run: tar -czf artifact.tar.gz -C asset/wasm .
