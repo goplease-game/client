@@ -12,7 +12,6 @@ import (
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/pkg/browser"
 	"golang.org/x/image/colornames"
 )
 
@@ -96,13 +95,13 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 				var err error
 				switch args.Id {
 				case "source":
-					err = browser.OpenURL("https://github.com/goplease-game")
+					err = game.OpenURL("https://github.com/goplease-game")
 				case "golang":
-					err = browser.OpenURL("https://go.dev")
+					err = game.OpenURL("https://go.dev")
 				case "ebitengine":
-					err = browser.OpenURL("https://ebitengine.org")
+					err = game.OpenURL("https://ebitengine.org")
 				case "ebitenui":
-					err = browser.OpenURL("https://github.com/ebitenui/ebitenui")
+					err = game.OpenURL("https://github.com/ebitenui/ebitenui")
 				}
 				if err != nil {
 					fmt.Printf("open URL error: %v\n", err)
