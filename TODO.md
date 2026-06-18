@@ -1,27 +1,26 @@
-Fix:
-- [ ] If unit cannot move (Hamstrung) - update HUD accordingly
-- [x] When provoked target only provoker (except AOE)
+Fixes:
+- [ ] If a unit cannot move (Hamstrung), update the HUD accordingly.
 
-Core (required for release):
-- [ ] Download abilities from server (Need API)
+Abilities:
+- [ ] BottomlessVial: Display status showing how much HP increased.
+- [ ] If Mist dies, the Temporal Anchor should be dropped (maybe; let's discuss).
 
-Abilities TODO:
-- [ ] BottomlessVial: Display status with how much HP increased
-- [ ] If Mist dies, Temporal Anchor should be dropped (maybe, lets discuss)
+UI/UX Improvements (in no specific order, just ideas):
+- [ ] Unit card with current stats (e.g., max HP/current HP, reasons for ATK increases, etc.)
+- [ ] Hovering over a unit on the board should highlight that unit in the queue.
+- [ ] Reconnect functionality.
+- [ ] Auto-end turn (driven by the server).
+- [ ] Keyboard shortcuts.
+- [ ] Display errors to the user as a toast notification/popup instead of a fatal crash/log.
+- [ ] Reset settings to default (by removing the configuration file from the user's config directory).
 
-UI/UX improvement (in not specific order, just ideas):
-- [ ] hovered unit on board should highlight unit in queue
-- [ ] reconnect
-- [ ] auto end turn (from server)
-- [ ] keyboard shortcuts
-- [ ] Display errors to user as toast/popup instead of fatal/log
+Code & Project Architecture:
+- [ ] Use code from the server's repository to handle the mock server.
 
-Code & Project architecture
-- [ ] Use code from server's repo to handle mock server
-
-NEXT (in not specific order, just ideas):
-- [ ] Let players create their own team using units with custom sets of abilities
-- [ ] Save/Load game
-- [ ] Combat stats
-- [ ] Combat logs & replays 
+NEXT (in no specific order, just ideas):
+- [ ] Let players create their own teams using units with custom sets of abilities.
+- [ ] Custom scenarios and campaigns.
+- [ ] Save/load game functionality.
+- [ ] Combat stats.
+- [ ] Combat logs & replays.
 - [ ] i18n

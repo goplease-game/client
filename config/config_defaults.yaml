@@ -1,9 +1,18 @@
+# Window size
 resolution: 900x750
-server_addr: ws://localhost:8080/play/
 
+# Server address to connect to
+# See https://github.com/goplease-game/server
+server_addr: ws://localhost:8090/play/
+
+# Sound volume
 volume: 1
 
+# Developer mode
 dev_mode:
   enabled: false
+  # Use a local mock server instead of the real one
   mock_client: false
+  # Log all communication between the client and server into ./protocol_log.txt
+  # for troubleshooting/investigation
   log_protocol: false
