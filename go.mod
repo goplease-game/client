@@ -6,6 +6,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/ebitenui/ebitenui v0.7.3
 	github.com/google/uuid v1.6.0
+	github.com/goplease-game/server v0.0.0-20260621181108-fe401be60513
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/setanarut/anim v1.4.0
@@ -20,6 +21,7 @@ require (
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/frustra/bbcode v0.0.0-20201127003707-6ef347fbe1c8 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
 	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
