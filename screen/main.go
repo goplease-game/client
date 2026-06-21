@@ -1,18 +1,22 @@
 package screen
 
 import (
+	"encoding/json"
 	"image/color"
+	"log"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/config"
-	"github.com/goplease-game/client/mock"
-	"github.com/goplease-game/client/mock/scenario"
+	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
+	server "github.com/goplease-game/server"
+	"github.com/goplease-game/server/bot"
+	sds "github.com/goplease-game/server/ds"
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
 )
@@ -247,11 +251,41 @@ func mainMenuButtonImage() *widget.ButtonImage {
 // newPracticeScreen loads the default scenario and starts an arena screen
 // backed by a connected mock client.
 func newPracticeScreen() game.Screen {
-	snap := mock.LoadScenario(scenario.Default)
-	mockCl := ws.NewMockClient()
-	mockCl.Connect("p1")
+	p1ID := sds.NewID()
+	p2ID := sds.NewID()
 
-	return NewArenaScreen(snap, mockCl, true)
+	p1 := server.NewPlayer(p1ID, "Player", 0, server.StartingUnits(p1ID))
+	p2 := server.NewPlayer(p2ID, bot.PlayerName(), 1, server.StartingUnits(p2ID))
+
+	session := server.NewSession(p1, p2)
+
+	b := bot.NewWithSession(p2.ID, session)
+	go b.Run()
+
+	mockCl := ws.NewMockClient(session, p1.ID)
+
+	for msg := range mockCl.Inbox() {
+		if msg.Action == ws.NewGameAction {
+			var data ds.NewGamePayload
+			err := json.Unmarshal(msg.Data, &data)
+			if err != nil {
+				log.Fatalf("practice: failed to unmarshal new game: %v", err)
+			}
+			snap := ds.GameSnapshot{
+				ArenaID:                    data.ArenaID,
+				Board:                      data.Board,
+				Player:                     *data.Player,
+				OpponentName:               data.Opponent,
+				Round:                      1,
+				TurnTimeSeconds:            data.TurnTimeSeconds,
+				MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
+			}
+			return NewArenaScreen(snap, mockCl, true)
+		}
+	}
+
+	log.Fatal("practice: server closed without sending new game")
+	return nil
 }
 
 // secondaryButton creates a smaller menu button styled like

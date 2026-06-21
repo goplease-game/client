@@ -3,8 +3,6 @@ package ws
 
 import (
 	"encoding/json"
-
-	"github.com/goplease-game/client/config"
 )
 
 // Client is the interface implemented by both the real WebSocket client and
@@ -19,11 +17,6 @@ type Client interface {
 
 // NewClient returns a WSClient, or a mock client if mock mode is enabled in config.
 func NewClient() Client {
-	dev := config.Get().DevMode
-	if dev.Enabled && dev.MockClient {
-		return NewMockClient()
-	}
-
 	return NewWSClient()
 }
 

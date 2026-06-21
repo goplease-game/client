@@ -1,16 +1,11 @@
 package arena
 
 import (
-	"fmt"
 	"image/color"
-	"strings"
-	"time"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/goplease-game/client/config"
-	"github.com/goplease-game/client/mock"
-	"github.com/goplease-game/client/mock/scenario"
 	"github.com/goplease-game/client/ui"
 	"golang.org/x/image/colornames"
 )
@@ -197,19 +192,20 @@ func (s *Screen) buildSaveSection() *widget.Container {
 			widget.WidgetOpts.MinSize(devPanelW-16, 24),
 		),
 		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			name := strings.TrimSpace(nameInput.GetText())
-			if name == "" {
-				name = fmt.Sprintf("save_%d", time.Now().Unix())
-			}
-			err := mock.SaveState(name, s.takeSnapshot())
-			if err != nil {
-				statusErr.Label = "Error: " + err.Error()
-				statusOk.Label = ""
-			} else {
-				statusOk.Label = "Saved: " + name + ".json"
-				statusErr.Label = ""
-				s.rebuildLoadList()
-			}
+			// name := strings.TrimSpace(nameInput.GetText())
+			// if name == "" {
+			//	name = fmt.Sprintf("save_%d", time.Now().Unix())
+			// }
+			// TODO mock
+			// err := mock.SaveState(name, s.takeSnapshot())
+			// if err != nil {
+			//	statusErr.Label = "Error: " + err.Error()
+			//	statusOk.Label = ""
+			// } else {
+			//	statusOk.Label = "Saved: " + name + ".json"
+			//	statusErr.Label = ""
+			//	s.rebuildLoadList()
+			// }
 		}),
 	)
 
@@ -253,41 +249,43 @@ func (s *Screen) rebuildLoadList() {
 	}
 	s.devLoadList.RemoveChildren()
 
-	tf := ui.TextFace(12)
-	for _, name := range mock.ListStates() {
-		n := name // capture loop variable for closure
-		btn := widget.NewButton(
-			widget.ButtonOpts.Text(n, &tf, &widget.ButtonTextColor{
-				Idle:  colornames.White,
-				Hover: colornames.Yellow,
-			}),
-			widget.ButtonOpts.Image(&widget.ButtonImage{
-				Idle:    image.NewNineSliceColor(color.NRGBA{0x22, 0x22, 0x44, 0xff}),
-				Hover:   image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x66, 0xff}),
-				Pressed: image.NewNineSliceColor(color.NRGBA{0x11, 0x11, 0x22, 0xff}),
-			}),
-			widget.ButtonOpts.WidgetOpts(
-				widget.WidgetOpts.MinSize(devPanelW-16, 22),
-			),
-			widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-				s.loadDevState(n)
-			}),
-		)
-		s.devLoadList.AddChild(btn)
-	}
+	// TODO mock
+	// tf := ui.TextFace(12)
+	// for _, name := range mock.ListStates() {
+	//	n := name // capture loop variable for closure
+	//	btn := widget.NewButton(
+	//		widget.ButtonOpts.Text(n, &tf, &widget.ButtonTextColor{
+	//			Idle:  colornames.White,
+	//			Hover: colornames.Yellow,
+	//		}),
+	//		widget.ButtonOpts.Image(&widget.ButtonImage{
+	//			Idle:    image.NewNineSliceColor(color.NRGBA{0x22, 0x22, 0x44, 0xff}),
+	//			Hover:   image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x66, 0xff}),
+	//			Pressed: image.NewNineSliceColor(color.NRGBA{0x11, 0x11, 0x22, 0xff}),
+	//		}),
+	//		widget.ButtonOpts.WidgetOpts(
+	//			widget.WidgetOpts.MinSize(devPanelW-16, 22),
+	//		),
+	//		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+	//			s.loadDevState(n)
+	//		}),
+	//	)
+	//	s.devLoadList.AddChild(btn)
+	// }
 }
 
 // loadDevState loads the named snapshot and transitions to a fresh Screen.
-func (s *Screen) loadDevState(name string) {
-	snap, err := mock.LoadState(name)
-	if err != nil {
-		s.setStatus("Dev: failed to load " + name)
-		return
-	}
-	s.setStatus("Dev: loaded " + name)
-	mock.RestoreGameState(name, snap)
-	s.nextScreen = NewScreen(snap, s.server)
-}
+// func (s *Screen) loadDevState(name string) {
+// TODO mock
+// snap, err := mock.LoadState(name)
+// if err != nil {
+//	s.setStatus("Dev: failed to load " + name)
+//	return
+// }
+// s.setStatus("Dev: loaded " + name)
+// mock.RestoreGameState(name, snap)
+// s.nextScreen = NewScreen(snap, s.server)
+// }
 
 // buildDivider returns a thin horizontal rule for separating dev panel sections.
 func buildDivider() *widget.Container {
@@ -332,33 +330,35 @@ func (s *Screen) rebuildScenarioList() {
 	}
 	s.devScenarioList.RemoveChildren()
 
-	tf := ui.TextFace(12)
-	for name := range scenario.Scenarios {
-		n := name // capture loop variable
-		btn := widget.NewButton(
-			widget.ButtonOpts.Text(string(n), &tf, &widget.ButtonTextColor{
-				Idle:  colornames.White,
-				Hover: colornames.Yellow,
-			}),
-			widget.ButtonOpts.Image(&widget.ButtonImage{
-				Idle:    image.NewNineSliceColor(color.NRGBA{0x22, 0x33, 0x44, 0xff}),
-				Hover:   image.NewNineSliceColor(color.NRGBA{0x33, 0x55, 0x66, 0xff}),
-				Pressed: image.NewNineSliceColor(color.NRGBA{0x11, 0x22, 0x33, 0xff}),
-			}),
-			widget.ButtonOpts.WidgetOpts(
-				widget.WidgetOpts.MinSize(devPanelW-16, 22),
-			),
-			widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-				s.loadScenario(n)
-			}),
-		)
-		s.devScenarioList.AddChild(btn)
-	}
+	// TODO mock
+	// tf := ui.TextFace(12)
+	// for name := range scenario.Scenarios {
+	//	n := name // capture loop variable
+	//	btn := widget.NewButton(
+	//		widget.ButtonOpts.Text(string(n), &tf, &widget.ButtonTextColor{
+	//			Idle:  colornames.White,
+	//			Hover: colornames.Yellow,
+	//		}),
+	//		widget.ButtonOpts.Image(&widget.ButtonImage{
+	//			Idle:    image.NewNineSliceColor(color.NRGBA{0x22, 0x33, 0x44, 0xff}),
+	//			Hover:   image.NewNineSliceColor(color.NRGBA{0x33, 0x55, 0x66, 0xff}),
+	//			Pressed: image.NewNineSliceColor(color.NRGBA{0x11, 0x22, 0x33, 0xff}),
+	//		}),
+	//		widget.ButtonOpts.WidgetOpts(
+	//			widget.WidgetOpts.MinSize(devPanelW-16, 22),
+	//		),
+	//		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+	//			s.loadScenario(n)
+	//		}),
+	//	)
+	//	s.devScenarioList.AddChild(btn)
+	// }
 }
 
 // loadScenario loads the named scenario and transitions to a fresh Screen.
-func (s *Screen) loadScenario(name scenario.Name) {
-	snap := mock.LoadScenario(name)
-	s.setStatus("Dev: scenario " + string(name))
-	s.nextScreen = NewScreen(snap, s.server)
-}
+// TODO mock
+// func (s *Screen) loadScenario(name scenario.Name) {
+//	snap := mock.LoadScenario(name)
+//	s.setStatus("Dev: scenario " + string(name))
+//	s.nextScreen = NewScreen(snap, s.server)
+// }
