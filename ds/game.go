@@ -1,5 +1,7 @@
 package ds
 
+import "github.com/goplease-game/client/tutorial"
+
 // GameSnapshot is a serializable snapshot of the full game state.
 type GameSnapshot struct {
 	ArenaID         string  `json:"arena_id"`
@@ -12,6 +14,8 @@ type GameSnapshot struct {
 	TurnTimeSeconds int     `json:"turn_time_seconds"`
 
 	MaxPhantomAPPerUnitPerTurn int `json:"max_phantom_ap_per_unit_per_turn"`
+
+	Tutorial tutorial.Chapter
 }
 
 // NewGamePayload is sent to the client when a new match starts, containing
@@ -19,10 +23,12 @@ type GameSnapshot struct {
 type NewGamePayload struct {
 	ArenaID                    string  `json:"arena_id"`
 	Board                      Board   `json:"board"`
+	Queue                      []*Unit `json:"queue,omitempty"`
 	Player                     *Player `json:"player"`
 	Opponent                   string  `json:"opponent"`
 	TurnTimeSeconds            int     `json:"turn_time_seconds"` // 0 = no timer
 	MaxPhantomAPPerUnitPerTurn int     `json:"max_phantom_ap_per_unit_per_turn"`
+	Round                      int     `json:"round"`
 }
 
 // ErrorResponse is sent to the client to report an error condition.

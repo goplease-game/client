@@ -11,12 +11,12 @@ import (
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/scenario"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
 	server "github.com/goplease-game/server"
 	"github.com/goplease-game/server/bot"
-	sds "github.com/goplease-game/server/ds"
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
 )
@@ -148,7 +148,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	practiceButton := mainMenuButton("Practice", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.server.Disconnect()
-		s.nextScreen = newPracticeScreen()
+		s.nextScreen = newScenarioScreen()
 	})
 
 	settButton := mainMenuButton("Settings", 16, func(_ *widget.ButtonClickedEventArgs) {
@@ -248,43 +248,42 @@ func mainMenuButtonImage() *widget.ButtonImage {
 	}
 }
 
-// newPracticeScreen loads the default scenario and starts an arena screen
+// newScenarioScreen loads the default scenario and starts an arena screen
 // backed by a connected mock client.
-func newPracticeScreen() game.Screen {
-	p1ID := sds.NewID()
-	p2ID := sds.NewID()
+func newScenarioScreen() game.Screen {
+	sc := scenario.Load(scenario.Default)
+	session := server.NewSessionFromSnapshot(sc.Arena())
 
-	p1 := server.NewPlayer(p1ID, "Player", 0, server.StartingUnits(p1ID))
-	p2 := server.NewPlayer(p2ID, bot.PlayerName(), 1, server.StartingUnits(p2ID))
+	if !sc.DisableBot {
+		b := bot.NewWithSession(sc.P2.ID, session)
+		go b.Run()
+	}
 
-	session := server.NewSession(p1, p2)
-
-	b := bot.NewWithSession(p2.ID, session)
-	go b.Run()
-
-	mockCl := ws.NewMockClient(session, p1.ID)
+	mockCl := ws.NewMockClient(session, sc.P1.ID)
+	session.Start()
 
 	for msg := range mockCl.Inbox() {
 		if msg.Action == ws.NewGameAction {
 			var data ds.NewGamePayload
-			err := json.Unmarshal(msg.Data, &data)
-			if err != nil {
-				log.Fatalf("practice: failed to unmarshal new game: %v", err)
+			if err := json.Unmarshal(msg.Data, &data); err != nil {
+				log.Fatalf("scenario: failed to unmarshal new game: %v", err)
 			}
 			snap := ds.GameSnapshot{
 				ArenaID:                    data.ArenaID,
 				Board:                      data.Board,
+				UnitsQueue:                 data.Queue,
 				Player:                     *data.Player,
 				OpponentName:               data.Opponent,
-				Round:                      1,
+				Round:                      data.Round,
 				TurnTimeSeconds:            data.TurnTimeSeconds,
 				MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
+				Tutorial:                   sc.Tutorial,
 			}
 			return NewArenaScreen(snap, mockCl, true)
 		}
 	}
 
-	log.Fatal("practice: server closed without sending new game")
+	log.Fatal("scenario: server closed without sending new game")
 	return nil
 }
 

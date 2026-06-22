@@ -8,9 +8,12 @@ server_addr: ws://localhost:8090/play/
 # Sound volume
 volume: 1
 
+skip_tutorial: false
+tutorials_completed: []
+
 # Developer mode
 dev_mode:
-  enabled: false
+  enabled: true
   # Use a local mock server instead of the real one
   mock_client: false
   # Log all communication between the client and server into ./protocol_log.txt
