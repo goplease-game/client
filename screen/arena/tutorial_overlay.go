@@ -6,6 +6,7 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/tutorial"
 	"github.com/goplease-game/client/ui"
 )
@@ -114,12 +115,25 @@ func (o *TutorialOverlay) applyStep() {
 
 	// recreate message text
 	o.messageRef.RemoveChildren()
-	o.messageW = widget.NewText(
-		widget.TextOpts.Text(step.Message, &tutorialTextTF, tutorialTextColor),
-		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
-		widget.TextOpts.MaxWidth(480),
-	)
-	o.messageRef.AddChild(o.messageW)
+	for _, seg := range parseTutorialMessage(step.Message) {
+		if seg.image != "" {
+			img := asset.Image(seg.image, seg.imgW, seg.imgH)
+			o.messageRef.AddChild(widget.NewGraphic(
+				widget.GraphicOpts.Image(img),
+				widget.GraphicOpts.WidgetOpts(
+					widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+						Position: widget.RowLayoutPositionCenter,
+					}),
+				),
+			))
+		} else if seg.text != "" {
+			tf := ui.TextFace(16)
+			o.messageRef.AddChild(widget.NewText(
+				widget.TextOpts.Text(seg.text, &tf, tutorialTextColor),
+				widget.TextOpts.MaxWidth(480),
+			))
+		}
+	}
 
 	// recreate button
 	o.buttonRef.RemoveChildren()
@@ -230,7 +244,10 @@ func (o *TutorialOverlay) build() *ebitenui.UI {
 	)
 
 	o.messageRef = widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(8),
+		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Stretch: true,

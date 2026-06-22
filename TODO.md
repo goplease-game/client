@@ -15,7 +15,7 @@ UI/UX Improvements (in no specific order, just ideas):
 - [ ] Reset settings to default (by removing the configuration file from the user's config directory).
 
 Code & Project Architecture:
-- [ ] Use code from the server's repository to handle the mock server.
+- [x] Use code from the server's repository to handle the mock server.
 
 NEXT (in no specific order, just ideas):
 - [ ] Let players create their own teams using units with custom sets of abilities.

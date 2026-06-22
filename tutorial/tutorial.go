@@ -19,10 +19,11 @@ type HighlightTarget int
 
 // Highlight targets
 const (
-	HighlightNone      HighlightTarget = iota
-	HighlightUnitPanel                 // the unit hand panel
-	HighlightQueue                     // the turn order queue
-	HighlightEndTurn                   // the end turn button
+	HighlightNone HighlightTarget = iota
+	HighlightUnitPanel
+	HighlightQueue
+	HighlightAbilityPanel
+	HighlightEndTurn
 )
 
 // Chapter is a named sequence of tutorial steps.

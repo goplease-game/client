@@ -1,8 +1,10 @@
 package arena
 
 import (
+	"fmt"
 	"image/color"
 	"log"
+	"strings"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
@@ -59,6 +61,10 @@ func (s *Screen) applyTutorialStep(step tutorial.Step) {
 		if s.queuePanelRef != nil {
 			s.queuePanelRef.SetBackgroundImage(tutorialHighlightImage(unitPanelBgColor))
 		}
+	case tutorial.HighlightAbilityPanel:
+		if s.abilityPanelRef != nil {
+			s.abilityPanelRef.SetBackgroundImage(tutorialHighlightImage(footerBgColor))
+		}
 	case tutorial.HighlightEndTurn:
 		if img := s.nextActionButtonImage(); img != nil {
 			img.Idle = tutorialHighlightImage(color.NRGBA{0x22, 0x8B, 0x22, 0xff})
@@ -83,6 +89,9 @@ func (s *Screen) clearTutorialHighlights() {
 	}
 	if s.queuePanelRef != nil {
 		s.queuePanelRef.SetBackgroundImage(image.NewNineSliceColor(unitPanelBgColor))
+	}
+	if s.abilityPanelRef != nil {
+		s.abilityPanelRef.SetBackgroundImage(image.NewNineSliceColor(footerBgColor))
 	}
 	if img := s.nextActionButtonImage(); img != nil && !s.endTurnBtnPulseActive {
 		img.Idle = endTurnBtnIdle()
@@ -124,4 +133,49 @@ func tutorialHighlightImage(fill color.Color) *image.NineSlice {
 		color.NRGBA{0xff, 0xd2, 0x4a, 0xff},
 		3,
 	)
+}
+
+// parseTutorialMessage splits a message string into text and image segments.
+// Image tags have the form [@pic:filename.png;WxH].
+func parseTutorialMessage(msg string) []tutorialMessageSegment {
+	var segments []tutorialMessageSegment
+	rest := msg
+	for {
+		start := strings.Index(rest, "[@pic:")
+		if start == -1 {
+			if rest != "" {
+				segments = append(segments, tutorialMessageSegment{text: rest})
+			}
+			break
+		}
+		if start > 0 {
+			segments = append(segments, tutorialMessageSegment{text: rest[:start]})
+		}
+		end := strings.Index(rest[start:], "]")
+		if end == -1 {
+			segments = append(segments, tutorialMessageSegment{text: rest})
+			break
+		}
+		tag := rest[start+6 : start+end] // content after [@pic:
+
+		var filename string
+		var w, h int
+		if idx := strings.Index(tag, ";"); idx != -1 {
+			filename = tag[:idx]
+			fmt.Sscanf(tag[idx+1:], "%dx%d", &w, &h)
+		} else {
+			filename = tag
+		}
+
+		segments = append(segments, tutorialMessageSegment{image: filename, imgW: w, imgH: h})
+		rest = rest[start+end+1:]
+	}
+	return segments
+}
+
+type tutorialMessageSegment struct {
+	text  string
+	image string
+	imgW  int
+	imgH  int
 }

@@ -110,10 +110,6 @@ func (s *Screen) handleEndTurn() {
 // handlePlayUnit is called when it is a specific unit's turn to act.
 // It shows the unit's ability panel, highlights it on the board, and enables the Next button.
 func (s *Screen) handlePlayUnit(data json.RawMessage) {
-	if s.tutorialOverlay != nil {
-		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)
-	}
-
 	var payload ds.PlayUnitPayload
 	err := json.Unmarshal(data, &payload)
 	if err != nil {
@@ -146,6 +142,10 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 
 	s.startTurnTimer()
 	s.ready = true
+
+	if s.tutorialOverlay != nil {
+		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)
+	}
 }
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
