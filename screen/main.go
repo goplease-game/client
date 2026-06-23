@@ -36,6 +36,7 @@ type MainScreen struct {
 	ui         *ebitenui.UI
 	nextScreen game.Screen
 	exit       bool
+	descText   *widget.Text
 }
 
 // NewMainScreen creates the main menu screen with Play, Practice, Settings,
@@ -67,6 +68,7 @@ func NewMainScreen(server ws.Client) *MainScreen {
 
 	versionTF := ui.TextFace(12)
 	versionText := widget.NewText(
+		// TODO
 		widget.TextOpts.Text("client v0.0.1\nserver v0.0.1", &versionTF, color.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
@@ -117,16 +119,28 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
+	rowC := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(30),
+			widget.RowLayoutOpts.Padding(&widget.Insets{
+				Left: 50,
+			}),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
 	menuC := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(5),
 		)),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
 			widget.WidgetOpts.MinSize(300, 0),
 		),
 	)
@@ -142,26 +156,48 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
-	playButton := mainMenuButton("PLAY", 30, func(_ *widget.ButtonClickedEventArgs) {
+	descTF := ui.TextFace(16)
+	s.descText = widget.NewText(
+		widget.TextOpts.Text("", &descTF, menuButtonTextColor),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+		widget.TextOpts.MaxWidth(300),
+	)
+
+	descContainer := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Padding(&widget.Insets{
+				Top: 55,
+			}),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(250, 100),
+		),
+	)
+	descContainer.AddChild(s.descText)
+
+	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online", func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewSearchScreen(s.server)
 	})
 
-	practiceButton := mainMenuButton("Practice", 16, func(_ *widget.ButtonClickedEventArgs) {
-		s.server.Disconnect()
-		s.nextScreen = newPracticeScreen()
-	})
+	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
+		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
+		func(_ *widget.ButtonClickedEventArgs) {
+			s.server.Disconnect()
+			s.nextScreen = newPracticeScreen()
+		})
 
-	settButton := mainMenuButton("Settings", 16, func(_ *widget.ButtonClickedEventArgs) {
+	settButton := s.mainMenuButtonWithDesc("Settings", 16, "", func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewSettingsScreen(s)
 	})
 
-	aboutButton := mainMenuButton("About", 16, func(_ *widget.ButtonClickedEventArgs) {
+	aboutButton := s.mainMenuButtonWithDesc("About", 16, "", func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewAboutScreen(s)
 	})
 
 	var exitButton *widget.Button
 	if !config.IsWASM() {
-		exitButton = mainMenuButton("Exit", 14, func(_ *widget.ButtonClickedEventArgs) {
+		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "", func(_ *widget.ButtonClickedEventArgs) {
 			s.exit = true
 		})
 	}
@@ -176,14 +212,17 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		menuC.AddChild(exitButton)
 	}
 
-	c.AddChild(menuC)
+	rowC.AddChild(menuC)
+	rowC.AddChild(descContainer)
+
+	c.AddChild(rowC)
 
 	return c
 }
 
-// mainMenuButton creates a primary menu button with hover sound, hover
-// text size change, and a press-down text shift.
-func mainMenuButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
+// mainMenuButtonWithDesc creates a primary menu button with hover sound, hover
+// text size change, a press-down text shift, and dynamic description text logic.
+func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc string, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
 	tf := ui.TextFace(size)
 	tfHover := ui.TextFace(size + 5)
 	var button *widget.Button
@@ -223,11 +262,18 @@ func mainMenuButton(text string, size float64, clickHandler widget.ButtonClicked
 			sfx.Play("button_hover.ogg")
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.Text().SetFace(&tfHover)
+
+			if desc != "" {
+				s.descText.Label = desc
+			}
+
 			button.GetWidget().Render(nil)
 		}),
 		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.Text().SetFace(&tf)
+
+			s.descText.Label = ""
 		}),
 	)
 
