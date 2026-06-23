@@ -44,6 +44,12 @@ type Config struct {
 	// Volume is the audio volume level.
 	Volume float64 `yaml:"volume"`
 
+	// SkipTutorial disables tutorial overlays for new practice/scenario games.
+	SkipTutorial bool `yaml:"skip_tutorial"`
+
+	// TutorialsCompleted stores completed tutorial chapter names.
+	TutorialsCompleted []string `yaml:"tutorials_completed"`
+
 	DevMode struct {
 		Enabled     bool `yaml:"enabled"`
 		MockClient  bool `yaml:"mock_client"`

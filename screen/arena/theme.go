@@ -87,6 +87,21 @@ var (
 
 	gameOverLoseColor = ui.RGBFromHex("F5004F")
 	gameOverWinColor  = ui.RGBFromHex("F9E400")
+
+	// tutorial.
+	tutorialTitleTextColor        = ui.RGBFromHex("315a87")
+	tutorialTextColor             = colornames.Whitesmoke
+	tutorialBtnDisabledTextColor  = color.NRGBA{0x88, 0x88, 0x88, 0xff}
+	tutorialSkipBtnTextColor      = color.NRGBA{0x88, 0x88, 0x88, 0xff}
+	tutorialTextBgColor           = ui.RGBFromHex("1a3a5c")
+	tutorialTitleBgColor          = colornames.Whitesmoke
+	tutorialBtnBgColor            = color.NRGBA{0x1a, 0x6b, 0xc4, 0xff}
+	tutorialBtnHoverBgColor       = color.NRGBA{0x22, 0x88, 0xf0, 0xff}
+	tutorialBtnPressedBgColor     = color.NRGBA{0x10, 0x50, 0x99, 0xff}
+	tutorialBtnDisabledBgColor    = color.NRGBA{0x33, 0x33, 0x33, 0xff}
+	tutorialSkipBtnBgColor        = color.NRGBA{0x22, 0x22, 0x22, 0x00}
+	tutorialSkipBtnHoverBgColor   = color.NRGBA{0x33, 0x33, 0x33, 0x88}
+	tutorialSkipBtnPressedBgColor = color.NRGBA{0x11, 0x11, 0x11, 0x88}
 )
 
 // Font faces used across the arena package.
@@ -94,4 +109,8 @@ var (
 	toolTipTitleTF           = ui.TextFace(28)
 	toolTipTextTF            = ui.TextFace(18)
 	abilityCooldownCounterTF = ui.TextFace(40)
+
+	// tutorial.
+	tutorialTitleTF = ui.TextFace(14)
+	tutorialTextTF  = ui.TextFace(16)
 )

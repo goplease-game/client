@@ -1,7 +1,7 @@
 package arena
 
 import (
-	"github.com/goplease-game/client/ability"
+	"github.com/goplease-game/server/ability"
 )
 
 // abilityFxRegistry maps ability IDs to their declarative Start/End fx

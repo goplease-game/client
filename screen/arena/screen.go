@@ -9,11 +9,11 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
-	"github.com/goplease-game/client/ability"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
+	"github.com/goplease-game/server/ability"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
@@ -30,6 +30,9 @@ type Screen struct {
 	ui         *ebitenui.UI
 	menuUI     *ebitenui.UI
 	gameOverUI *ebitenui.UI
+
+	tutorialUI      *ebitenui.UI
+	tutorialOverlay *TutorialOverlay
 
 	// Game state received from the server.
 	roomID             string // todo: arenaID
@@ -59,6 +62,7 @@ type Screen struct {
 	statusBarRef  *widget.Container
 	nextActionBtn *widget.Button
 	statusLabel   *widget.Text
+	statusText    string
 
 	// Ability targeting state.
 	abilityPanelRef            *widget.Container
@@ -153,6 +157,7 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 
 	initDropPointAnim()
 	s.setupUI()
+	s.setupTutorial()
 	s.restoreBoardVisuals()
 	s.rebuildQueuePanel()
 
@@ -172,13 +177,14 @@ func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
 		}
 	}
 done:
+	tutorialWasVisible := s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible()
 
 	s.updateDelayedActions()
 	s.updateNewRoundBanner()
 	s.updateFloatingTexts()
 
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
-	if inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
+	if !tutorialWasVisible && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
 		for coord, cell := range s.boardCellWidgets {
 			if cell.HitTest(mx, my) {
@@ -188,7 +194,7 @@ done:
 		}
 	}
 
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+	if !tutorialWasVisible && inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		if s.selectedAbility != nil {
 			s.cancelAbilitySelection()
 		} else {
@@ -207,12 +213,18 @@ done:
 	s.updateMoveAnimations()
 	s.updateFxAnims()
 
-	if s.gameOverVisible {
-		s.gameOverUI.Update()
-	} else if s.menuVisible {
-		s.menuUI.Update()
+	if s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible() {
+		s.tutorialOverlay.UI.Update()
 	}
-	s.ui.Update()
+
+	if !tutorialWasVisible {
+		if s.gameOverVisible {
+			s.gameOverUI.Update()
+		} else if s.menuVisible {
+			s.menuUI.Update()
+		}
+		s.ui.Update()
+	}
 
 	if s.nextScreen != nil {
 		return s.nextScreen, nil
@@ -233,6 +245,10 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		if cell, ok := s.boardCellWidgets[u.Pos]; ok {
 			s.drawAPMarkers(screen, u, cell)
 		}
+	}
+
+	if s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible() {
+		s.tutorialOverlay.UI.Draw(screen)
 	}
 
 	if s.menuVisible {
@@ -397,8 +413,18 @@ func (s *Screen) renderGrid(screen *ebiten.Image) {
 
 // setStatus updates the status bar label text by recreating the widget to force layout centering.
 func (s *Screen) setStatus(text string) {
+	s.statusText = text
+	s.refreshStatusBar()
+}
+
+func (s *Screen) refreshStatusBar() {
 	if s.statusBarRef == nil {
 		return
+	}
+
+	text := s.statusText
+	if s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible() {
+		text = ""
 	}
 
 	// Clear previous text widget to reset cached MinSize dimensions.

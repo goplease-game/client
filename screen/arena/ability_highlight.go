@@ -1,11 +1,9 @@
 package arena
 
 import (
-	"fmt"
-
-	"github.com/goplease-game/client/ability"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/grid"
+	"github.com/goplease-game/server/ability"
 )
 
 var hexDirections = [6]ds.HexCoord{
@@ -44,8 +42,6 @@ func (s *Screen) highlightAbilityRange(ab ability.Ability) {
 	default:
 		cells = grid.CellsInRange(caster.Pos, rangeN, s.board)
 	}
-
-	fmt.Printf("HAB: %s: cells: %d\n", ab.Name, len(cells))
 
 	s.abilityHighlightCells = cells
 
