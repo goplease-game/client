@@ -88,7 +88,7 @@ var (
 	gameOverLoseColor = ui.RGBFromHex("F5004F")
 	gameOverWinColor  = ui.RGBFromHex("F9E400")
 
-	// tutorial
+	// tutorial.
 	tutorialTitleTextColor        = ui.RGBFromHex("315a87")
 	tutorialTextColor             = colornames.Whitesmoke
 	tutorialBtnDisabledTextColor  = color.NRGBA{0x88, 0x88, 0x88, 0xff}
@@ -110,7 +110,7 @@ var (
 	toolTipTextTF            = ui.TextFace(18)
 	abilityCooldownCounterTF = ui.TextFace(40)
 
-	// tutorial
+	// tutorial.
 	tutorialTitleTF = ui.TextFace(14)
 	tutorialTextTF  = ui.TextFace(16)
 )

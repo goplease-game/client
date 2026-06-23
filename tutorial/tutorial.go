@@ -17,7 +17,7 @@ const (
 // HighlightTarget identifies a UI element to highlight after a step is acknowledged.
 type HighlightTarget int
 
-// Highlight targets
+// Highlight targets.
 const (
 	HighlightNone HighlightTarget = iota
 	HighlightUnitPanel
@@ -44,7 +44,7 @@ type Step struct {
 // AnchorTarget defines where the tutorial overlay is positioned on screen.
 type AnchorTarget int
 
-// Anchor тargets
+// Anchor тargets.
 const (
 	AnchorBottomRight AnchorTarget = iota // default
 	AnchorTopLeft

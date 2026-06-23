@@ -10,13 +10,13 @@ var Basics = Chapter{
 			Anchor:     AnchorCenter,
 		},
 		{
-			Message:    "Each player commands 6 units, deployed in waves: 3 units in round 1, then 2, then 1.",
+			Message:    "Each player commands 6 units, deployed in waves: 3 units in round 1, then 2, then last one.",
 			ButtonText: "Next",
 			Highlight:  HighlightUnitPanel,
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "Drag a unit from the panel below and drop it onto a highlighted placement zone on the board. Go ahead and deploy your first 3.",
+			Message:    "To deploy a unit, grab it from the panel below and drop it onto a highlighted zone. Go ahead and deploy any 3.",
 			ButtonText: "Let's go!",
 			Highlight:  HighlightUnitPanel,
 			Anchor:     AnchorBottomCenter,
@@ -45,12 +45,12 @@ var Basics = Chapter{
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "Each unit also has MP (Movement Points) — how far it can move in one turn. Once you move, even a short distance, all remaining MP are spent. You can only move once per turn.",
+			Message:    "Each unit also has MP (Movement Points) — how far it can move in one turn. Moving spends all MP at once, no matter how far you go. You can only move once per turn.",
 			ButtonText: "Next",
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "If a unit can move this turn, you'll see a Move icon on its card. [@pic:walk_o.png;32x32]",
+			Message:    "If active unit can move this turn, you'll see a Move icon on its card. [@pic:walk_o.png;32x32]",
 			ButtonText: "Next",
 			Anchor:     AnchorBottomCenter,
 		},
@@ -60,7 +60,7 @@ var Basics = Chapter{
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "You can move and use abilities in any order — as long as you haven't moved yet or still have AP left.",
+			Message:    "You can move and use abilities in any order.",
 			ButtonText: "Next",
 			Anchor:     AnchorBottomCenter,
 		},

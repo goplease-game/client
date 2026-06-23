@@ -1,3 +1,4 @@
+// Package scenario ...
 package scenario
 
 import (
@@ -10,14 +11,18 @@ import (
 	sds "github.com/goplease-game/server/ds"
 )
 
+// Default represents the fallback or standard arena scenario.
 const Default = ClassicFairArena
 
+// Scenarios maps scenario names to their respective initialization functions.
 var Scenarios = map[Name]func() *Scenario{}
 
+// addScenario registers a new scenario factory function under the given name.
 func addScenario(name Name, scenario func() *Scenario) {
 	Scenarios[name] = scenario
 }
 
+// Unit template IDs used to identify specific units within scenarios.
 const (
 	BasID    = 1
 	GritID   = 2
@@ -27,6 +32,7 @@ const (
 	JulyID   = 6
 )
 
+// Name defines a unique string identifier for a scenario configuration.
 type Name string
 
 // Load returns a new Scenario instance for the given name.
@@ -35,6 +41,8 @@ func Load(name Name) *Scenario {
 	return Scenarios[name]()
 }
 
+// Scenario holds the pre-configured initial state of a game arena,
+// including players, board layout, queue order, and tutorial steps.
 type Scenario struct {
 	ID              sds.ID
 	P1              *server.Player
@@ -47,6 +55,8 @@ type Scenario struct {
 	Tutorial        tutorial.Chapter
 }
 
+// NewSimpleScenario initializes and returns a default Scenario with two players,
+// their starting units, and an empty board.
 func NewSimpleScenario() *Scenario {
 	p1ID := sds.NewID()
 	p2ID := sds.NewID()
@@ -65,6 +75,8 @@ func NewSimpleScenario() *Scenario {
 	return s
 }
 
+// Arena constructs and returns a fully initialized server Arena state
+// populated with the data defined in the current Scenario.
 func (s *Scenario) Arena() *server.Arena {
 	return &server.Arena{
 		ID:                     s.ID,
@@ -85,7 +97,7 @@ func (s *Scenario) Arena() *server.Arena {
 // placeUnitAt picks a unit by templateID from player's hand,
 // sets its position and places it on the board cell at coord.
 // The unit is also appended to the scenario queue.
-func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *server.Unit {
+func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *server.Unit { //nolint:unparam
 	var unit *server.Unit
 	unit, from.Units = pickUnitByTemplateID(from.Units, unitID)
 	at := server.HexCoord{Q: atQ, R: atR}
@@ -109,7 +121,10 @@ func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *serve
 func pickUnitByTemplateID(units []*server.Unit, id int) (*server.Unit, []*server.Unit) {
 	for i, u := range units {
 		if u.TemplateID == id {
-			newUnits := append(units[:i], units[i+1:]...)
+			newUnits := make([]*server.Unit, 0, len(units)-1)
+			newUnits = append(newUnits, units[:i]...)
+			newUnits = append(newUnits, units[i+1:]...)
+
 			return u, newUnits
 		}
 	}

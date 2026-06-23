@@ -265,7 +265,8 @@ func newScenarioScreen() game.Screen {
 	for msg := range mockCl.Inbox() {
 		if msg.Action == ws.NewGameAction {
 			var data ds.NewGamePayload
-			if err := json.Unmarshal(msg.Data, &data); err != nil {
+			err := json.Unmarshal(msg.Data, &data)
+			if err != nil {
 				log.Fatalf("scenario: failed to unmarshal new game: %v", err)
 			}
 			snap := ds.GameSnapshot{

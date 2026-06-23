@@ -1,11 +1,15 @@
 package scenario
 
+// BasWithFriends defines the name of the scenario featuring Bas alongside friendly units.
 const BasWithFriends = "Bas with friends"
 
+// init registers the "Bas with friends" scenario in the global Scenarios map.
 func init() {
 	addScenario(BasWithFriends, basWithFriends)
 }
 
+// basWithFriends builds and returns a scenario where Player 1 starts with
+// a full squad on the board, game over conditions are disabled, and Player 2 has no units.
 func basWithFriends() *Scenario {
 	s := NewSimpleScenario()
 	s.DisableGameOver = true

@@ -64,10 +64,13 @@ func (o *TutorialOverlay) Trigger(event tutorial.TriggerEvent) {
 	}
 }
 
+// IsVisible returns true if the overlay is active and currently visible.
 func (o *TutorialOverlay) IsVisible() bool {
 	return o != nil && o.visible
 }
 
+// CurrentStep returns the active tutorial step and true if available,
+// otherwise returns an empty step and false.
 func (o *TutorialOverlay) CurrentStep() (tutorial.Step, bool) {
 	if o == nil || o.currentStep >= len(o.steps) {
 		return tutorial.Step{}, false
@@ -169,6 +172,7 @@ func (o *TutorialOverlay) applyStep() {
 	o.buttonRef.AddChild(skipBtn)
 }
 
+// setVisible updates the internal visibility state and invokes the visibility change callback.
 func (o *TutorialOverlay) setVisible(visible bool) {
 	if o.visible == visible {
 		return
@@ -278,6 +282,8 @@ func (o *TutorialOverlay) build() *ebitenui.UI {
 	return &ebitenui.UI{Container: root}
 }
 
+// applyAnchor calculates and applies layout positioning data to the overlay panel
+// based on the requested anchor target position.
 func (o *TutorialOverlay) applyAnchor(anchor tutorial.AnchorTarget) {
 	const (
 		topPad    = headerH + 8
@@ -348,6 +354,7 @@ func (o *TutorialOverlay) applyAnchor(anchor tutorial.AnchorTarget) {
 	}
 }
 
+// tutorialButtonImage creates and returns the button image states for the tutorial interaction button.
 func tutorialButtonImage() *widget.ButtonImage {
 	return &widget.ButtonImage{
 		Idle:     image.NewNineSliceColor(tutorialBtnBgColor),
@@ -357,6 +364,7 @@ func tutorialButtonImage() *widget.ButtonImage {
 	}
 }
 
+// skipButtonImage creates and returns the button image states for the tutorial skip button.
 func skipButtonImage() *widget.ButtonImage {
 	return &widget.ButtonImage{
 		Idle:    image.NewNineSliceColor(tutorialSkipBtnBgColor),

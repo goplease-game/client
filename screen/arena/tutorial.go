@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/ebitenui/ebitenui/image"
@@ -26,7 +27,8 @@ func (s *Screen) setupTutorial() {
 		func() {
 			s.clearTutorialHighlights()
 			config.Get().SkipTutorial = true
-			if err := config.Save(); err != nil {
+			err := config.Save()
+			if err != nil {
 				log.Printf("tutorial: failed to save skip state: %v", err)
 			}
 			s.tutorialOverlay = nil
@@ -107,12 +109,7 @@ func (s *Screen) nextActionButtonImage() *widget.ButtonImage {
 }
 
 func tutorialCompleted(conf *config.Config, name string) bool {
-	for _, completed := range conf.TutorialsCompleted {
-		if completed == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(conf.TutorialsCompleted, name)
 }
 
 func markTutorialCompleted(name string) {
@@ -122,7 +119,8 @@ func markTutorialCompleted(name string) {
 	}
 
 	conf.TutorialsCompleted = append(conf.TutorialsCompleted, name)
-	if err := config.Save(); err != nil {
+	err := config.Save()
+	if err != nil {
 		log.Printf("tutorial: failed to save completion state: %v", err)
 	}
 }
@@ -160,9 +158,11 @@ func parseTutorialMessage(msg string) []tutorialMessageSegment {
 
 		var filename string
 		var w, h int
-		if idx := strings.Index(tag, ";"); idx != -1 {
-			filename = tag[:idx]
-			fmt.Sscanf(tag[idx+1:], "%dx%d", &w, &h)
+		if _, remainder, found := strings.Cut(tag, ";"); found {
+			_, err := fmt.Sscanf(remainder, "%dx%d", &w, &h)
+			if err != nil {
+				fmt.Printf("tutorial: failed to parse tag %s: %s\n", tag, err.Error())
+			}
 		} else {
 			filename = tag
 		}
