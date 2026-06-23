@@ -7,7 +7,6 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/goplease-game/client/asset"
-	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
 	"golang.org/x/image/colornames"
@@ -188,9 +187,7 @@ func (s *Screen) buildNextMoveButton() {
 			widget.WidgetOpts.MinSize(size, size),
 		),
 		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			if config.Get().DevMode.Enabled {
-				printD("NEXT TURN PRESSED")
-			}
+			printD("END TURN PRESSED")
 			if !s.ready {
 				printD("NOT READY")
 				return
@@ -207,6 +204,7 @@ func (s *Screen) buildNextMoveButton() {
 			s.activeUnitID = ""
 
 			s.setPulseHexTargets(nil)
+			s.stopTurnTimer()
 			s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 		}),
 	)

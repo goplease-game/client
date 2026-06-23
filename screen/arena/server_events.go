@@ -66,7 +66,7 @@ func (s *Screen) handlePlaceUnit() {
 	s.setupUnitPanel()
 
 	if len(s.player.Units) == 1 {
-		s.setStatus(s.player.Units[0].Name + "%s is ready to be deployed")
+		s.setStatus(s.player.Units[0].Name + " is ready to be deployed")
 	} else {
 		s.setStatus("Deploy a unit to the board")
 	}
