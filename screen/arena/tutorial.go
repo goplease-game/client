@@ -158,7 +158,9 @@ func parseTutorialMessage(msg string) []tutorialMessageSegment {
 
 		var filename string
 		var w, h int
-		if _, remainder, found := strings.Cut(tag, ";"); found {
+		before, remainder, found := strings.Cut(tag, ";")
+		if found {
+			filename = before
 			_, err := fmt.Sscanf(remainder, "%dx%d", &w, &h)
 			if err != nil {
 				fmt.Printf("tutorial: failed to parse tag %s: %s\n", tag, err.Error())
