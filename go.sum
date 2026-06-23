@@ -21,8 +21,8 @@ github.com/go-text/typesetting-utils v0.0.0-20241103174707-87a29e9e6066 h1:qCuYC
 github.com/go-text/typesetting-utils v0.0.0-20241103174707-87a29e9e6066/go.mod h1:DDxDdQEnB70R8owOx3LVpEFvpMK9eeH1o2r0yZhFI9o=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/goplease-game/server v0.0.0-20260621181108-fe401be60513 h1:XQnu+cAlVQHcMayCGBkVfKk6e4TrpwV7d2iVazcxk/A=
-github.com/goplease-game/server v0.0.0-20260621181108-fe401be60513/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
+github.com/goplease-game/server v0.0.0-20260622172555-f66ef35ae835 h1:18YzTvuSQlRMbPotg8yiQ8TmPKgfUejzVCubi2eF1x0=
+github.com/goplease-game/server v0.0.0-20260622172555-f66ef35ae835/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hajimehoshi/bitmapfont/v4 v4.1.0 h1:eE3qa5Do4qhowZVIHjsrX5pYyyPN6sAFWMsO7QREm3U=
