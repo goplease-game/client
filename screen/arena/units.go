@@ -9,12 +9,12 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/goplease-game/client/ability/status"
 	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
+	"github.com/goplease-game/server/ability/status"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/colornames"
@@ -50,6 +50,7 @@ func (s *Screen) setupUnitPanel() {
 
 	s.footerRef.AddChild(s.unitPanelRef)
 	s.unitPanelIn = true
+	s.refreshTutorialStep()
 }
 
 // buildUnitCard creates a draggable unit card for the hand panel.
@@ -475,7 +476,6 @@ func (s *Screen) addUnitStatus(u *ds.Unit, statusType status.Type, meta map[stri
 	}
 
 	u.Statuses[statusType] = status.Value{
-		UnitID:   u.ID,
 		Duration: st.Duration,
 		Value:    st.InitialValue,
 		Status:   st,

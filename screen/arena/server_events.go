@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/goplease-game/client/ability"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
+	"github.com/goplease-game/client/tutorial"
 	"github.com/goplease-game/client/ws"
+	"github.com/goplease-game/server/ability"
 	"golang.org/x/image/colornames"
 )
 
@@ -141,6 +142,10 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 
 	s.startTurnTimer()
 	s.ready = true
+
+	if s.tutorialOverlay != nil {
+		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)
+	}
 }
 
 // handleWaitingForOpponent is called when the local player is waiting for the opponent.
