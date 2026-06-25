@@ -357,6 +357,10 @@ func (s *Screen) createGameMenu() *widget.Container {
 		),
 	)
 
+	menu.AddChild(s.menuButton("Return to game", func(_ *widget.ButtonClickedEventArgs) {
+		s.closeGameMenu()
+	}))
+
 	if s.OnRestartScreen != nil {
 		menu.AddChild(s.menuButton("Restart", func(_ *widget.ButtonClickedEventArgs) {
 			s.closeGameMenu()
@@ -405,6 +409,7 @@ func (s *Screen) openGameMenu() {
 		s.menuOverlayRef = s.createGameMenu()
 		s.menuUI = &ebitenui.UI{Container: s.menuOverlayRef}
 	}
+	s.menuOverlayRef.GetWidget().SetVisibility(widget.Visibility_Show)
 	s.menuVisible = true
 }
 
