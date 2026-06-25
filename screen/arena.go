@@ -16,17 +16,19 @@ type ArenaScreen struct {
 // NewArenaScreen creates the arena screen for snap, wiring up exit and
 // restart transitions depending on whether this is a practice match
 // (against the mock client) or a real one against server.
-func NewArenaScreen(snap ds.GameSnapshot, server ws.Client, isPractice bool) game.Screen {
-	ar := arena.NewScreen(snap, server)
+func NewArenaScreen(snap ds.GameSnapshot, serverCl *ws.ClientProvider, isPractice bool) game.Screen {
+	ar := arena.NewScreen(snap, serverCl.Get())
 	ar.OnExitScreen = func() game.Screen {
-		return NewMainScreen(server)
+		return NewMainScreen(serverCl)
 	}
 
 	if isPractice {
-		ar.OnRestartScreen = newScenarioScreen
+		ar.OnRestartScreen = func() game.Screen {
+			return newScenarioScreen(serverCl)
+		}
 	} else {
 		ar.OnRestartScreen = func() game.Screen {
-			return NewSearchScreen(server)
+			return NewSearchScreen(serverCl)
 		}
 	}
 

@@ -32,7 +32,7 @@ var (
 
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
-	server     ws.Client
+	serverCl   *ws.ClientProvider
 	ui         *ebitenui.UI
 	nextScreen game.Screen
 	exit       bool
@@ -41,9 +41,11 @@ type MainScreen struct {
 
 // NewMainScreen creates the main menu screen with Play, Practice, Settings,
 // About, and (on non-WASM builds) Exit buttons.
-func NewMainScreen(server ws.Client) *MainScreen {
+func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
+	serverCl.SwitchToReal()
+
 	s := &MainScreen{
-		server: server,
+		serverCl: serverCl,
 	}
 
 	root := widget.NewContainer(
@@ -68,7 +70,7 @@ func NewMainScreen(server ws.Client) *MainScreen {
 
 	versionTF := ui.TextFace(12)
 	versionText := widget.NewText(
-		// TODO
+		// TODO fetch server's status & version
 		widget.TextOpts.Text("client v0.0.1\nserver v0.0.1", &versionTF, color.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
@@ -176,15 +178,15 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	)
 	descContainer.AddChild(s.descText)
 
-	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online", func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewSearchScreen(s.server)
-	})
+	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online",
+		func(_ *widget.ButtonClickedEventArgs) {
+			s.nextScreen = NewSearchScreen(s.serverCl)
+		})
 
 	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
 		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
 		func(_ *widget.ButtonClickedEventArgs) {
-			s.server.Disconnect()
-			s.nextScreen = newScenarioScreen()
+			s.nextScreen = newScenarioScreen(s.serverCl)
 		})
 
 	settButton := s.mainMenuButtonWithDesc("Settings", 16, "", func(_ *widget.ButtonClickedEventArgs) {
@@ -296,7 +298,7 @@ func mainMenuButtonImage() *widget.ButtonImage {
 
 // newScenarioScreen loads the default scenario and starts an arena screen
 // backed by a connected mock client.
-func newScenarioScreen() game.Screen {
+func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 	sc := scenario.Load(scenario.Default)
 	session := server.NewSessionFromSnapshot(sc.Arena())
 
@@ -305,7 +307,7 @@ func newScenarioScreen() game.Screen {
 		go b.Run()
 	}
 
-	mockCl := ws.NewMockClient(session, sc.P1.ID)
+	mockCl := serverCl.SwitchToMock(session, sc.P1.ID)
 	session.Start()
 
 	for msg := range mockCl.Inbox() {
@@ -326,7 +328,7 @@ func newScenarioScreen() game.Screen {
 				MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 				Tutorial:                   sc.Tutorial,
 			}
-			return NewArenaScreen(snap, mockCl, true)
+			return NewArenaScreen(snap, serverCl, true)
 		}
 	}
 

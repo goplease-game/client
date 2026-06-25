@@ -20,8 +20,8 @@ func main() {
 
 	sfx.SetVolume(conf.Volume)
 
-	server := ws.NewClient()
-	err := ebiten.RunGame(game.New(server, screen.NewMainScreen(server)))
+	serverCl := ws.NewClientProvider()
+	err := ebiten.RunGame(game.New(screen.NewMainScreen(serverCl)))
 	if err != nil {
 		log.Fatal(err)
 	}
