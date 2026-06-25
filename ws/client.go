@@ -66,4 +66,11 @@ const (
 	YouLose                 Action = "you_lose"
 	ErrorAction             Action = "error"
 	ActiveUnitChangedAction Action = "active_unit_changed"
+
+	CreateFriendGameAction   Action = "create_friend_game"
+	JoinFriendGameAction     Action = "join_friend_game"
+	FriendRoomCreatedAction  Action = "friend_room_created"
+	FriendRoomNotFoundAction Action = "friend_room_not_found"
+	FriendRoomExpiredAction  Action = "friend_room_expired"
+	CancelFriendRoomAction   Action = "cancel_friend_room"
 )

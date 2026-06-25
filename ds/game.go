@@ -35,3 +35,8 @@ type NewGamePayload struct {
 type ErrorResponse struct {
 	Message string `json:"message"`
 }
+
+// FriendRoomCreatedPayload is received when the server successfully creates a friend room.
+type FriendRoomCreatedPayload struct {
+	JoinCode string `json:"join_code"`
+}

@@ -183,6 +183,12 @@ func (s *MainScreen) mainMenu() *widget.Container {
 			s.nextScreen = NewSearchScreen(s.serverCl)
 		})
 
+	pwfButton := s.mainMenuButtonWithDesc("Play with friend", 16,
+		"Challenge a friend using a join code.",
+		func(_ *widget.ButtonClickedEventArgs) {
+			s.nextScreen = NewPlayWithFriendScreen(s.serverCl)
+		})
+
 	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
 		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
 		func(_ *widget.ButtonClickedEventArgs) {
@@ -206,6 +212,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	menuC.AddChild(titleText)
 	menuC.AddChild(playButton)
+	menuC.AddChild(pwfButton)
 	menuC.AddChild(practiceButton)
 	menuC.AddChild(settButton)
 	menuC.AddChild(aboutButton)
@@ -336,11 +343,24 @@ func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 	return nil
 }
 
+// buttonProps holds optional overrides for secondaryButton.
+type buttonProps struct {
+	layoutData any // widget.AnchorLayoutData or widget.RowLayoutData
+}
+
 // secondaryButton creates a smaller menu button styled like
 // mainMenuButton, used for secondary actions like Back.
-func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
+func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc, props ...buttonProps) *widget.Button {
 	tf := ui.TextFace(size)
 	tfHover := ui.TextFace(size + 5)
+
+	var layoutData any = widget.RowLayoutData{
+		Position: widget.RowLayoutPositionCenter,
+	}
+	if len(props) > 0 && props[0].layoutData != nil {
+		layoutData = props[0].layoutData
+	}
+
 	var button *widget.Button
 	button = widget.NewButton(
 		widget.ButtonOpts.WidgetOpts(
@@ -348,10 +368,7 @@ func secondaryButton(text string, size float64, clickHandler widget.ButtonClicke
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				//Stretch:  true,
-			}),
+			widget.WidgetOpts.LayoutData(layoutData),
 		),
 		widget.ButtonOpts.Image(mainMenuButtonImage()),
 		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
@@ -385,6 +402,13 @@ func secondaryButton(text string, size float64, clickHandler widget.ButtonClicke
 			button.Text().SetFace(&tf)
 		}),
 	)
-
 	return button
+}
+
+func rowButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
+	return secondaryButton(text, size, clickHandler, buttonProps{
+		layoutData: widget.RowLayoutData{
+			Position: widget.RowLayoutPositionCenter,
+		},
+	})
 }
