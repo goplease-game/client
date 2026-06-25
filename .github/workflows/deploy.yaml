@@ -51,6 +51,12 @@ jobs:
       - name: Copy wasm_exec.js
         run: cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" asset/wasm/
 
+      - name: Inject wasm hash into index.html
+        run: |
+          HASH=$(sha256sum asset/wasm/goplease.wasm | cut -c1-8)
+          sed -i "s/goplease\.wasm/goplease.wasm?v=${HASH}/g" asset/wasm/game.html
+          sed -i "s/game\.html/game.html?v=${HASH}/g" asset/wasm/index.html
+
       - name: Create archive
         run: tar -czf artifact.tar.gz -C asset/wasm .
 
@@ -75,5 +81,3 @@ jobs:
             sudo chown -R caddy:caddy /var/www/goplease/home
             sudo chmod -R 755 /var/www/goplease/home
             rm /tmp/artifact.tar.gz
-
-
