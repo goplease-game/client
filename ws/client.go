@@ -15,11 +15,6 @@ type Client interface {
 	Disconnect()
 }
 
-// NewClient returns a WSClient, or a mock client if mock mode is enabled in config.
-func NewClient() Client {
-	return NewWSClient()
-}
-
 // InMessage is a message received from the server, with the payload left
 // as raw JSON until the action is known.
 type InMessage struct {

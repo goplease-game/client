@@ -117,7 +117,7 @@ func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) 
 
 // SearchScreen is the matchmaking screen shown while the client waits for an opponent.
 type SearchScreen struct {
-	server          ws.Client
+	serverCl        *ws.ClientProvider
 	ui              *ebitenui.UI
 	statusLbl       *widget.Text
 	elapsedLbl      *widget.Text
@@ -128,12 +128,12 @@ type SearchScreen struct {
 }
 
 // NewSearchScreen creates a SearchScreen and initiates a server connection.
-func NewSearchScreen(server ws.Client) *SearchScreen {
+func NewSearchScreen(serverCl *ws.ClientProvider) *SearchScreen {
 	s := &SearchScreen{
-		server: server,
+		serverCl: serverCl,
 	}
 
-	s.server.Connect(uuid.New().String())
+	s.serverCl.Get().Connect(uuid.New().String())
 
 	root := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
@@ -230,7 +230,7 @@ func NewSearchScreen(server ws.Client) *SearchScreen {
 }
 
 // Update implements game.Screen. It drives the matchmaking loop, unit animation, and input handling.
-func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
+func (s *SearchScreen) Update(_ *game.Game) (game.Screen, error) {
 	s.tick++
 	s.ui.Update()
 
@@ -246,29 +246,31 @@ func (s *SearchScreen) Update(g *game.Game) (game.Screen, error) {
 
 	s.elapsedLbl.Label = fmt.Sprintf("elapsed: %ds", s.tick/60)
 
-	if g.Server.Status() == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
-		g.Server.Send(ws.OutMessage{
+	server := s.serverCl.Get()
+
+	if server.Status() == ws.StatusConnected && s.statusLbl.Label == ConnectingLabel {
+		server.Send(ws.OutMessage{
 			Action: ws.NewGameAction,
 		})
 		s.statusLbl.Label = SearchingOppLabel
 	}
-	if g.Server.Status() == ws.StatusError {
+	if server.Status() == ws.StatusError {
 		s.statusLbl.Label = ConnErrorLabel
 	}
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		if g.Server.Status() == ws.StatusConnected {
-			g.Server.Send(ws.OutMessage{
+		if server.Status() == ws.StatusConnected {
+			server.Send(ws.OutMessage{
 				Action: "cancel_match",
 				Data:   nil,
 			})
 		}
-		return NewMainScreen(g.Server), nil
+		return NewMainScreen(s.serverCl), nil
 	}
 
 	for {
 		select {
-		case msg := <-g.Server.Inbox():
+		case msg := <-server.Inbox():
 			if next := s.handleMessage(msg); next != nil {
 				return next, nil
 			}
@@ -347,7 +349,7 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			TurnTimeSeconds:            data.TurnTimeSeconds,
 			MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 		}
-		return NewArenaScreen(snap, s.server, false)
+		return NewArenaScreen(snap, s.serverCl, false)
 	case ws.ErrorAction:
 		var e ds.ErrorResponse
 		_ = json.Unmarshal(msg.Data, &e)
