@@ -257,7 +257,7 @@ func (s *Screen) handleApplyState(data json.RawMessage) {
 
 	// Visual feedback waits for fx to finish.
 	if s.pendingVisuals != nil {
-		s.pendingVisuals.applyStates = payload
+		s.pendingVisuals.applyStates = append(s.pendingVisuals.applyStates, payload...)
 		s.pendingVisuals.serverDone = true
 		s.tryFlushPendingVisuals(s.pendingVisuals)
 		return
