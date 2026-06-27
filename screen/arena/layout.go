@@ -195,10 +195,9 @@ func (s *Screen) buildNextMoveButton() {
 			s.stopEndTurnPulse()
 
 			if u := s.unitByID(s.activeUnitID); u != nil {
-				s.activeUnitMoved = true
 				if bc := s.boardCellWidget(u); bc != nil {
 					bc.RemoveChildren()
-					s.buildBoardCard(bc, u, false)
+					s.buildBoardCard(bc, u)
 				}
 			}
 			s.activeUnitID = ""
@@ -311,13 +310,13 @@ func (s *Screen) updateNextActionLabel() {
 	canAct := s.unitCanAct(u)
 
 	switch {
-	case s.activeUnitMoved && !canAct:
+	case !u.CanMove() && !canAct:
 		// Unit has both moved and spent all AP — pulse to signal the turn is fully done.
 		s.setNextActionLabel("END\nTURN")
 		if !s.endTurnBtnPulseActive {
 			s.endTurnBtnPulseActive = true
 		}
-	case s.activeUnitMoved || !canAct:
+	case !u.CanMove() || !canAct:
 		// Unit has done something but not exhausted all actions — END TURN without pulse.
 		s.setNextActionLabel("END\nTURN")
 		s.stopEndTurnPulse()

@@ -11,7 +11,7 @@ import (
 // A second click on the same unit deselects it.
 // No-ops if the unit has already moved this turn.
 func (s *Screen) selectUnit(u *ds.Unit) {
-	if s.activeUnitMoved {
+	if !u.CanMove() {
 		return
 	}
 	if s.selectedUnitID == u.ID {

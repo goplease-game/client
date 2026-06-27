@@ -98,6 +98,11 @@ func (u *Unit) IsAlly(to *Unit) bool {
 	return !u.IsEnemy(to)
 }
 
+// CanMove reports whether the unit can move this turn.
+func (u *Unit) CanMove() bool {
+	return u.CurrentMP > 0
+}
+
 // ReachableCells returns all hex cells the unit can reach within its movement points (CurrentMP).
 // Movement is calculated using a breadth-first search over the hex grid, where each step
 // to a neighboring cell costs 1 CurrentMP.

@@ -6,7 +6,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/ebitenui/ebitenui v0.7.3
 	github.com/google/uuid v1.6.0
-	github.com/goplease-game/server v0.0.0-20260625115018-566c0458b7ef
+	github.com/goplease-game/server v0.0.0-20260627173910-9fff1b818e4e
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/setanarut/anim v1.4.0
