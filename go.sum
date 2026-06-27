@@ -9,8 +9,6 @@ github.com/ebitengine/hideconsole v1.0.0 h1:5J4U0kXF+pv/DhiXt5/lTz0eO5ogJ1iXb8Yj
 github.com/ebitengine/hideconsole v1.0.0/go.mod h1:hTTBTvVYWKBuxPr7peweneWdkUwEuHuB3C1R/ielR1A=
 github.com/ebitengine/oto/v3 v3.4.0 h1:br0PgASsEWaoWn38b2Goe7m1GKFYfNgnsjSd5Gg+/bQ=
 github.com/ebitengine/oto/v3 v3.4.0/go.mod h1:IOleLVD0m+CMak3mRVwsYY8vTctQgOM0iiL6S7Ar7eI=
-github.com/ebitengine/purego v0.9.0 h1:mh0zpKBIXDceC63hpvPuGLiJ8ZAa3DfrFTudmfi8A4k=
-github.com/ebitengine/purego v0.9.0/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/ebitengine/purego v0.10.1 h1:dewVBCBT2GaMu1SrNTYxQhgQBethzfhiwvZiLGP/qyY=
 github.com/ebitengine/purego v0.10.1/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/ebitenui/ebitenui v0.7.3 h1:eMFYQRNawUPLcq3RHDfoDLKBtDIUqYDSlgCahbZwTBA=
@@ -23,14 +21,8 @@ github.com/go-text/typesetting-utils v0.0.0-20241103174707-87a29e9e6066 h1:qCuYC
 github.com/go-text/typesetting-utils v0.0.0-20241103174707-87a29e9e6066/go.mod h1:DDxDdQEnB70R8owOx3LVpEFvpMK9eeH1o2r0yZhFI9o=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/goplease-game/server v0.0.0-20260622172555-f66ef35ae835 h1:18YzTvuSQlRMbPotg8yiQ8TmPKgfUejzVCubi2eF1x0=
-github.com/goplease-game/server v0.0.0-20260622172555-f66ef35ae835/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
-github.com/goplease-game/server v0.0.0-20260623180853-82772dacea91 h1:b0KGOicA1AqH7tk/LcX3jDf/LiRH8fNQPjBwMnWZsNY=
-github.com/goplease-game/server v0.0.0-20260623180853-82772dacea91/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
-github.com/goplease-game/server v0.0.0-20260625115018-566c0458b7ef h1:cvg708/bWWIpJHy9Clu5ap7+pyip91oNFG86WdMjF14=
-github.com/goplease-game/server v0.0.0-20260625115018-566c0458b7ef/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
-github.com/goplease-game/server v0.0.0-20260627173910-9fff1b818e4e h1:Ltl+oLwaUc+K3k7fsa43TWiwnDPuvh/jIvOSK03+1fQ=
-github.com/goplease-game/server v0.0.0-20260627173910-9fff1b818e4e/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
+github.com/goplease-game/server v0.0.0-20260627191359-655457162f28 h1:RvjAEFDsp6wZ+6dsDFUUn52sFqG/aMVPGjVlrtZvEoE=
+github.com/goplease-game/server v0.0.0-20260627191359-655457162f28/go.mod h1:d2hN/Pyenaqhj0+fgWOquClvOxHKXaBtx8EPrxdcMTY=
 github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/hajimehoshi/bitmapfont/v4 v4.1.0 h1:eE3qa5Do4qhowZVIHjsrX5pYyyPN6sAFWMsO7QREm3U=
