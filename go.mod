@@ -6,10 +6,11 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/ebitenui/ebitenui v0.7.3
 	github.com/google/uuid v1.6.0
-	github.com/goplease-game/server v0.0.0-20260627173910-9fff1b818e4e
+	github.com/goplease-game/server v0.0.0-20260627191359-655457162f28
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/setanarut/anim v1.4.0
+	golang.design/x/clipboard v0.8.0
 	golang.org/x/image v0.31.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -28,7 +29,6 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.design/x/clipboard v0.8.0 // indirect
 	golang.design/x/x11 v0.2.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/exp/shiny v0.0.0-20250606033433-dcc06ee1d476 // indirect
