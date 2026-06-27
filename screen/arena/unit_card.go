@@ -52,7 +52,7 @@ func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {
 // buildBoardCard adds a unit portrait and HUD badges to a ChildAdder (hex cell or container).
 // The portrait goes to the unit layer; the HP badge goes to the HUD layer.
 // If canMove is true, a walk indicator badge is also added.
-func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) {
+func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit) {
 	var img *ebiten.Image
 	if u.HasStatus(status.Stunned) {
 		img = asset.Image(unitStunnedPic, unitIconSize)
@@ -79,7 +79,7 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit, canMove bool) {
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 16, -6))
 	}
 
-	if canMove {
+	if u.CanMove() && u.ID == s.activeUnitID {
 		c.AddToHUDLayer(walkBadge(35, 40))
 	}
 }
@@ -112,7 +112,7 @@ func (s *Screen) buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, shieldTop, hpLeft))
 	}
 
-	if u.ID == s.activeUnitID && !s.activeUnitMoved {
+	if u.ID == s.activeUnitID && u.CanMove() {
 		c.AddToHUDLayer(walkBadge(40, -15))
 	}
 

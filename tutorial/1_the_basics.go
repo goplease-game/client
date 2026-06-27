@@ -45,7 +45,7 @@ var Basics = Chapter{
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "Each unit also has MP (Movement Points) — how far it can move in one turn. Moving spends all MP at once, no matter how far you go. You can only move once per turn.",
+			Message:    "Each unit also has MP (Movement Points) — how many tiles it can move per turn. Each step costs 1 MP. You can split movement across multiple actions.",
 			ButtonText: "Next",
 			Anchor:     AnchorBottomCenter,
 		},

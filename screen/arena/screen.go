@@ -93,7 +93,6 @@ type Screen struct {
 	// Movement and selection state.
 	selectedUnitID    string        // unit currently selected for movement; empty means none
 	reachableCells    []ds.HexCoord // precomputed reachable positions for selectedUnitID
-	activeUnitMoved   bool          // true once the active unit has moved this turn
 	unitMoveAnimQueue [][]unitMoveAnimAction
 
 	activeFxAnims []*ActiveFxAnim
@@ -451,14 +450,13 @@ func (s *Screen) updateActiveUnitStatusLabel() {
 		return
 	}
 
-	canMove := !s.activeUnitMoved
 	canAct := s.unitCanAct(u)
 
 	var status string
 	switch {
-	case canMove && canAct:
+	case u.CanMove() && canAct:
 		status = u.Name + " can move and use an ability"
-	case canMove:
+	case u.CanMove():
 		status = u.Name + " can move"
 	case canAct:
 		status = u.Name + " can use an ability"
@@ -509,7 +507,7 @@ func (s *Screen) restoreBoardVisuals() {
 		}
 
 		w.SetColor(bg)
-		s.buildBoardCard(w, u, false)
+		s.buildBoardCard(w, u)
 	}
 }
 
@@ -522,10 +520,9 @@ func (s *Screen) updateTurnControls() {
 		return
 	}
 
-	canMove := !s.activeUnitMoved
 	canAct := s.unitCanAct(u)
 
-	if !canMove && !canAct {
+	if !u.CanMove() && !canAct {
 		s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 		return
 	}

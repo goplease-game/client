@@ -120,7 +120,7 @@ func (s *Screen) onUnitDropped(sc *DropZoneCell, unit *ds.Unit, coord ds.HexCoor
 	sc.activeGraphic = nil
 
 	sc.cell.SetColor(unitFriendlyBgColor)
-	s.buildBoardCard(sc.cell, unit, false)
+	s.buildBoardCard(sc.cell, unit)
 
 	s.onUnitPlaced(unit, coord)
 }

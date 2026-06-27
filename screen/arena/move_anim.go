@@ -127,7 +127,6 @@ func (s *Screen) updateMoveAnimations() {
 			u := s.unitByID(action.unitID)
 
 			if s.selectedUnitID == u.ID || !u.IsOpponent {
-				s.activeUnitMoved = true
 				s.rebuildQueuePanel()
 				s.updateActiveUnitStatusLabel()
 				s.updateNextActionLabel()
@@ -140,7 +139,7 @@ func (s *Screen) updateMoveAnimations() {
 				}
 				toW.SetColor(targetBg)
 				toW.RemoveChildren()
-				s.buildBoardCard(toW, u, false)
+				s.buildBoardCard(toW, u)
 
 				// Restore occupied state if destination is a safe-zone cell.
 				s.occupySafeZoneCell(action.to, targetBg)

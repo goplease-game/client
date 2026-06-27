@@ -130,7 +130,6 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	unit.PhantomAPUsedThisTurn = 0
 
 	s.activeUnitID = payload.UnitID
-	s.activeUnitMoved = false
 	s.deselectUnit()
 	s.highlightActiveUnit()
 	s.showAbilityPanel(unit)
@@ -172,7 +171,7 @@ func (s *Screen) handleOpponentUnitPlaced(data json.RawMessage) {
 	}
 
 	cellWidget.SetColor(unitEnemyBgColor)
-	s.buildBoardCard(cellWidget, payload.Unit, false)
+	s.buildBoardCard(cellWidget, payload.Unit)
 
 	u := *payload.Unit
 	u.Pos = payload.Coord
