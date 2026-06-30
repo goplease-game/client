@@ -189,11 +189,22 @@ done:
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if !tutorialWasVisible && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
 		mx, my := ebiten.CursorPosition()
+		hit := false
 		for coord, cell := range s.boardCellWidgets {
 			if cell.HitTest(mx, my) {
 				s.onCellClicked(coord)
+				hit = true
 				break
 			}
+		}
+		// If the click missed every board cell (e.g. landed on empty board space)
+		// while a unit was selected for movement, cancel the selection — clicking
+		// anywhere outside the reachable cells should deselect, not just clicking
+		// another cell.
+		if !hit && s.selectedUnitID != "" {
+			u := s.unitByID(s.selectedUnitID)
+			s.deselectUnit()
+			s.showAbilityPanel(u)
 		}
 	}
 
@@ -206,6 +217,11 @@ done:
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
 		s.toggleGameLog()
+	}
+	if !tutorialWasVisible && inpututil.IsKeyJustPressed(ebiten.KeyM) {
+		if u := s.unitByID(s.activeUnitID); u != nil {
+			s.onMoveButtonClicked(u)
+		}
 	}
 
 	s.showCellCoordinates = ebiten.IsKeyPressed(ebiten.KeyAlt)

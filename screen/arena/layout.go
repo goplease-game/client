@@ -16,6 +16,7 @@ const (
 	abilityCardSize = 64 // ability card size in the footer panel
 	unitCardSize    = 64 // unit card size in the hand and queue panel
 	unitIconSize    = 54 // unit portrait size rendered on the board hex
+	moveButtonSize  = 40
 
 	headerH = 80
 	statusH = 32

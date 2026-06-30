@@ -78,10 +78,6 @@ func (s *Screen) buildBoardCard(c ChildAdder, u *ds.Unit) {
 	if u.CurrentShield > 0 {
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, 16, -6))
 	}
-
-	if u.CanMove() && u.ID == s.activeUnitID {
-		c.AddToHUDLayer(walkBadge(35, 40))
-	}
 }
 
 // buildQueueUnitCard adds a unit portrait and HP badge to a queue card container.
@@ -110,10 +106,6 @@ func (s *Screen) buildQueueUnitCard(c ChildAdder, u *ds.Unit) {
 
 	if u.CurrentShield > 0 {
 		c.AddToHUDLayer(shieldBadge(u.CurrentShield, shieldTop, hpLeft))
-	}
-
-	if u.ID == s.activeUnitID && u.CanMove() {
-		c.AddToHUDLayer(walkBadge(40, -15))
 	}
 
 	statusIcons(c, u)
@@ -166,36 +158,6 @@ func (s *Screen) drawAPMarkers(screen *ebiten.Image, u *ds.Unit, cell *ui.HexCel
 		op.GeoM.Translate(x, y+5)
 		screen.DrawImage(img, op)
 	}
-}
-
-// walkBadge returns a small container with a walk icon, anchored to the
-// bottom-left corner of the hex cell to indicate the unit can still move.
-func walkBadge(top, left int) *widget.Container {
-	const iconSize = 32
-
-	badge := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(iconSize, iconSize),
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionStart,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-				Padding:            &widget.Insets{Top: top, Left: left},
-			}),
-		),
-	)
-
-	badge.AddChild(widget.NewGraphic(
-		widget.GraphicOpts.Image(asset.Image("walk_o.png", iconSize)),
-		widget.GraphicOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	))
-
-	return badge
 }
 
 // hpBadge returns a small container that displays a heart icon with the HP

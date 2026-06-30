@@ -149,6 +149,7 @@ func (s *Screen) onCellClicked(coord ds.HexCoord) {
 	if cell != nil && cell.Unit != nil &&
 		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
 		s.selectUnit(cell.Unit)
+		s.showAbilityPanel(cell.Unit)
 		return
 	}
 
@@ -158,6 +159,8 @@ func (s *Screen) onCellClicked(coord ds.HexCoord) {
 	}
 
 	if s.selectedUnitID != "" {
+		u := s.unitByID(s.selectedUnitID)
 		s.deselectUnit()
+		s.showAbilityPanel(u)
 	}
 }
