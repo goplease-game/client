@@ -58,8 +58,8 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 		"This is an open-source and community-driven project in early development. ",
 		"Anyone is welcome to contribute.",
 		"",
-		"Source code & contributions:",
-		"[link=source]https://github.com/goplease-game[/link]",
+		"Community hub: [link=discord]Discord[/link]",
+		"Dev hub: [link=source]Github[/link]",
 		"--",
 		"Built using [link=golang]Go[/link], [link=ebitengine]Ebitengine[/link] and [link=ebitenui]EbitenUI[/link].",
 	}
@@ -92,17 +92,7 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 			}),
 			widget.TextOpts.Text(line, &bodyTF, color.White),
 			widget.TextOpts.LinkClickedHandler(func(args *widget.LinkEventArgs) {
-				var err error
-				switch args.Id {
-				case "source":
-					err = game.OpenURL("https://github.com/goplease-game")
-				case "golang":
-					err = game.OpenURL("https://go.dev")
-				case "ebitengine":
-					err = game.OpenURL("https://ebitengine.org")
-				case "ebitenui":
-					err = game.OpenURL("https://github.com/ebitenui/ebitenui")
-				}
+				err := game.OpenLink(args.Id)
 				if err != nil {
 					fmt.Printf("open URL error: %v\n", err)
 				}

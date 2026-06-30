@@ -69,6 +69,29 @@ func (s *Screen) createHeader() *widget.Container {
 			s.toggleGameMenu()
 		}),
 	)
+
+	logBtn := widget.NewButton(
+		widget.ButtonOpts.Image(&widget.ButtonImage{
+			Idle:    image.NewNineSliceColor(color.NRGBA{0x44, 0x44, 0x44, 0xff}),
+			Hover:   image.NewNineSliceColor(color.NRGBA{0x66, 0x66, 0x66, 0xff}),
+			Pressed: image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x33, 0xff}),
+		}),
+		widget.ButtonOpts.Text("LOG", &tf, &widget.ButtonTextColor{Idle: colornames.White}),
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(36, 36),
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+				Padding:            &widget.Insets{Right: 50},
+			}),
+		),
+		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+			s.toggleGameLog()
+		}),
+	)
+
+	h.AddChild(logBtn)
+
 	h.AddChild(s.queuePanelRef)
 	h.AddChild(menuBtn)
 

@@ -73,4 +73,6 @@ const (
 	FriendRoomNotFoundAction Action = "friend_room_not_found"
 	FriendRoomExpiredAction  Action = "friend_room_expired"
 	CancelFriendRoomAction   Action = "cancel_friend_room"
+
+	GameLogAction Action = "game_log"
 )

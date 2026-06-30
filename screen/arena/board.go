@@ -62,6 +62,8 @@ func (s *Screen) createBoardContainer() *widget.Container {
 	})
 
 	container.AddChild(boardWidget)
+
+	s.boardContainerRef = container
 	return container
 }
 
