@@ -42,7 +42,6 @@ var (
 	hpColor                 = colornames.Tomato
 	atkColor                = colornames.Orange
 	mpColor                 = colornames.Skyblue
-	shieldColor             = colornames.Gold
 	statusBarTextColor      = colornames.Gold
 	increasedStatValueColor = ui.RGBFromHex("08CB00")
 	decreasedStatValueColor = ui.RGBFromHex("D70654")
@@ -102,6 +101,31 @@ var (
 	tutorialSkipBtnBgColor        = color.NRGBA{0x22, 0x22, 0x22, 0x00}
 	tutorialSkipBtnHoverBgColor   = color.NRGBA{0x33, 0x33, 0x33, 0x88}
 	tutorialSkipBtnPressedBgColor = color.NRGBA{0x11, 0x11, 0x11, 0x88}
+
+	// game log.
+	logAbilityTextColor = "#87CEEB"
+	logDamageColor      = "#FF6347"
+	logShieldColor      = "#8CA9FF"
+	logRoundColor       = "#FFDD44"
+	logHPColor          = "#44FF88"
+	logAPColor          = "#FFAA44"
+
+	logFriendlyColor = "#08CB00"
+	logEnemyColor    = "#D70654"
+
+	logActionPrefixColor = "#666688"
+	logSystemPrefixColor = "#888888"
+	logErrorPrefixColor  = "#FF4444"
+	logChatPrefixColor   = "#AAAAFF"
+	logTimestampColor    = "#555566"
+
+	logPanelBgColor              = ui.RGBFromHex("14354e")
+	logTextColor                 = color.NRGBA{0xDD, 0xDD, 0xDD, 0xFF}
+	logScrollbarTrackColor       = ui.RGBFromHex("14354e")
+	logScrollbarHoverColor       = ui.RGBFromHex("14354e")
+	logScrollbarIdleColor        = ui.LightenRGB(logPanelBgColor, 20)
+	logScrollbarHandleHoverColor = ui.LightenRGB(logPanelBgColor, 20)
+	logScrollbarPressedColor     = ui.LightenRGB(logPanelBgColor, 40)
 )
 
 // Font faces used across the arena package.

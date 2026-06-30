@@ -87,8 +87,8 @@ type Screen struct {
 	devScenarioList   *widget.Container
 	devPanelMinimized bool
 
-	// if dev mode enabled you can see hex coords by holding Alt
-	showDevCoordinates bool
+	// you can see hex coords by holding Alt
+	showCellCoordinates bool
 
 	// Movement and selection state.
 	selectedUnitID    string        // unit currently selected for movement; empty means none
@@ -134,6 +134,10 @@ type Screen struct {
 	OnRestartScreen func() game.Screen
 
 	nextActionHourglass *widget.Graphic
+
+	logWindow         *gameLogWindow
+	logPanelRef       *widget.Container
+	boardContainerRef *widget.Container
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -200,12 +204,11 @@ done:
 			s.toggleGameMenu()
 		}
 	}
-
-	if config.Get().DevMode.Enabled {
-		s.showDevCoordinates = ebiten.IsKeyPressed(ebiten.KeyAlt)
-	} else {
-		s.showDevCoordinates = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
+		s.toggleGameLog()
 	}
+
+	s.showCellCoordinates = ebiten.IsKeyPressed(ebiten.KeyAlt)
 
 	s.updatePulse()
 	s.updateDropZoneAnim()
@@ -276,6 +279,14 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	if !s.firstDrawn {
 		s.firstDrawn = true
 		s.server.Send(ws.OutMessage{Action: ws.ReadyToPlay})
+
+		s.appendLogEntry(logMessage{
+			Text: "Press <ability>[L]</ability> to toggle this log",
+		})
+		s.appendLogEntry(logMessage{
+			Text: "Hold <ability>[Alt]</ability> to show cell coordinates",
+		})
+		s.appendLogEntry(logMessage{Text: ""})
 	}
 
 	s.drawRoundBanner(screen)
@@ -341,6 +352,7 @@ func (s *Screen) setupUI() {
 
 	s.headerRef = s.createHeader()
 	s.footerRef = s.createFooter()
+	s.logPanelRef = s.createLogPanel()
 	board := s.createBoardContainer()
 	statusBar := s.createStatusBar()
 
@@ -348,7 +360,12 @@ func (s *Screen) setupUI() {
 	root.AddChild(s.headerRef)
 	root.AddChild(statusBar)
 	root.AddChild(s.footerRef)
+	root.AddChild(s.logPanelRef)
+
 	s.setupDevPanel(root)
+
+	// show game log (TODO use config)
+	s.toggleGameLog()
 
 	s.ui = &ebitenui.UI{
 		Container: root,
@@ -379,7 +396,7 @@ func (s *Screen) setupUI() {
 				cell.RenderFXLayer(screen)
 			}
 
-			if s.showDevCoordinates {
+			if s.showCellCoordinates {
 				s.drawCellCoordinates(screen)
 			}
 

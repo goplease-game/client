@@ -50,6 +50,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 			log.Fatal("handleUseAbility unmarshal:", err)
 		}
 		s.handleUseAbility(payload)
+	case ws.GameLogAction:
+		s.handleGameLog(msg.Data)
 	default:
 		fmt.Printf("[arena] unhandled action: %v\n", msg.Action)
 	}
