@@ -126,6 +126,10 @@ var (
 	logScrollbarIdleColor        = ui.LightenRGB(logPanelBgColor, 20)
 	logScrollbarHandleHoverColor = ui.LightenRGB(logPanelBgColor, 20)
 	logScrollbarPressedColor     = ui.LightenRGB(logPanelBgColor, 40)
+
+	// move button.
+	moveButtonBgColor       = ui.RGBFromHex("3baaff")
+	moveButtonActiveBgColor = ui.RGBFromHex("6abf45")
 )
 
 // Font faces used across the arena package.

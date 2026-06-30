@@ -115,7 +115,7 @@ func (s *Screen) createLogPanel() *widget.Container {
 		),
 	)
 
-	textFace := ui.TextFace(12)
+	textFace := ui.TextFace(14)
 	textarea := widget.NewTextArea(
 		widget.TextAreaOpts.ContainerOpts(
 			widget.ContainerOpts.WidgetOpts(
@@ -137,6 +137,8 @@ func (s *Screen) createLogPanel() *widget.Container {
 			Mask: image.NewNineSliceColor(logPanelBgColor),
 		}),
 		widget.TextAreaOpts.SliderParams(&widget.SliderParams{
+			MinHandleSize: new(3),
+			TrackPadding:  widget.NewInsetsSimple(3),
 			TrackImage: &widget.SliderTrackImage{
 				Idle:  image.NewNineSliceColor(logScrollbarTrackColor),
 				Hover: image.NewNineSliceColor(logScrollbarHoverColor),

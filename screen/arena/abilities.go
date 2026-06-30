@@ -20,22 +20,16 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-// showAbilityPanel builds and attaches an ability card row to the footer
-// for the given unit. Any previously shown panel is removed first.
-// Does nothing if the unit has no abilities.
+// showAbilityPanel builds and attaches the action row (Move button + ability
+// cards) to the footer for the given unit. Any previously shown panel is
+// removed first.
 func (s *Screen) showAbilityPanel(unit *ds.Unit) {
 	s.hideAbilityPanel()
 
-	if len(unit.Abilities) == 0 {
-		return
-	}
-
 	s.abilityPanelRef = widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(abilitiesPanelBgColor)),
-		widget.ContainerOpts.Layout(widget.NewGridLayout(
-			widget.GridLayoutOpts.Columns(len(unit.Abilities)),
-			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
-			widget.GridLayoutOpts.Spacing(4, 4),
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(8),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -45,10 +39,23 @@ func (s *Screen) showAbilityPanel(unit *ds.Unit) {
 		),
 	)
 
+	s.abilityPanelRef.AddChild(s.buildMoveButton(unit))
+
+	abilitiesContainer := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(abilitiesPanelBgColor)),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(len(unit.Abilities)),
+			widget.GridLayoutOpts.Padding(widget.NewInsetsSimple(5)),
+			widget.GridLayoutOpts.Spacing(4, 4),
+		)),
+	)
+
 	for _, abilityID := range unit.Abilities {
 		ab := ability.ByID(abilityID)
-		s.abilityPanelRef.AddChild(s.buildAbilityCard(ab))
+		abilitiesContainer.AddChild(s.buildAbilityCard(ab))
 	}
+
+	s.abilityPanelRef.AddChild(abilitiesContainer)
 
 	s.footerRef.AddChild(s.abilityPanelRef)
 	s.abilityPanelIn = true
@@ -88,6 +95,106 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	return card
 }
 
+// buildMoveButton builds the Move toggle card shown to the left of the
+// ability cards. It mirrors clicking the unit on the board: selects the unit
+// for movement, or deselects it if already selected. Disabled (greyed out)
+// if the unit has no movement points left.
+func (s *Screen) buildMoveButton(u *ds.Unit) *widget.Container {
+	disabled := !u.CanMove()
+	selected := s.selectedUnitID == u.ID
+
+	bgColor := moveButtonBgColor
+	if selected {
+		bgColor = moveButtonActiveBgColor
+	}
+
+	iconGraphic := widget.NewGraphic(
+		widget.GraphicOpts.Image(asset.Image("move.png", moveButtonSize)),
+	)
+
+	iconWrapper := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+			widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(6)),
+		)),
+	)
+	iconGraphic.GetWidget().LayoutData = widget.AnchorLayoutData{
+		HorizontalPosition: widget.AnchorLayoutPositionCenter,
+		VerticalPosition:   widget.AnchorLayoutPositionCenter,
+	}
+	iconWrapper.AddChild(iconGraphic)
+
+	var card *widget.Container
+	card = widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewBorderedNineSliceColor(bgColor, ui.DarkenRGB(bgColor, 20), 3)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.MinSize(moveButtonSize, moveButtonSize),
+			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
+				if disabled {
+					return
+				}
+				sfx.Play(unitHoverSound)
+				card.SetBackgroundImage(image.NewBorderedNineSliceColor(ui.DarkenRGB(bgColor, 20), ui.DarkenRGB(bgColor, 40), 3))
+			}),
+			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
+				if disabled {
+					return
+				}
+				card.SetBackgroundImage(image.NewBorderedNineSliceColor(bgColor, ui.DarkenRGB(bgColor, 20), 3))
+			}),
+			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
+				if args.Button == ebiten.MouseButtonLeft && args.Inside {
+					if disabled {
+						return
+					}
+					s.onMoveButtonClicked(u)
+				}
+			}),
+		),
+	)
+	card.AddChild(iconWrapper)
+
+	// MP remaining, top-left corner.
+	mpFace := ui.TextFaceBold(14)
+	card.AddChild(widget.NewText(
+		widget.TextOpts.Text(strconv.Itoa(u.CurrentMP), &mpFace, colornames.White),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+				Padding:            &widget.Insets{Left: 4, Top: 2},
+			}),
+		),
+	))
+
+	// Keybind hint "M", bottom-right corner.
+	hintFace := ui.TextFaceBold(14)
+	card.AddChild(widget.NewText(
+		widget.TextOpts.Text("M", &hintFace, colornames.White), // TODO use config
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				Padding:            &widget.Insets{Right: 4, Bottom: 2},
+			}),
+		),
+	))
+
+	if disabled {
+		card.AddChild(s.buildDisabledOverlay(75))
+	}
+
+	return card
+}
+
+// onMoveButtonClicked toggles unit selection for movement, same as clicking
+// the unit on the board would, then refreshes the panel to reflect the new
+// selection state (highlight on/off).
+func (s *Screen) onMoveButtonClicked(u *ds.Unit) {
+	s.selectUnit(u)
+	s.showAbilityPanel(u)
+}
+
 // unitCanAct reports whether the unit has AP available to use an ability.
 // A unit can act if it has base AP, or if the team has Phantom AP remaining
 // and the unit hasn't already spent its phantom AP allowance this turn.
@@ -121,7 +228,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 				),
 			),
 			widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
-				if blocked || s.selectedAbility != nil {
+				if blocked || s.selectedAbility != nil || s.selectedUnitID != "" {
 					return
 				}
 				s.clearAbilityHighlight()
@@ -130,7 +237,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 				s.highlightAbilityRange(ab)
 			}),
 			widget.WidgetOpts.CursorExitHandler(func(_ *widget.WidgetCursorExitEventArgs) {
-				if blocked || s.selectedAbility != nil {
+				if blocked || s.selectedAbility != nil || s.selectedUnitID != "" {
 					return
 				}
 				if s.selectedAbility == nil || s.selectedAbility.ID != ab.ID {
@@ -194,10 +301,21 @@ func (s *Screen) buildCooldownOverlay(remaining int) *widget.Container {
 	return overlay
 }
 
-func (s *Screen) buildDisabledOverlay() *widget.Container {
+// buildDisabledOverlay returns a black overlay container that stretches to
+// fill its parent, used to visually grey out a disabled card or button.
+// opacityOpt is an optional transparency percent (0 = fully opaque,
+// 100 = fully transparent); defaults to 25 if not provided.
+func (s *Screen) buildDisabledOverlay(opacityOpt ...int) *widget.Container {
+	opacity := 25
+	if len(opacityOpt) > 0 {
+		opacity = opacityOpt[0]
+	}
+
+	alpha := 255 * (100 - opacity) / 100
+
 	return widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(
-			color.NRGBA{0x00, 0x00, 0x00, 0xbb},
+			color.NRGBA{0x00, 0x00, 0x00, uint8(alpha)},
 		)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(

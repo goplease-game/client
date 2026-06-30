@@ -55,7 +55,7 @@ var Basics = Chapter{
 			Anchor:     AnchorBottomCenter,
 		},
 		{
-			Message:    "To move, click a unit on the board — reachable cells will light up. Click any highlighted cell to move there.",
+			Message:    "To move, click a unit on the board or press [M] — reachable cells will light up. Click any highlighted cell to move there.",
 			ButtonText: "Next",
 			Anchor:     AnchorBottomCenter,
 		},
