@@ -15,14 +15,17 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-const infoPanelH = 50
+const leftPanelW = 300
 
 // createLeftPanel creates a vertical container holding the info panel and log panel.
 func (s *Screen) createLeftPanel() *widget.Container {
 	left := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(colornames.Red)),
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(1),
+			widget.GridLayoutOpts.Stretch(
+				[]bool{true},        // Stretch the only column.
+				[]bool{false, true}, // Info is fixed, log fills remaining height.
+			),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -33,7 +36,7 @@ func (s *Screen) createLeftPanel() *widget.Container {
 					Bottom: footerH + statusH,
 				},
 			}),
-			widget.WidgetOpts.MinSize(logPanelW, 0),
+			widget.WidgetOpts.MinSize(leftPanelW, 0),
 		),
 	)
 
@@ -43,27 +46,26 @@ func (s *Screen) createLeftPanel() *widget.Container {
 	left.AddChild(s.infoPanelRef)
 	left.AddChild(s.logPanelRef)
 
+	s.leftPanelRef = left
+
 	return left
 }
 
-// createInfoPanel creates the panel for unit details card.
+// createInfoPanel creates the panel for the unit details card.
 func (s *Screen) createInfoPanel() *widget.Container {
 	panel := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(logPanelBgColor)),
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(logPanelBgColor, 10))),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(4),
 			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(6)),
 		)),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionStart,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-			}),
-			widget.WidgetOpts.MinSize(logPanelW, infoPanelH),
+			widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
+			widget.WidgetOpts.MinSize(leftPanelW, 0),
 		),
 	)
-	panel.GetWidget().SetVisibility(widget.Visibility_Hide)
+
 	return panel
 }
 
@@ -71,27 +73,45 @@ func (s *Screen) createInfoPanel() *widget.Container {
 func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 	s.infoPanelRef.RemoveChildren()
 
+	if u == nil {
+		return
+	}
+
 	tf := ui.TextFace(14)
 	nameTF := ui.TextFace(16)
 
 	// --- Header: icon · name · close ---
 	header := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(6),
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(2),
+			widget.GridLayoutOpts.Stretch(
+				[]bool{true, false}, // Left column stretches, right stays fixed.
+				[]bool{false},
+			),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
 		),
 	)
-	header.AddChild(widget.NewGraphic(
+
+	left := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(6),
+		)),
+	)
+
+	left.AddChild(widget.NewGraphic(
 		widget.GraphicOpts.Image(unitImage(u.TemplateID, 24)),
 	))
-	header.AddChild(widget.NewText(
-		widget.TextOpts.Text(u.Name, &nameTF, logTextColor),
+	left.AddChild(widget.NewText(
+		widget.TextOpts.Text(u.Name, &nameTF, colornames.Gold),
 	))
+
+	header.AddChild(left)
+
 	header.AddChild(widget.NewButton(
-		widget.ButtonOpts.Text("x", &tf, &widget.ButtonTextColor{
+		widget.ButtonOpts.Text("×", &tf, &widget.ButtonTextColor{
 			Idle:    logTextColor,
 			Hover:   color.White,
 			Pressed: color.White,
@@ -105,6 +125,7 @@ func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 			s.hideInfoPanel()
 		}),
 	))
+
 	s.infoPanelRef.AddChild(header)
 	s.infoPanelRef.AddChild(infoPanelDivider())
 
@@ -138,8 +159,7 @@ func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 	if !u.IsOpponent && len(u.Abilities) > 0 {
 		s.infoPanelRef.AddChild(infoPanelDivider())
 		for _, id := range u.Abilities {
-			ab := ability.ByID(id)
-			s.infoPanelRef.AddChild(infoPanelAbility(ab.Name, ab.IsPassive, u.Cooldowns[id], &tf))
+			s.infoPanelRef.AddChild(infoPanelAbility(id, u.Cooldowns[id], &tf))
 		}
 	}
 
@@ -174,7 +194,7 @@ func infoPanelStat(icon, label, value string, valueColor color.Color, bonus int,
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
 		),
 	)
-	img := asset.Image(icon, 14)
+	img := asset.Image(icon, 16)
 	row.AddChild(widget.NewGraphic(widget.GraphicOpts.Image(img)))
 	row.AddChild(widget.NewText(widget.TextOpts.Text(label, tf, infoDimColor)))
 	row.AddChild(widget.NewText(widget.TextOpts.Text(value, tf, valueColor)))
@@ -191,7 +211,10 @@ func infoPanelStat(icon, label, value string, valueColor color.Color, bonus int,
 }
 
 // infoPanelAbility returns a row: name · cooldown state.
-func infoPanelAbility(name string, isPassive bool, cooldown int, tf *text.Face) *widget.Container {
+func infoPanelAbility(id ability.ID, cooldown int, tf *text.Face) *widget.Container {
+	ab := ability.ByID(id)
+	name := ab.Name
+	isPassive := ab.IsPassive
 	row := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
@@ -201,6 +224,8 @@ func infoPanelAbility(name string, isPassive bool, cooldown int, tf *text.Face) 
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
 		),
 	)
+	img := abilityImage(string(id), 16)
+	row.AddChild(widget.NewGraphic(widget.GraphicOpts.Image(img)))
 	row.AddChild(widget.NewText(widget.TextOpts.Text(name, tf, logTextColor)))
 
 	var cdText string
@@ -247,7 +272,7 @@ func infoPanelStatus(def *status.Status, tf *text.Face) *widget.Container {
 func (s *Screen) refreshBoardPadding() {
 	leftPad := 0
 	if s.infoPanelRef.GetWidget().GetVisibility() == widget.Visibility_Show || s.logPanelRef.GetWidget().GetVisibility() == widget.Visibility_Show {
-		leftPad = logPanelW
+		leftPad = leftPanelW
 	}
 	s.boardContainerRef.GetWidget().LayoutData = widget.AnchorLayoutData{
 		StretchHorizontal: true,
@@ -265,14 +290,17 @@ func (s *Screen) showInfoPanel(u *ds.Unit) {
 	s.infoPanelUnit = u
 	s.rebuildInfoPanel(u)
 	s.infoPanelRef.GetWidget().SetVisibility(widget.Visibility_Show)
+
 	s.refreshBoardPadding()
 }
 
-// hideInfoPanel closes the unit details card.
+// hideInfoPanel clears the content of unit details card.
 func (s *Screen) hideInfoPanel() {
 	s.infoPanelUnit = nil
 	s.infoPanelDirty = false
+	s.rebuildInfoPanel(nil)
 	s.infoPanelRef.GetWidget().SetVisibility(widget.Visibility_Hide)
+
 	s.refreshBoardPadding()
 }
 

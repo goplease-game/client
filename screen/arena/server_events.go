@@ -146,6 +146,8 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.startTurnTimer()
 	s.ready = true
 
+	s.showInfoPanel(unit)
+
 	if s.tutorialOverlay != nil {
 		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)
 	}
