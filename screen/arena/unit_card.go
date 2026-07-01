@@ -24,7 +24,7 @@ type UnitCardRefs struct {
 	NormIcon  *ebiten.Image // original unit portrait
 }
 
-// buildHandCard adds a draggable unit portrait to c.
+// buildHandCard adds a draggable unit portrait.
 // Used for cards in the player's hand panel.
 // Returns refs so the caller can swap the icon image on cursor enter/exit.
 func buildHandCard(c *widget.Container, u *ds.Unit) UnitCardRefs {

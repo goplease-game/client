@@ -10,7 +10,6 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ui"
 )
 
@@ -96,26 +95,18 @@ type gameLogWindow struct {
 	messages []logMessage
 }
 
-const logPanelW = 300
-
-// createLogPanel creates the panel for game log.
+// createLogPanel creates the panel for the game log.
 func (s *Screen) createLogPanel() *widget.Container {
 	panel := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(logPanelBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				StretchVertical: true,
-				Padding: &widget.Insets{
-					Top:    headerH,
-					Bottom: footerH + statusH,
-				},
-			}),
-			widget.WidgetOpts.MinSize(logPanelW, config.Get().WindowH-footerH-headerH-statusH),
+			widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
 		),
 	)
 
 	textFace := ui.TextFace(14)
+
 	textarea := widget.NewTextArea(
 		widget.TextAreaOpts.ContainerOpts(
 			widget.ContainerOpts.WidgetOpts(
@@ -162,26 +153,11 @@ func (s *Screen) createLogPanel() *widget.Container {
 func (s *Screen) toggleGameLog() {
 	if s.logPanelRef.GetWidget().GetVisibility() == widget.Visibility_Show {
 		s.logPanelRef.GetWidget().SetVisibility(widget.Visibility_Hide)
-		s.boardContainerRef.GetWidget().LayoutData = widget.AnchorLayoutData{
-			StretchHorizontal: true,
-			StretchVertical:   true,
-			Padding: &widget.Insets{
-				Top:    headerH,
-				Bottom: footerH + statusH,
-			},
-		}
 	} else {
 		s.logPanelRef.GetWidget().SetVisibility(widget.Visibility_Show)
-		s.boardContainerRef.GetWidget().LayoutData = widget.AnchorLayoutData{
-			StretchHorizontal: true,
-			StretchVertical:   true,
-			Padding: &widget.Insets{
-				Top:    headerH,
-				Bottom: footerH + statusH,
-				Left:   logPanelW,
-			},
-		}
 	}
+
+	s.refreshBoardPadding()
 }
 
 // handleGameLog deserialises an incoming GameLogAction message and appends

@@ -138,6 +138,11 @@ type Screen struct {
 	logWindow         *gameLogWindow
 	logPanelRef       *widget.Container
 	boardContainerRef *widget.Container
+
+	leftPanelRef   *widget.Container
+	infoPanelRef   *widget.Container
+	infoPanelUnit  *ds.Unit
+	infoPanelDirty bool
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -180,6 +185,7 @@ func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
 		}
 	}
 done:
+
 	tutorialWasVisible := s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible()
 
 	s.updateDelayedActions()
@@ -242,6 +248,11 @@ done:
 			s.menuUI.Update()
 		}
 		s.ui.Update()
+	}
+
+	if s.infoPanelUnit != nil && s.infoPanelDirty {
+		s.showInfoPanel(s.buildUnitInfoPanel(s.infoPanelUnit))
+		s.infoPanelDirty = false
 	}
 
 	if s.nextScreen != nil {
@@ -368,7 +379,7 @@ func (s *Screen) setupUI() {
 
 	s.headerRef = s.createHeader()
 	s.footerRef = s.createFooter()
-	s.logPanelRef = s.createLogPanel()
+	s.leftPanelRef = s.createLeftPanel()
 	board := s.createBoardContainer()
 	statusBar := s.createStatusBar()
 
@@ -376,7 +387,7 @@ func (s *Screen) setupUI() {
 	root.AddChild(s.headerRef)
 	root.AddChild(statusBar)
 	root.AddChild(s.footerRef)
-	root.AddChild(s.logPanelRef)
+	root.AddChild(s.leftPanelRef)
 
 	s.setupDevPanel(root)
 
