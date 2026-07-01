@@ -42,6 +42,7 @@ var (
 	hpColor                 = colornames.Tomato
 	atkColor                = colornames.Orange
 	mpColor                 = colornames.Skyblue
+	shieldColor             = ui.RGBFromHex("50b9e4")
 	statusBarTextColor      = colornames.Gold
 	increasedStatValueColor = ui.RGBFromHex("08CB00")
 	decreasedStatValueColor = ui.RGBFromHex("D70654")
@@ -130,12 +131,22 @@ var (
 	// move button.
 	moveButtonBgColor       = ui.RGBFromHex("3baaff")
 	moveButtonActiveBgColor = ui.RGBFromHex("6abf45")
+
+	// info panel.
+	infoDimColor            = color.NRGBA{R: 140, G: 140, B: 140, A: 255}
+	infoBonusPositiveColor  = color.NRGBA{R: 100, G: 210, B: 100, A: 255}
+	infoBonusNegativeColor  = color.NRGBA{R: 210, G: 90, B: 90, A: 255}
+	infoReadyColor          = color.NRGBA{R: 100, G: 200, B: 100, A: 255}
+	infoCooldownColor       = color.NRGBA{R: 220, G: 150, B: 60, A: 255}
+	infoStatusPositiveColor = color.NRGBA{R: 100, G: 200, B: 100, A: 255}
+	infoStatusNegativeColor = color.NRGBA{R: 210, G: 80, B: 80, A: 255}
+	infoStatusNeutralColor  = color.NRGBA{R: 180, G: 180, B: 70, A: 255}
 )
 
 // Font faces used across the arena package.
 var (
-	toolTipTitleTF           = ui.TextFace(28)
-	toolTipTextTF            = ui.TextFace(18)
+	toolTipTitleTF           = ui.TextFace(20)
+	toolTipTextTF            = ui.TextFace(16)
 	abilityCooldownCounterTF = ui.TextFace(40)
 
 	// tutorial.

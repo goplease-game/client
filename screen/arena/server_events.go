@@ -55,6 +55,8 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	default:
 		fmt.Printf("[arena] unhandled action: %v\n", msg.Action)
 	}
+
+	s.markInfoPanelDirty()
 }
 
 // handlePlaceUnit is called when the server enters the unit-placement phase.

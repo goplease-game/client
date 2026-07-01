@@ -205,6 +205,13 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 
 	widgetOpts := []widget.WidgetOpt{
 		widget.WidgetOpts.MinSize(unitCardSize, unitCardSize),
+		widget.WidgetOpts.MouseButtonPressedHandler(func(args *widget.WidgetMouseButtonPressedEventArgs) {
+			if args.Button == ebiten.MouseButtonLeft {
+				if current := s.unitByID(u.ID); current != nil {
+					s.showInfoPanel(current)
+				}
+			}
+		}),
 		widget.WidgetOpts.CursorEnterHandler(func(_ *widget.WidgetCursorEnterEventArgs) {
 			sfx.Play(unitHoverSound)
 			card.SetBackgroundImage(image.NewNineSliceColor(unitCardHighlightColor))

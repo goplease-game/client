@@ -104,14 +104,18 @@ func (s *Screen) createLogPanel() *widget.Container {
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(logPanelBgColor)),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				StretchVertical: true,
-				Padding: &widget.Insets{
-					Top:    headerH,
-					Bottom: footerH + statusH,
-				},
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Stretch:   true,
+				MaxHeight: config.Get().WindowH - footerH - headerH - statusH,
 			}),
-			widget.WidgetOpts.MinSize(logPanelW, config.Get().WindowH-footerH-headerH-statusH),
+			//widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+			//	StretchVertical: true,
+			//	Padding: &widget.Insets{
+			//		Top:    headerH,
+			//		Bottom: footerH + statusH,
+			//	},
+			//}),
+			// widget.WidgetOpts.MinSize(logPanelW, 200),
 		),
 	)
 
@@ -162,26 +166,11 @@ func (s *Screen) createLogPanel() *widget.Container {
 func (s *Screen) toggleGameLog() {
 	if s.logPanelRef.GetWidget().GetVisibility() == widget.Visibility_Show {
 		s.logPanelRef.GetWidget().SetVisibility(widget.Visibility_Hide)
-		s.boardContainerRef.GetWidget().LayoutData = widget.AnchorLayoutData{
-			StretchHorizontal: true,
-			StretchVertical:   true,
-			Padding: &widget.Insets{
-				Top:    headerH,
-				Bottom: footerH + statusH,
-			},
-		}
 	} else {
 		s.logPanelRef.GetWidget().SetVisibility(widget.Visibility_Show)
-		s.boardContainerRef.GetWidget().LayoutData = widget.AnchorLayoutData{
-			StretchHorizontal: true,
-			StretchVertical:   true,
-			Padding: &widget.Insets{
-				Top:    headerH,
-				Bottom: footerH + statusH,
-				Left:   logPanelW,
-			},
-		}
 	}
+
+	s.refreshBoardPadding()
 }
 
 // handleGameLog deserialises an incoming GameLogAction message and appends
