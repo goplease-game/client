@@ -146,6 +146,11 @@ func (s *Screen) onCellClicked(coord ds.HexCoord) {
 
 	cell := s.board.Cells[coord]
 
+	if cell != nil && cell.Unit != nil {
+		s.infoPanelUnit = cell.Unit
+		s.showInfoPanel(s.buildUnitInfoPanel(cell.Unit))
+	}
+
 	if cell != nil && cell.Unit != nil &&
 		cell.Unit.ID == s.activeUnitID && !cell.Unit.IsOpponent {
 		s.selectUnit(cell.Unit)

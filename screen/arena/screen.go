@@ -251,7 +251,7 @@ done:
 	}
 
 	if s.infoPanelUnit != nil && s.infoPanelDirty {
-		s.showInfoPanel(s.infoPanelUnit)
+		s.showInfoPanel(s.buildUnitInfoPanel(s.infoPanelUnit))
 		s.infoPanelDirty = false
 	}
 

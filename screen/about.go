@@ -75,12 +75,7 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(5),
-			widget.RowLayoutOpts.Padding(&widget.Insets{
-				Top:    25,
-				Left:   25,
-				Right:  25,
-				Bottom: 25,
-			}),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(25)),
 		)),
 	)
 	for _, line := range contents {

@@ -3,8 +3,10 @@ package arena
 import (
 	"fmt"
 	"image/color"
+	"strconv"
 
 	"github.com/ebitenui/ebitenui/image"
+	"github.com/ebitenui/ebitenui/themes"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ds"
@@ -57,6 +59,31 @@ func (s *Screen) createInfoPanel() *widget.Container {
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(ui.DarkenRGB(logPanelBgColor, 10))),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+		)),
+	)
+
+	return panel
+}
+
+// rebuildInfoPanel clears and repopulates the info panel with current unit details.
+func (s *Screen) rebuildInfoPanel(content *widget.Container) {
+	s.infoPanelRef.RemoveChildren()
+
+	if content == nil {
+		return
+	}
+
+	s.infoPanelRef.AddChild(content)
+}
+
+func (s *Screen) buildUnitInfoPanel(u *ds.Unit) *widget.Container {
+	if u == nil {
+		return nil
+	}
+
+	root := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(4),
 			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(6)),
 		)),
@@ -65,17 +92,6 @@ func (s *Screen) createInfoPanel() *widget.Container {
 			widget.WidgetOpts.MinSize(leftPanelW, 0),
 		),
 	)
-
-	return panel
-}
-
-// rebuildInfoPanel clears and repopulates the info panel with current unit details.
-func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
-	s.infoPanelRef.RemoveChildren()
-
-	if u == nil {
-		return
-	}
 
 	tf := ui.TextFace(14)
 	nameTF := ui.TextFace(16)
@@ -94,22 +110,21 @@ func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 		),
 	)
 
-	left := widget.NewContainer(
+	headerCont := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
 			widget.RowLayoutOpts.Spacing(6),
 		)),
 	)
 
-	left.AddChild(widget.NewGraphic(
+	headerCont.AddChild(widget.NewGraphic(
 		widget.GraphicOpts.Image(unitImage(u.TemplateID, 24)),
 	))
-	left.AddChild(widget.NewText(
+	headerCont.AddChild(widget.NewText(
 		widget.TextOpts.Text(u.Name, &nameTF, colornames.Gold),
 	))
 
-	header.AddChild(left)
-
+	header.AddChild(headerCont)
 	header.AddChild(widget.NewButton(
 		widget.ButtonOpts.Text("×", &tf, &widget.ButtonTextColor{
 			Idle:    logTextColor,
@@ -126,29 +141,29 @@ func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 		}),
 	))
 
-	s.infoPanelRef.AddChild(header)
-	s.infoPanelRef.AddChild(infoPanelDivider())
+	root.AddChild(header)
+	root.AddChild(infoPanelDivider())
 
 	// --- Stats ---
-	s.infoPanelRef.AddChild(infoPanelStat(
+	root.AddChild(infoPanelStat(
 		"heart.png", "HP",
 		fmt.Sprintf("%d of %d", u.CurrentHP, u.BaseHP),
 		hpColor, 0, &tf,
 	))
 	if u.CurrentShield > 0 {
-		s.infoPanelRef.AddChild(infoPanelStat(
+		root.AddChild(infoPanelStat(
 			"shield.png", "Shield",
-			fmt.Sprintf("%d", u.CurrentShield),
+			strconv.Itoa(u.CurrentShield),
 			shieldColor, 0, &tf,
 		))
 	}
 	if !u.IsOpponent {
-		s.infoPanelRef.AddChild(infoPanelStat(
+		root.AddChild(infoPanelStat(
 			"hit.png", "ATK",
-			fmt.Sprintf("%d", u.CurrentAtk),
+			strconv.Itoa(u.CurrentAtk),
 			atkColor, u.CurrentAtk-u.BaseAtk, &tf,
 		))
-		s.infoPanelRef.AddChild(infoPanelStat(
+		root.AddChild(infoPanelStat(
 			"walk.png", "MP",
 			fmt.Sprintf("%d of %d", u.CurrentMP, u.BaseMP),
 			mpColor, 0, &tf,
@@ -157,19 +172,94 @@ func (s *Screen) rebuildInfoPanel(u *ds.Unit) {
 
 	// --- Abilities (own units only) ---
 	if !u.IsOpponent && len(u.Abilities) > 0 {
-		s.infoPanelRef.AddChild(infoPanelDivider())
+		root.AddChild(infoPanelDivider())
 		for _, id := range u.Abilities {
-			s.infoPanelRef.AddChild(infoPanelAbility(id, u.Cooldowns[id], &tf))
+			root.AddChild(s.unitInfoPanelAbility(id, u.Cooldowns[id], &tf))
 		}
 	}
 
 	// --- Statuses ---
 	if len(u.Statuses) > 0 {
-		s.infoPanelRef.AddChild(infoPanelDivider())
+		root.AddChild(infoPanelDivider())
 		for st := range u.Statuses {
-			s.infoPanelRef.AddChild(infoPanelStatus(status.ByType(st), &tf))
+			root.AddChild(infoPanelStatus(status.ByType(st), &tf))
 		}
 	}
+
+	return root
+}
+
+func (s *Screen) buildAbilityInfoPanel(id ability.ID) *widget.Container {
+	const padding = 15
+	root := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(4),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(padding)),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.GridLayoutData{}),
+			widget.WidgetOpts.MinSize(leftPanelW, 0),
+		),
+	)
+
+	ab := ability.ByID(id)
+	tf := ui.TextFace(16)
+	nameTF := ui.TextFace(20)
+
+	// --- Header: icon · name · close ---
+	header := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(2),
+			widget.GridLayoutOpts.Stretch(
+				[]bool{true, false}, // Left column stretches, right stays fixed.
+				[]bool{false},
+			),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
+		),
+	)
+
+	headerCont := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(6),
+		)),
+	)
+
+	headerCont.AddChild(widget.NewGraphic(
+		widget.GraphicOpts.Image(abilityImage(string(id), 28)),
+	))
+	headerCont.AddChild(widget.NewText(
+		widget.TextOpts.Text(ab.Name, &nameTF, colornames.Gold),
+	))
+
+	header.AddChild(headerCont)
+	header.AddChild(widget.NewButton(
+		widget.ButtonOpts.Text("×", &tf, &widget.ButtonTextColor{
+			Idle:    logTextColor,
+			Hover:   color.White,
+			Pressed: color.White,
+		}),
+		widget.ButtonOpts.Image(&widget.ButtonImage{
+			Idle:    image.NewNineSliceColor(color.NRGBA{}),
+			Hover:   image.NewNineSliceColor(color.NRGBA{R: 80, G: 80, B: 80, A: 180}),
+			Pressed: image.NewNineSliceColor(color.NRGBA{R: 60, G: 60, B: 60, A: 180}),
+		}),
+		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+			s.hideInfoPanel()
+		}),
+	))
+
+	root.AddChild(header)
+	root.AddChild(infoPanelDivider())
+	root.AddChild(widget.NewText(
+		widget.TextOpts.Text(ab.Description, &tf, logTextColor),
+		widget.TextOpts.MaxWidth(leftPanelW-padding-padding),
+	))
+
+	return root
 }
 
 // infoPanelDivider returns a 1px horizontal separator.
@@ -210,11 +300,9 @@ func infoPanelStat(icon, label, value string, valueColor color.Color, bonus int,
 	return row
 }
 
-// infoPanelAbility returns a row: name · cooldown state.
-func infoPanelAbility(id ability.ID, cooldown int, tf *text.Face) *widget.Container {
+// unitInfoPanelAbility returns a row: name · cooldown state.
+func (s *Screen) unitInfoPanelAbility(id ability.ID, cooldown int, tf *text.Face) *widget.Container {
 	ab := ability.ByID(id)
-	name := ab.Name
-	isPassive := ab.IsPassive
 	row := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
@@ -224,16 +312,46 @@ func infoPanelAbility(id ability.ID, cooldown int, tf *text.Face) *widget.Contai
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{Stretch: true}),
 		),
 	)
+
+	// TODO link color not working via
+	// widget.TextOpts.LinkColor(&widget.TextLinkColor{
+	// so this is workaround
+	th := themes.GetBasicLightTheme()
+	th.TextTheme.LinkColor = &widget.TextLinkColor{
+		Idle:  colornames.White,
+		Hover: colornames.Gold,
+	}
+
+	txt := widget.NewText(
+		widget.TextOpts.ProcessBBCode(true),
+		// widget.TextOpts.LinkColor(&widget.TextLinkColor{
+		//	Idle:  colornames.White,
+		//	Hover: colornames.Gold,
+		// }),
+		widget.TextOpts.LinkClickedHandler(func(args *widget.LinkEventArgs) {
+			var abID ability.ID
+			for k := range args.Args {
+				abID = ability.ID(k)
+				break
+			}
+
+			s.showInfoPanel(s.buildAbilityInfoPanel(abID))
+		}),
+		widget.TextOpts.Text(fmt.Sprintf("[link=ability %s]%s[/link]", ab.ID, ab.Name), tf, logTextColor),
+	)
+
+	txt.GetWidget().SetTheme(th)
+
 	img := abilityImage(string(id), 16)
 	row.AddChild(widget.NewGraphic(widget.GraphicOpts.Image(img)))
-	row.AddChild(widget.NewText(widget.TextOpts.Text(name, tf, logTextColor)))
+	row.AddChild(txt)
 
 	var cdText string
 	var cdColor color.Color
 	switch {
-	case isPassive && cooldown > 0:
+	case ab.IsPassive && cooldown > 0:
 		cdText, cdColor = fmt.Sprintf("passive · %d turns", cooldown), infoCooldownColor
-	case isPassive:
+	case ab.IsPassive:
 		cdText, cdColor = "passive · ready", infoDimColor
 	case cooldown > 0:
 		cdText, cdColor = fmt.Sprintf("%d turns", cooldown), infoCooldownColor
@@ -286,9 +404,8 @@ func (s *Screen) refreshBoardPadding() {
 }
 
 // showInfoPanel opens the unit details card for the given unit.
-func (s *Screen) showInfoPanel(u *ds.Unit) {
-	s.infoPanelUnit = u
-	s.rebuildInfoPanel(u)
+func (s *Screen) showInfoPanel(content *widget.Container) {
+	s.rebuildInfoPanel(content)
 	s.infoPanelRef.GetWidget().SetVisibility(widget.Visibility_Show)
 
 	s.refreshBoardPadding()

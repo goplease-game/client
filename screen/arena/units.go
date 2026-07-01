@@ -207,8 +207,9 @@ func (s *Screen) buildQueueCard(u *ds.Unit, isActive bool) *widget.Container {
 		widget.WidgetOpts.MinSize(unitCardSize, unitCardSize),
 		widget.WidgetOpts.MouseButtonPressedHandler(func(args *widget.WidgetMouseButtonPressedEventArgs) {
 			if args.Button == ebiten.MouseButtonLeft {
-				if current := s.unitByID(u.ID); current != nil {
-					s.showInfoPanel(current)
+				if unit := s.unitByID(u.ID); unit != nil {
+					s.infoPanelUnit = unit
+					s.showInfoPanel(s.buildUnitInfoPanel(unit))
 				}
 			}
 		}),
