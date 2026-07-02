@@ -6,7 +6,6 @@ import (
 	"github.com/ebitenui/ebitenui/themes"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/goplease-game/client/ui"
-	"github.com/pkg/browser"
 	"golang.org/x/image/colornames"
 )
 
@@ -27,7 +26,7 @@ func OpenLink(key string) error {
 		log.Println("No link found for key:", key)
 	}
 
-	return browser.OpenURL(url)
+	return OpenURL(url)
 }
 
 // SetLinksTheme applies a custom theme to the widget with colors for text links.
