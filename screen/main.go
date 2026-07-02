@@ -1,9 +1,13 @@
 package screen
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"image/color"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
@@ -30,6 +34,10 @@ var (
 	menuButtonHoverTextColor = ui.DarkenRGB(menuButtonBgColor, 45)
 )
 
+var (
+	badColor = "#EA7B7B"
+)
+
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
 	serverCl   *ws.ClientProvider
@@ -54,10 +62,8 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	)
 
 	footer := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(5),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+			widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(10)),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -68,14 +74,79 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 		),
 	)
 
-	versionTF := ui.TextFace(12)
-	versionText := widget.NewText(
-		// TODO fetch server's status & version
-		widget.TextOpts.Text("client v0.0.1\nserver v0.0.1", &versionTF, color.White),
+	versions := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
+			widget.RowLayoutOpts.Spacing(5),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionStart,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+			}),
+		),
+	)
+
+	versionTF := ui.TextFace(14)
+	var date string
+	date, err := game.DisplayDateFromRFC(game.BuildDate)
+	if err != nil {
+		date = "invalid date"
+	}
+	clientV := widget.NewText(
+		widget.TextOpts.ProcessBBCode(true),
+		widget.TextOpts.LinkClickedHandler(func(_ *widget.LinkEventArgs) {
+			err := game.OpenLink("source-client")
+			if err != nil {
+				fmt.Printf("open URL error: %v\n", err)
+			}
+		}),
+		widget.TextOpts.Text(
+			fmt.Sprintf("Client: [link=source-client]%s · %s[/link]", game.Commit, date),
+			&versionTF, color.White),
+		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
+	)
+	serverV := widget.NewText(
+		widget.TextOpts.ProcessBBCode(true),
+		widget.TextOpts.LinkClickedHandler(func(_ *widget.LinkEventArgs) {
+			err := game.OpenLink("source-server")
+			if err != nil {
+				fmt.Printf("open URL error: %v\n", err)
+			}
+		}),
+		widget.TextOpts.Text("Server: connecting...", &versionTF, color.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
 
-	footer.AddChild(versionText)
+	game.SetLinksTheme(clientV.GetWidget())
+	game.SetLinksTheme(serverV.GetWidget())
+
+	go fetchVersion(game.ServerAPI("version/"), serverV)
+
+	versions.AddChild(clientV)
+	versions.AddChild(serverV)
+
+	discordLink := widget.NewText(
+		widget.TextOpts.ProcessBBCode(true),
+		widget.TextOpts.LinkClickedHandler(func(_ *widget.LinkEventArgs) {
+			err := game.OpenLink("discord")
+			if err != nil {
+				fmt.Printf("open URL error: %v\n", err)
+			}
+		}),
+		widget.TextOpts.Text("[link=discord]Community Discord[/link]", &versionTF, color.White),
+		widget.TextOpts.Position(widget.TextPositionEnd, widget.TextPositionEnd),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+			}),
+		),
+	)
+	game.SetLinksTheme(discordLink.GetWidget())
+
+	footer.AddChild(versions)
+	footer.AddChild(discordLink)
 
 	root.AddChild(s.mainMenu())
 	root.AddChild(footer)
@@ -411,4 +482,39 @@ func rowButton(text string, size float64, clickHandler widget.ButtonClickedHandl
 			Position: widget.RowLayoutPositionCenter,
 		},
 	})
+}
+
+func fetchVersion(url string, out *widget.Text) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		log.Println(err)
+	}
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec
+	if err != nil {
+		out.Label = "Server: [color=" + badColor + "]unavailable[/color]"
+		return
+	}
+	defer func() {
+		err = resp.Body.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}()
+
+	var v server.Version
+	err = json.NewDecoder(resp.Body).Decode(&v)
+	if err != nil {
+		out.Label = "Server: [color=" + badColor + "]unavailable[/color]"
+		return
+	}
+
+	var date string
+	date, err = game.DisplayDateFromRFC(v.BuildDate)
+	if err != nil {
+		date = "invalid date"
+	}
+
+	out.Label = "Server: [link=source-server]" + v.Commit + " · " + date + "[/link]"
 }

@@ -41,12 +41,21 @@ jobs:
         run: |
           cat > config/config_defaults.yaml << EOF
           resolution: 900x750
-          server_addr: wss://game.gopl.dev/play/
+          server_addr: game.gopl.dev
+          secure: true
           volume: 1
           EOF
 
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build client
-        run: env GOOS=js GOARCH=wasm go build -o asset/wasm/goplease.wasm cmd/game/main.go
+        run: |
+          GOOS=js GOARCH=wasm go build \
+            -ldflags "-X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" \
+            -o asset/wasm/goplease.wasm cmd/game/main.go
 
       - name: Copy wasm_exec.js
         run: cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" asset/wasm/
