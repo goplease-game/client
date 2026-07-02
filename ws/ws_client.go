@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/config"
 )
 
@@ -17,6 +18,8 @@ const (
 	dialTimeout  = time.Second * 10
 	pingTimeout  = time.Second * 5
 )
+
+const playPath = "play/"
 
 // WSClient manages a single WebSocket connection.
 // It is safe to call Send from any goroutine.
@@ -36,7 +39,7 @@ type WSClient struct { //nolint:revive
 
 // wsURL returns the WebSocket server address from config.
 func wsURL() string {
-	return config.Get().ServerAddr
+	return game.ServerWS(playPath)
 }
 
 // NewWSClient creates a new WSClient, enabling protocol logging to a file

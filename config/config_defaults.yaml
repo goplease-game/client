@@ -3,7 +3,8 @@ resolution: 900x750
 
 # Server address to connect to
 # See https://github.com/goplease-game/server
-server_addr: ws://localhost:8090/play/
+server_addr: localhost:8090
+secure: false
 
 # Sound volume
 volume: 1

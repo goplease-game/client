@@ -7,7 +7,6 @@ import (
 
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
-	"github.com/ebitenui/ebitenui/themes"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/ui"
@@ -64,12 +63,6 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 		"Built using [link=golang]Go[/link], [link=ebitengine]Ebitengine[/link] and [link=ebitenui]EbitenUI[/link].",
 	}
 
-	th := themes.GetBasicLightTheme()
-	th.TextTheme.LinkColor = &widget.TextLinkColor{
-		Idle:  nameColor,
-		Hover: colornames.Gold,
-	}
-
 	body := widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(ui.RGBFromHex("3e4c51"))),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -94,7 +87,7 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 			}),
 		)
 
-		text.GetWidget().SetTheme(th)
+		game.SetLinksTheme(text.GetWidget())
 
 		body.AddChild(text)
 	}

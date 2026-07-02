@@ -4,7 +4,9 @@ package config
 import (
 	_ "embed"
 	"fmt"
+	"log"
 	"runtime"
+	"strings"
 	"sync"
 
 	"gopkg.in/yaml.v3"
@@ -38,8 +40,9 @@ type Config struct {
 	WindowW    int    `yaml:"-"`
 	WindowH    int    `yaml:"-"`
 
-	// ServerAddr is the address of the game server to connect to.
+	// ServerAddr is the address of the game server.
 	ServerAddr string `yaml:"server_addr"`
+	Secure     bool   `yaml:"secure"`
 
 	// Volume is the audio volume level.
 	Volume float64 `yaml:"volume"`
@@ -87,6 +90,26 @@ func Get() *Config {
 			panic(err)
 		}
 
+		if isOldFormat(conf.ServerAddr) {
+			confD := new(Config)
+			err = yaml.Unmarshal(defaultConfig, confD)
+			if err != nil {
+				panic(err)
+			}
+			conf.ServerAddr = confD.ServerAddr
+			conf.Secure = confD.Secure
+
+			newData, err := yaml.Marshal(conf)
+			if err != nil {
+				panic(err)
+			}
+
+			err = confM.save(newData)
+			if err != nil {
+				log.Printf("unable to save fixed config: %v", err)
+			}
+		}
+
 		w, h, err := parseResolution(conf.Resolution)
 		if err != nil {
 			panic(err)
@@ -126,4 +149,13 @@ func parseResolution(res string) (width, height int, err error) {
 // IsWASM reports whether the binary is running in a WebAssembly (GOARCH=wasm) build.
 func IsWASM() bool {
 	return runtime.GOARCH == "wasm"
+}
+
+// isOldFormat detects a config saved before the server_addr format change.
+// It used to be a full URL with scheme and path (e.g. "ws://localhost:8090/play/"),
+// now it's just "host:port" (e.g. "localhost:8090"), with the scheme
+// (ws/wss, http/https) determined separately by the Secure field.
+// The presence of "://" is a reliable marker of the old format.
+func isOldFormat(addr string) bool {
+	return strings.Contains(addr, "://")
 }
