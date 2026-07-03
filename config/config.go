@@ -37,8 +37,11 @@ type manager interface {
 // loaded from YAML with values derived at load time (e.g. window dimensions).
 type Config struct {
 	Resolution string `yaml:"resolution"`
-	WindowW    int    `yaml:"-"`
-	WindowH    int    `yaml:"-"`
+	Fullscreen bool   `yaml:"fullscreen"`
+
+	// Window width & height will be parsed from resolution
+	WindowW int `yaml:"-"`
+	WindowH int `yaml:"-"`
 
 	// ServerAddr is the address of the game server.
 	ServerAddr string `yaml:"server_addr"`
@@ -46,6 +49,9 @@ type Config struct {
 
 	// Volume is the audio volume level.
 	Volume float64 `yaml:"volume"`
+
+	ShowGameLog       bool `yaml:"show_game_log"`
+	AutoShowInfoPanel bool `yaml:"auto_show_info_panel"`
 
 	// SkipTutorial disables tutorial overlays for new practice/scenario games.
 	SkipTutorial bool `yaml:"skip_tutorial"`

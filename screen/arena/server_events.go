@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/tutorial"
@@ -146,8 +147,10 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.startTurnTimer()
 	s.ready = true
 
-	s.infoPanelUnit = unit
-	s.showInfoPanel(s.buildUnitInfoPanel(unit))
+	if config.Get().AutoShowInfoPanel {
+		s.infoPanelUnit = unit
+		s.showInfoPanel(s.buildUnitInfoPanel(unit))
+	}
 
 	if s.tutorialOverlay != nil {
 		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)

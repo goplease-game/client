@@ -1,5 +1,5 @@
 # Window size
-resolution: 900x750
+resolution: 1000x750
 
 # Server address to connect to
 # See https://github.com/goplease-game/server
@@ -8,6 +8,9 @@ secure: false
 
 # Sound volume
 volume: 1
+
+show_game_log: true
+auto_show_info_panel: true
 
 skip_tutorial: false
 tutorials_completed: []

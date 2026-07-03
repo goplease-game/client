@@ -391,8 +391,9 @@ func (s *Screen) setupUI() {
 
 	s.setupDevPanel(root)
 
-	// show game log (TODO use config)
-	s.toggleGameLog()
+	if config.Get().ShowGameLog {
+		s.toggleGameLog()
+	}
 
 	s.ui = &ebitenui.UI{
 		Container: root,
