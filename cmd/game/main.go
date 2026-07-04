@@ -18,6 +18,10 @@ func main() {
 	ebiten.SetWindowTitle("go, please")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
+	if conf.Fullscreen {
+		ebiten.SetFullscreen(true)
+	}
+
 	sfx.SetVolume(conf.Volume)
 
 	serverCl := ws.NewClientProvider()

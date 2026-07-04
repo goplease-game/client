@@ -38,8 +38,16 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 // Layout returns the logical screen dimensions from config.
-func (g *Game) Layout(_, _ int) (int, int) {
+func (g *Game) Layout(w, h int) (int, int) {
 	conf := config.Get()
 
-	return conf.WindowW, conf.WindowH
+	if w < conf.WindowW {
+		w = conf.WindowW
+	}
+
+	if h < conf.WindowH {
+		h = conf.WindowH
+	}
+
+	return w, h
 }

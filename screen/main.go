@@ -102,7 +102,7 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 			}
 		}),
 		widget.TextOpts.Text(
-			fmt.Sprintf("Client: [link=source-client]%s · %s[/link]", game.Commit, date),
+			fmt.Sprintf("Client: [link=source-client]%s @ %s[/link]", game.Commit, date),
 			&versionTF, color.White),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 	)
@@ -516,5 +516,5 @@ func fetchVersion(url string, out *widget.Text) {
 		date = "invalid date"
 	}
 
-	out.Label = "Server: [link=source-server]" + v.Commit + " · " + date + "[/link]"
+	out.Label = "Server: [link=source-server]" + v.Commit + " @ " + date + "[/link]"
 }

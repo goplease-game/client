@@ -30,7 +30,7 @@ func (*osConfig) load() ([]byte, error) {
 	configPath := filepath.Join(configDir, configFilename)
 	_, err = os.Stat(configPath)
 	if os.IsNotExist(err) {
-		return defaultConfig, nil
+		return configDefaultYaml, nil
 	}
 
 	data, err := os.ReadFile(configPath) //nolint:gosec

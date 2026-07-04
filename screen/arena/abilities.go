@@ -11,7 +11,9 @@ import (
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
@@ -19,6 +21,13 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
 )
+
+type abilitySlot struct {
+	ability     ability.Ability
+	card        *widget.Container
+	bgColor     color.Color
+	iconGraphic *widget.Graphic
+}
 
 // showAbilityPanel builds and attaches the action row (Move button + ability
 // cards) to the footer for the given unit. Any previously shown panel is
@@ -50,9 +59,19 @@ func (s *Screen) showAbilityPanel(unit *ds.Unit) {
 		)),
 	)
 
-	for _, abilityID := range unit.Abilities {
+	s.abilitySlots = s.abilitySlots[:0] // reset before rebuild
+
+	for i, abilityID := range unit.Abilities {
 		ab := ability.ByID(abilityID)
-		abilitiesContainer.AddChild(s.buildAbilityCard(ab))
+		card, bgColor, iconGraphic := s.buildAbilityCard(ab, i)
+		abilitiesContainer.AddChild(card)
+
+		s.abilitySlots = append(s.abilitySlots, abilitySlot{
+			ability:     ab,
+			card:        card,
+			bgColor:     bgColor,
+			iconGraphic: iconGraphic,
+		})
 	}
 
 	s.abilityPanelRef.AddChild(abilitiesContainer)
@@ -74,7 +93,7 @@ func (s *Screen) hideAbilityPanel() {
 
 // buildAbilityCard builds a single ability card widget with hover highlight,
 // tooltip, ability icon, and an optional cooldown badge.
-func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
+func (s *Screen) buildAbilityCard(ab ability.Ability, slot int) (*widget.Container, color.Color, *widget.Graphic) {
 	bgColor := abilityCardBgColor(ab)
 	u := s.unitByID(s.activeUnitID)
 	onCooldown := u != nil && !u.AbilityReady(ab.ID)
@@ -84,6 +103,9 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 	iconGraphic := s.buildAbilityIcon(ab)
 	card := s.buildAbilityCardContainer(ab, bgColor, blocked, iconGraphic)
 	card.AddChild(iconGraphic)
+	if key := abilityKeyForSlot(slot); key != nil {
+		card.AddChild(s.buildKeyHint(key))
+	}
 
 	switch {
 	case onCooldown:
@@ -92,7 +114,7 @@ func (s *Screen) buildAbilityCard(ab ability.Ability) *widget.Container {
 		card.AddChild(s.buildDisabledOverlay())
 	}
 
-	return card
+	return card, bgColor, iconGraphic
 }
 
 // buildMoveButton builds the Move toggle card shown to the left of the
@@ -167,18 +189,20 @@ func (s *Screen) buildMoveButton(u *ds.Unit) *widget.Container {
 		),
 	))
 
-	// Keybind hint "M", bottom-right corner.
-	hintFace := ui.TextFaceBold(14)
-	card.AddChild(widget.NewText(
-		widget.TextOpts.Text("M", &hintFace, colornames.White), // TODO use config
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionEnd,
-				VerticalPosition:   widget.AnchorLayoutPositionEnd,
-				Padding:            &widget.Insets{Right: 4, Bottom: 2},
-			}),
-		),
-	))
+	// Keybind hint, bottom-right corner.
+	if moveKey := config.Get().Keybindings.Move; moveKey != nil {
+		hintFace := ui.TextFaceBold(14)
+		card.AddChild(widget.NewText(
+			widget.TextOpts.Text(game.KeyName(moveKey), &hintFace, colornames.White),
+			widget.TextOpts.WidgetOpts(
+				widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+					HorizontalPosition: widget.AnchorLayoutPositionEnd,
+					VerticalPosition:   widget.AnchorLayoutPositionEnd,
+					Padding:            &widget.Insets{Right: 4, Bottom: 2},
+				}),
+			),
+		))
+	}
 
 	if disabled {
 		card.AddChild(s.buildDisabledOverlay(75))
@@ -191,6 +215,11 @@ func (s *Screen) buildMoveButton(u *ds.Unit) *widget.Container {
 // the unit on the board would, then refreshes the panel to reflect the new
 // selection state (highlight on/off).
 func (s *Screen) onMoveButtonClicked(u *ds.Unit) {
+	if !u.CanMove() {
+		sfx.Play(selectError)
+		return
+	}
+
 	s.selectUnit(u)
 	s.showAbilityPanel(u)
 }
@@ -247,14 +276,7 @@ func (s *Screen) buildAbilityCardContainer(ab ability.Ability, bgColor color.Col
 			}),
 			widget.WidgetOpts.MouseButtonReleasedHandler(func(args *widget.WidgetMouseButtonReleasedEventArgs) {
 				if args.Button == ebiten.MouseButtonLeft && args.Inside {
-					if blocked {
-						return
-					}
-					s.onAbilityCardClicked(ab, card, bgColor)
-					if s.selectedAbility != nil && s.selectedAbility.ID == ab.ID {
-						iconGraphic.Image = asset.TintedImage(abilityImagePath(string(ab.ID)), activeAbilityFgColor, abilityCardSize)
-						s.selectedAbilityIcon = iconGraphic
-					}
+					s.activateAbilitySlot(ab, card, bgColor, iconGraphic)
 				}
 			}),
 		),
@@ -325,6 +347,65 @@ func (s *Screen) buildDisabledOverlay(opacityOpt ...int) *widget.Container {
 			}),
 		),
 	)
+}
+
+// buildKeyHint returns a small pill-shaped label showing the given key,
+// anchored to the bottom-right corner of its parent. Used as a hotkey
+// hint on ability/move cards. The semi-transparent dark background keeps
+// the text readable regardless of the card's own background color.
+func (s *Screen) buildKeyHint(key *ebiten.Key) *widget.Container {
+	hintFace := ui.TextFaceBold(14)
+
+	label := widget.NewText(
+		widget.TextOpts.Text(game.KeyName(key), &hintFace, colornames.White),
+		widget.TextOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+	)
+
+	badge := widget.NewContainer(
+		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(
+			color.NRGBA{0x00, 0x00, 0x00, 100},
+		)),
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+			widget.AnchorLayoutOpts.Padding(&widget.Insets{Left: 4, Right: 4, Top: 1, Bottom: 1}),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionEnd,
+				Padding:            &widget.Insets{Right: 2, Bottom: 2},
+			}),
+		),
+	)
+	badge.AddChild(label)
+
+	return badge
+}
+
+// activateAbilitySlot mirrors the mouse-click path: checks whether the
+// ability is currently blocked (on cooldown / unit can't act), invokes the
+// shared click handler, and applies the "selected" icon tint on success.
+// Used by both the mouse handler and hotkey handling in Update().
+func (s *Screen) activateAbilitySlot(ab ability.Ability, card *widget.Container, bgColor color.Color, iconGraphic *widget.Graphic) {
+	u := s.unitByID(s.activeUnitID)
+	onCooldown := u != nil && !u.AbilityReady(ab.ID)
+	disabled := !onCooldown && u != nil && !ab.IsPassive && !s.unitCanAct(u)
+	if onCooldown || disabled {
+		sfx.Play(selectError)
+		return
+	}
+
+	s.cancelAbilitySelection()
+	s.onAbilityCardClicked(ab, card, bgColor)
+
+	if s.selectedAbility != nil && s.selectedAbility.ID == ab.ID {
+		iconGraphic.Image = asset.TintedImage(abilityImagePath(string(ab.ID)), activeAbilityFgColor, abilityCardSize)
+		s.selectedAbilityIcon = iconGraphic
+	}
 }
 
 // abilityCardBgColor returns the background colour for an ability card
@@ -400,4 +481,23 @@ func buildToolTipRow(text string, c color.Color) *widget.Container {
 		widget.TextOpts.Text(text, &toolTipTextTF, c),
 	))
 	return row
+}
+
+// abilityKeyForSlot returns the configured hotkey for the ability in the
+// given slot (0-based: 0 → Ability1, 1 → Ability2, ...), or nil if the
+// slot has no keybinding (either out of range or unbound).
+func abilityKeyForSlot(slot int) *ebiten.Key {
+	kb := config.Get().Keybindings
+	switch slot {
+	case 0:
+		return kb.Ability1
+	case 1:
+		return kb.Ability2
+	case 2:
+		return kb.Ability3
+	case 3:
+		return kb.Ability4
+	default:
+		return nil
+	}
 }

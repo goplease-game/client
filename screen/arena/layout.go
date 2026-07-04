@@ -211,24 +211,7 @@ func (s *Screen) buildNextMoveButton() {
 			widget.WidgetOpts.MinSize(size, size),
 		),
 		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			printD("END TURN PRESSED")
-			if !s.ready {
-				printD("NOT READY")
-				return
-			}
-			s.stopEndTurnPulse()
-
-			if u := s.unitByID(s.activeUnitID); u != nil {
-				if bc := s.boardCellWidget(u); bc != nil {
-					bc.RemoveChildren()
-					s.buildBoardCard(bc, u)
-				}
-			}
-			s.activeUnitID = ""
-
-			s.setPulseHexTargets(nil)
-			s.stopTurnTimer()
-			s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
+			s.endTurn()
 		}),
 	)
 

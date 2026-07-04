@@ -1,5 +1,5 @@
 # Window size
-resolution: 900x750
+resolution: 1000x750
 
 # Server address to connect to
 # See https://github.com/goplease-game/server
@@ -9,8 +9,21 @@ secure: false
 # Sound volume
 volume: 1
 
+show_game_log: true
+auto_show_info_panel: true
+
 skip_tutorial: false
 tutorials_completed: []
+
+keybindings:
+  move: M
+  ability_1: Z
+  ability_2: X
+  ability_3: C
+  ability_4: V
+  show_game_log: L
+  show_coordinates: AltLeft
+  end_turn: Space
 
 # Developer mode
 dev_mode:

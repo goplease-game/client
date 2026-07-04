@@ -36,6 +36,9 @@ func (s *Screen) onAbilityCardClicked(ab ability.Ability, card *widget.Container
 		return
 	}
 
+	s.clearAbilityHighlight()
+	s.highlightAbilityRange(ab)
+
 	s.selectedAbility = &ab
 	s.selectedAbilityCard = card
 	s.selectedAbilityCardColor = bgColor

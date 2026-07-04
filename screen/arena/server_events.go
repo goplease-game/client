@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/tutorial"
@@ -146,8 +147,10 @@ func (s *Screen) handlePlayUnit(data json.RawMessage) {
 	s.startTurnTimer()
 	s.ready = true
 
-	s.infoPanelUnit = unit
-	s.showInfoPanel(s.buildUnitInfoPanel(unit))
+	if config.Get().AutoShowInfoPanel {
+		s.infoPanelUnit = unit
+		s.showInfoPanel(s.buildUnitInfoPanel(unit))
+	}
 
 	if s.tutorialOverlay != nil {
 		s.tutorialOverlay.Trigger(tutorial.TriggerPlayUnit)
@@ -405,4 +408,23 @@ func (s *Screen) applyStateVisuals(target *ds.Unit, st ds.ApplyState) {
 	if target.ID == s.activeUnitID {
 		s.showAbilityPanel(target)
 	}
+}
+
+func (s *Screen) endTurn() {
+	if !s.ready {
+		return
+	}
+	s.stopEndTurnPulse()
+
+	if u := s.unitByID(s.activeUnitID); u != nil {
+		if bc := s.boardCellWidget(u); bc != nil {
+			bc.RemoveChildren()
+			s.buildBoardCard(bc, u)
+		}
+	}
+	s.activeUnitID = ""
+
+	s.setPulseHexTargets(nil)
+	s.stopTurnTimer()
+	s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
 }
