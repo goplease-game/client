@@ -134,7 +134,7 @@ func Save() error {
 }
 
 func defaultConfig() *Config {
-	loadConfigOnce.Do(func() {
+	loadDefaultConfigOnce.Do(func() {
 		conf := new(Config)
 		err := yaml.Unmarshal(configDefaultYaml, conf)
 		if err != nil {
