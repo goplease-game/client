@@ -15,6 +15,16 @@ auto_show_info_panel: true
 skip_tutorial: false
 tutorials_completed: []
 
+keybindings:
+  move: M
+  ability_1: Z
+  ability_2: X
+  ability_3: C
+  ability_4: V
+  show_game_log: L
+  show_coordinates: AltLeft
+  end_turn: Space
+
 # Developer mode
 dev_mode:
   enabled: false

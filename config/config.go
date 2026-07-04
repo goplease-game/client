@@ -9,14 +9,15 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"gopkg.in/yaml.v3"
 )
 
-// defaultConfig holds the embedded contents of config_defaults.yaml, used as
+// configDefaultYaml holds the embedded contents of config_defaults.yaml, used as
 // the source of default values when no user config file exists yet.
 //
 //go:embed config_defaults.yaml
-var defaultConfig []byte
+var configDefaultYaml []byte
 
 const (
 	// configFilename is the name of the config file stored in the user config directory.
@@ -59,6 +60,8 @@ type Config struct {
 	// TutorialsCompleted stores completed tutorial chapter names.
 	TutorialsCompleted []string `yaml:"tutorials_completed"`
 
+	Keybindings *Keybindings `yaml:"keybindings"`
+
 	DevMode struct {
 		Enabled     bool `yaml:"enabled"`
 		MockClient  bool `yaml:"mock_client"`
@@ -66,11 +69,25 @@ type Config struct {
 	} `yaml:"dev_mode"`
 }
 
+// Keybindings defines keyboard shortcuts for game actions.
+type Keybindings struct {
+	Move            *ebiten.Key `yaml:"move,omitempty"`
+	Ability1        *ebiten.Key `yaml:"ability_1,omitempty"`
+	Ability2        *ebiten.Key `yaml:"ability_2,omitempty"`
+	Ability3        *ebiten.Key `yaml:"ability_3,omitempty"`
+	Ability4        *ebiten.Key `yaml:"ability_4,omitempty"`
+	ShowGameLog     *ebiten.Key `yaml:"show_game_log,omitempty"`
+	ShowCoordinates *ebiten.Key `yaml:"show_coordinates,omitempty"`
+	EndTurn         *ebiten.Key `yaml:"end_turn,omitempty"`
+}
+
 // loadConfigOnce ensures the config is loaded and parsed only once.
 var loadConfigOnce sync.Once
+var loadDefaultConfigOnce sync.Once
 
 // loadedConfig caches the config loaded by Get; nil until the first call.
 var loadedConfig *Config
+var loadedDefaultConfig *Config
 
 // confM is the platform-specific manager used to load and save the config.
 // It is nil until the first call to Get, which initializes it via newConfigManager.
@@ -96,33 +113,7 @@ func Get() *Config {
 			panic(err)
 		}
 
-		if isOldFormat(conf.ServerAddr) {
-			confD := new(Config)
-			err = yaml.Unmarshal(defaultConfig, confD)
-			if err != nil {
-				panic(err)
-			}
-			conf.ServerAddr = confD.ServerAddr
-			conf.Secure = confD.Secure
-
-			newData, err := yaml.Marshal(conf)
-			if err != nil {
-				panic(err)
-			}
-
-			err = confM.save(newData)
-			if err != nil {
-				log.Printf("unable to save fixed config: %v", err)
-			}
-		}
-
-		w, h, err := parseResolution(conf.Resolution)
-		if err != nil {
-			panic(err)
-		}
-
-		conf.WindowW = w
-		conf.WindowH = h
+		normalizeConfig(conf)
 
 		loadedConfig = conf
 	})
@@ -140,6 +131,50 @@ func Save() error {
 	}
 
 	return confM.save(data)
+}
+
+func defaultConfig() *Config {
+	loadConfigOnce.Do(func() {
+		conf := new(Config)
+		err := yaml.Unmarshal(configDefaultYaml, conf)
+		if err != nil {
+			panic(err)
+		}
+		loadedDefaultConfig = conf
+	})
+
+	return loadedDefaultConfig
+}
+
+func normalizeConfig(conf *Config) {
+	if isOldFormat(conf.ServerAddr) {
+		defConf := defaultConfig()
+		conf.ServerAddr = defConf.ServerAddr
+		conf.Secure = defConf.Secure
+
+		newData, err := yaml.Marshal(conf)
+		if err != nil {
+			panic(err)
+		}
+
+		err = confM.save(newData)
+		if err != nil {
+			log.Printf("unable to save fixed config: %v", err)
+		}
+	}
+
+	if conf.Keybindings == nil {
+		defConf := defaultConfig()
+		conf.Keybindings = defConf.Keybindings
+	}
+
+	w, h, err := parseResolution(conf.Resolution)
+	if err != nil {
+		panic(err)
+	}
+
+	conf.WindowW = w
+	conf.WindowH = h
 }
 
 // parseResolution parses a resolution string in "WIDTHxHEIGHT" format (e.g.

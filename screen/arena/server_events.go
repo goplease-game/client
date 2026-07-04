@@ -409,3 +409,22 @@ func (s *Screen) applyStateVisuals(target *ds.Unit, st ds.ApplyState) {
 		s.showAbilityPanel(target)
 	}
 }
+
+func (s *Screen) endTurn() {
+	if !s.ready {
+		return
+	}
+	s.stopEndTurnPulse()
+
+	if u := s.unitByID(s.activeUnitID); u != nil {
+		if bc := s.boardCellWidget(u); bc != nil {
+			bc.RemoveChildren()
+			s.buildBoardCard(bc, u)
+		}
+	}
+	s.activeUnitID = ""
+
+	s.setPulseHexTargets(nil)
+	s.stopTurnTimer()
+	s.server.Send(ws.OutMessage{Action: ws.EndTurnAction})
+}

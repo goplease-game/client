@@ -26,7 +26,7 @@ func (*localStorageConfig) load() ([]byte, error) {
 
 	jsValue := ls.Call("getItem", configKey)
 	if jsValue.IsNull() {
-		return defaultConfig, nil
+		return configDefaultYaml, nil
 	}
 
 	return []byte(jsValue.String()), nil

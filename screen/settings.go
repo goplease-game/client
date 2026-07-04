@@ -30,6 +30,9 @@ type SettingsScreen struct {
 	fullscreenCheckbox        *widget.Checkbox
 	showGameLogCheckbox       *widget.Checkbox
 	autoShowInfoPanelCheckbox *widget.Checkbox
+
+	// Holds references to buttons mapped by their config key pointers
+	bindingButtons map[**ebiten.Key]*widget.Button
 }
 
 // NewSettingsScreen creates the settings screen. previous is the screen
@@ -46,6 +49,7 @@ func NewSettingsScreen(previous game.Screen) *SettingsScreen {
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
 			widget.RowLayoutOpts.Spacing(25),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
@@ -67,58 +71,97 @@ func NewSettingsScreen(previous game.Screen) *SettingsScreen {
 	panel.AddChild(title)
 	panel.AddChild(s.buildTabs())
 
+	// --- Save / Reset settings ---
+	actions := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(12),
+		)),
+		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+			Position: widget.RowLayoutPositionCenter,
+		})),
+	)
+	actions.AddChild(secondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
+		err := config.Save()
+		if err != nil {
+			log.Printf("settings: failed to save config: %v", err)
+		}
+		s.nextScreen = s.previous
+	}))
+	actions.AddChild(secondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
+		s.nextScreen = s.previous
+	}))
+	actions.AddChild(secondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
+		s.resetToDefaults()
+	}))
+
+	panel.AddChild(actions)
 	root.AddChild(panel)
 
 	s.ui = &ebitenui.UI{Container: root}
 	return s
 }
 
-// buildTabs constructs the General | Keybinding tab book.
-func (s *SettingsScreen) buildTabs() *widget.TabBook {
-	generalTab := widget.NewTabBookTab(
-		widget.TabBookTabOpts.Label("General"),
-		widget.TabBookTabOpts.ContainerOpts(
-			widget.ContainerOpts.Layout(widget.NewAnchorLayout(
-				widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(10)),
-			)),
-		),
-	)
-	generalTab.AddChild(s.buildGeneralTab())
+// Update advances the settings UI.
+func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
+	// 1. Handle Escape key logic first
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		if activeBindingKey != nil {
+			// Cancel active rebinding, revert button text, and clear listening state
+			activeButton.Text().Label = game.KeyName(*activeBindingKey)
+			activeBindingKey = nil
+			activeButton = nil
+		} else {
+			// Exit the settings menu and return to the previous screen
+			s.nextScreen = s.previous
+		}
+		return s, nil
+	}
 
-	keybindingFace := ui.TextFace(14)
-	keybindingTab := widget.NewTabBookTab(
-		widget.TabBookTabOpts.Label("Keybinding"),
-		widget.TabBookTabOpts.ContainerOpts(
-			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-		),
-	)
-	keybindingTab.AddChild(widget.NewText(
-		widget.TextOpts.Text("Coming soon.", &keybindingFace, ui.RGBFromHex("#8B98A5")),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-			HorizontalPosition: widget.AnchorLayoutPositionCenter,
-			VerticalPosition:   widget.AnchorLayoutPositionCenter,
-		})),
-	))
+	// 2. Handle active key re-binding state
+	if activeBindingKey != nil {
+		for k := range ebiten.KeyMax {
+			// Skip Escape here since it's already caught above as a cancel action
+			if k == ebiten.KeyEscape {
+				continue
+			}
 
-	tabButtonImg := tabButtonImage()
-	tabFace := ui.TextFace(16)
+			if inpututil.IsKeyJustPressed(k) {
+				for keyRef := range s.bindingButtons {
+					if keyRef == nil || *keyRef == nil || keyRef == activeBindingKey {
+						continue
+					}
+					if **keyRef == k {
+						*keyRef = nil
+					}
+				}
 
-	return widget.NewTabBook(
-		widget.TabBookOpts.TabButtonImage(tabButtonImg),
-		widget.TabBookOpts.TabButtonText(&tabFace, &widget.ButtonTextColor{Idle: color.White, Disabled: color.White}),
-		widget.TabBookOpts.TabButtonSpacing(5),
-		widget.TabBookOpts.ContentPadding(widget.NewInsetsSimple(10)),
-		widget.TabBookOpts.ContentSpacing(10),
-		widget.TabBookOpts.TabButtonMinSize(&stdimage.Point{X: 130, Y: 36}),
-		widget.TabBookOpts.ContainerOpts(
-			widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			})),
-		),
-		widget.TabBookOpts.Tabs(generalTab, keybindingTab),
-		widget.TabBookOpts.InitialTab(generalTab),
-	)
+				kk := k
+				*activeBindingKey = &kk
+
+				activeBindingKey = nil
+				activeButton = nil
+
+				s.refreshKeyLabels()
+				break
+			}
+		}
+	}
+
+	s.ui.Update()
+
+	if s.nextScreen != nil {
+		next := s.nextScreen
+		s.nextScreen = nil
+		return next, nil
+	}
+
+	return s, nil
+}
+
+// Draw renders the settings UI to screen.
+func (s *SettingsScreen) Draw(screen *ebiten.Image) {
+	s.ui.Draw(screen)
 }
 
 // buildGeneralTab builds the General tab.
@@ -231,33 +274,147 @@ func (s *SettingsScreen) buildGeneralTab() *widget.Container {
 	})
 	addRow("Tutorial", "Show the tutorial again next time you start a practice match.", tutorialResetButton)
 
-	// --- Save / Reset settings ---
-	actions := widget.NewContainer(
+	wrapper.AddChild(table)
+	return wrapper
+}
+
+var (
+	activeBindingKey **ebiten.Key   // Pointer to the key currently being rebound
+	activeButton     *widget.Button // Pointer to the button currently waiting for input
+)
+
+// buildKeybindingTab constructs the grid of actions and their corresponding key buttons.
+func (s *SettingsScreen) buildKeybindingTab() *widget.Container {
+	cfg := config.Get()
+	labelFace := ui.TextFace(16)
+
+	// Initialize or clear the buttons map
+	s.bindingButtons = make(map[**ebiten.Key]*widget.Button)
+
+	wrapper := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(12),
+			widget.RowLayoutOpts.Spacing(20),
 		)),
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		})),
 	)
-	actions.AddChild(secondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
-		if err := config.Save(); err != nil {
-			log.Printf("settings: failed to save config: %v", err)
-		}
-		s.nextScreen = s.previous
-	}))
-	actions.AddChild(secondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = s.previous
-	}))
-	actions.AddChild(secondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
-		s.resetToDefaults()
-	}))
+
+	table := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewGridLayout(
+			widget.GridLayoutOpts.Columns(2),
+			widget.GridLayoutOpts.Stretch([]bool{true, false}, nil),
+			widget.GridLayoutOpts.Spacing(30, 10),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			}),
+			widget.WidgetOpts.MinSize(400, 0),
+		),
+	)
+
+	// Helper function to insert a row into the grid
+	addKeyRow := func(actionName string, keyRef **ebiten.Key) {
+		// Left column: Action Label
+		label := widget.NewText(
+			widget.TextOpts.Text(actionName, &labelFace, color.White),
+			widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{
+				HorizontalPosition: widget.GridLayoutPositionStart,
+				VerticalPosition:   widget.GridLayoutPositionCenter,
+			})),
+		)
+		table.AddChild(label)
+
+		// Right column: Key Assignment Button
+		var btn *widget.Button
+		btn = secondaryButton(game.KeyName(*keyRef), 14, func(_ *widget.ButtonClickedEventArgs) {
+			// If another button was waiting, revert its text before switching
+			if activeButton != nil {
+				activeButton.Text().Label = game.KeyName(*activeBindingKey)
+			}
+
+			// Enter waiting state for the clicked row
+			activeBindingKey = keyRef
+			activeButton = btn
+			btn.Text().Label = "[...]"
+		})
+
+		s.bindingButtons[keyRef] = btn
+
+		controlCell := widget.NewContainer(
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+			widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.GridLayoutData{
+				HorizontalPosition: widget.GridLayoutPositionEnd,
+				VerticalPosition:   widget.GridLayoutPositionCenter,
+			})),
+		)
+		controlCell.AddChild(btn)
+		table.AddChild(controlCell)
+	}
+
+	addKeyRow("Move", &cfg.Keybindings.Move)
+	addKeyRow("Ability 1", &cfg.Keybindings.Ability1)
+	addKeyRow("Ability 2", &cfg.Keybindings.Ability2)
+	addKeyRow("Ability 3", &cfg.Keybindings.Ability3)
+	addKeyRow("Ability 4", &cfg.Keybindings.Ability4)
+	addKeyRow("Show game log", &cfg.Keybindings.ShowGameLog)
+	addKeyRow("Show coordinates", &cfg.Keybindings.ShowCoordinates)
+	addKeyRow("End Turn", &cfg.Keybindings.EndTurn)
 
 	wrapper.AddChild(table)
-	wrapper.AddChild(actions)
-
 	return wrapper
+}
+
+// refreshKeyLabels updates the rendered labels on every binding button to match the current configuration state.
+func (s *SettingsScreen) refreshKeyLabels() {
+	if s.bindingButtons == nil {
+		return
+	}
+	for keyRef, button := range s.bindingButtons {
+		if button != nil && button.Text() != nil {
+			button.Text().Label = game.KeyName(*keyRef)
+		}
+	}
+}
+
+// buildTabs constructs the General | Keybinding tab book.
+func (s *SettingsScreen) buildTabs() *widget.TabBook {
+	generalTab := widget.NewTabBookTab(
+		widget.TabBookTabOpts.Label("General"),
+		widget.TabBookTabOpts.ContainerOpts(
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+				widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+			)),
+		),
+	)
+	generalTab.AddChild(s.buildGeneralTab())
+
+	keybindingTab := widget.NewTabBookTab(
+		widget.TabBookTabOpts.Label("Keybinding"),
+		widget.TabBookTabOpts.ContainerOpts(
+			widget.ContainerOpts.Layout(widget.NewAnchorLayout(
+				widget.AnchorLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+			)),
+		),
+	)
+	keybindingTab.AddChild(s.buildKeybindingTab()) // Вызов нового метода
+
+	tabButtonImg := tabButtonImage()
+	tabFace := ui.TextFace(16)
+
+	return widget.NewTabBook(
+		widget.TabBookOpts.TabButtonImage(tabButtonImg),
+		widget.TabBookOpts.TabButtonText(&tabFace, &widget.ButtonTextColor{Idle: color.White, Disabled: color.White}),
+		widget.TabBookOpts.TabButtonSpacing(5),
+		widget.TabBookOpts.ContentPadding(widget.NewInsetsSimple(10)),
+		widget.TabBookOpts.ContentSpacing(10),
+		widget.TabBookOpts.TabButtonMinSize(&stdimage.Point{X: 130, Y: 36}),
+		widget.TabBookOpts.ContainerOpts(
+			widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
+				Position: widget.RowLayoutPositionCenter,
+			})),
+		),
+		widget.TabBookOpts.Tabs(generalTab, keybindingTab),
+		widget.TabBookOpts.InitialTab(generalTab),
+	)
 }
 
 // resetToDefaults restores every General setting to its default value.
@@ -278,28 +435,6 @@ func (s *SettingsScreen) resetToDefaults() {
 
 	s.volumeSlider.Current = int(cfg.Volume * 100)
 	s.volumeLabel.Label = volumeLabelText(cfg.Volume)
-}
-
-// Update advances the settings UI.
-func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
-	s.ui.Update()
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		s.nextScreen = s.previous
-	}
-
-	if s.nextScreen != nil {
-		next := s.nextScreen
-		s.nextScreen = nil
-		return next, nil
-	}
-
-	return s, nil
-}
-
-// Draw renders the settings UI to screen.
-func (s *SettingsScreen) Draw(screen *ebiten.Image) {
-	s.ui.Draw(screen)
 }
 
 func volumeLabelText(volume float64) string {

@@ -44,6 +44,17 @@ jobs:
           server_addr: game.gopl.dev
           secure: true
           volume: 1
+          show_game_log: true
+          auto_show_info_panel: true
+          keybindings:
+            move: M
+            ability_1: Z
+            ability_2: X
+            ability_3: C
+            ability_4: V
+            show_game_log: L
+            show_coordinates: AltLeft
+            end_turn: Space
           EOF
 
       - name: Set build metadata

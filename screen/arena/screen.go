@@ -143,6 +143,8 @@ type Screen struct {
 	infoPanelRef   *widget.Container
 	infoPanelUnit  *ds.Unit
 	infoPanelDirty bool
+
+	abilitySlots []abilitySlot
 }
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
@@ -175,6 +177,7 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 // Update processes server messages, handles input, and advances all animations.
 // Implements game.Screen.
 func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
+	keys := config.Get().Keybindings
 	// Drain all pending server messages before updating game logic.
 	for {
 		select {
@@ -191,6 +194,13 @@ done:
 	s.updateDelayedActions()
 	s.updateNewRoundBanner()
 	s.updateFloatingTexts()
+
+	for slot, as := range s.abilitySlots {
+		if game.KeyJustPressed(abilityKeyForSlot(slot)) {
+			s.activateAbilitySlot(as.ability, as.card, as.bgColor, as.iconGraphic)
+			break
+		}
+	}
 
 	// Handle hex cell clicks manually since HexCellWidget uses custom hit testing.
 	if !tutorialWasVisible && inpututil.IsMouseButtonJustReleased(ebiten.MouseButtonLeft) {
@@ -221,16 +231,24 @@ done:
 			s.toggleGameMenu()
 		}
 	}
-	if inpututil.IsKeyJustPressed(ebiten.KeyL) {
+
+	if game.KeyJustPressed(keys.ShowGameLog) {
 		s.toggleGameLog()
 	}
-	if !tutorialWasVisible && inpututil.IsKeyJustPressed(ebiten.KeyM) {
+
+	if game.KeyJustPressed(keys.EndTurn) {
+		s.endTurn()
+	}
+
+	if !tutorialWasVisible && game.KeyJustPressed(keys.Move) {
 		if u := s.unitByID(s.activeUnitID); u != nil {
 			s.onMoveButtonClicked(u)
 		}
 	}
 
-	s.showCellCoordinates = ebiten.IsKeyPressed(ebiten.KeyAlt)
+	if game.KeyJustPressed(keys.ShowCoordinates) {
+		s.showCellCoordinates = game.KeyPressed(keys.ShowCoordinates)
+	}
 
 	s.updatePulse()
 	s.updateDropZoneAnim()
@@ -307,12 +325,18 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 		s.firstDrawn = true
 		s.server.Send(ws.OutMessage{Action: ws.ReadyToPlay})
 
-		s.appendLogEntry(logMessage{
-			Text: "Press <ability>[L]</ability> to toggle this log",
-		})
-		s.appendLogEntry(logMessage{
-			Text: "Hold <ability>[Alt]</ability> to show cell coordinates",
-		})
+		keys := config.Get().Keybindings
+		if keys.ShowGameLog != nil {
+			s.appendLogEntry(logMessage{
+				Text: fmt.Sprintf("Press <ability>[%s]</ability> to toggle this log", game.KeyName(keys.ShowGameLog)),
+			})
+		}
+		if keys.ShowCoordinates != nil {
+			s.appendLogEntry(logMessage{
+				Text: fmt.Sprintf("Hold <ability>[%s]</ability> to show cell coordinates", game.KeyName(keys.ShowCoordinates)),
+			})
+		}
+
 		s.appendLogEntry(logMessage{Text: ""})
 	}
 
@@ -474,7 +498,7 @@ func (s *Screen) refreshStatusBar() {
 	// Clear previous text widget to reset cached MinSize dimensions.
 	s.statusBarRef.RemoveChildren()
 
-	tf := ui.TextFace(18)
+	tf := ui.TextFace(16)
 	s.statusLabel = widget.NewText(
 		widget.TextOpts.Text(text, &tf, statusBarTextColor),
 		widget.TextOpts.WidgetOpts(
@@ -497,16 +521,24 @@ func (s *Screen) updateActiveUnitStatusLabel() {
 
 	canAct := s.unitCanAct(u)
 
+	var moveKey string
+	if key := config.Get().Keybindings.Move; key != nil {
+		moveKey = " [" + game.KeyName(key) + "] "
+	}
+
 	var status string
 	switch {
 	case u.CanMove() && canAct:
-		status = u.Name + " can move and use an ability"
+		status = u.Name + " can move " + moveKey + " and use an ability"
 	case u.CanMove():
-		status = u.Name + " can move"
+		status = u.Name + " can move" + moveKey
 	case canAct:
 		status = u.Name + " can use an ability"
 	default:
 		status = u.Name + " may end turn"
+		if key := config.Get().Keybindings.EndTurn; key != nil {
+			status += " [" + game.KeyName(key) + "]"
+		}
 	}
 
 	s.setStatus(status)
