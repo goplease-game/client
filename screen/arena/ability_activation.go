@@ -99,17 +99,14 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) boo
 	// Only alive units left in here
 	switch ab.TargetMode {
 	case ability.TargetSelf:
-		if u.ID == caster.ID {
-			return true
-		}
+		return u.ID == caster.ID
+
 	case ability.TargetAllies:
-		if u.IsAlly(caster) {
-			return true
-		}
+		return u.IsAlly(caster) && u.ID != caster.ID
+
 	case ability.TargetAlliesAndSelf:
-		if u.ID == caster.ID || u.IsAlly(caster) {
-			return true
-		}
+		return u.ID == caster.ID || u.IsAlly(caster)
+
 	case ability.TargetEnemies:
 		if u.IsEnemy(caster) {
 			if provokerID := getProvokingUnitID(caster); provokerID != "" {
@@ -117,6 +114,8 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) boo
 			}
 			return true
 		}
+		return false
+
 	case ability.TargetEnemiesAndSelf:
 		if u.ID == caster.ID || u.IsEnemy(caster) {
 			if provokerID := getProvokingUnitID(caster); provokerID != "" {
@@ -124,6 +123,13 @@ func (s *Screen) isValidAbilityTarget(ab ability.Ability, coord ds.HexCoord) boo
 			}
 			return true
 		}
+		return false
+
+	case ability.TargetAny:
+		return u.ID != caster.ID
+
+	case ability.TargetAnyAndSelf:
+		return true
 	}
 
 	switch ab.Activation {
