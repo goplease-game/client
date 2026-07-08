@@ -246,9 +246,7 @@ done:
 		}
 	}
 
-	if game.KeyJustPressed(keys.ShowCoordinates) {
-		s.showCellCoordinates = game.KeyPressed(keys.ShowCoordinates)
-	}
+	s.showCellCoordinates = game.KeyPressed(keys.ShowCoordinates)
 
 	s.updatePulse()
 	s.updateDropZoneAnim()
