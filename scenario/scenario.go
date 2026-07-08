@@ -12,7 +12,7 @@ import (
 )
 
 // Default represents the fallback or standard arena scenario.
-const Default = EndGame
+const Default = ClassicFairArena
 
 // Scenarios maps scenario names to their respective initialization functions.
 var Scenarios = map[Name]func() *Scenario{}
