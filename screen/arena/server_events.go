@@ -10,6 +10,7 @@ import (
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/tutorial"
 	"github.com/goplease-game/client/ws"
+	server "github.com/goplease-game/server"
 	"github.com/goplease-game/server/ability"
 	"golang.org/x/image/colornames"
 )
@@ -25,7 +26,7 @@ func (s *Screen) handleServerMessage(msg ws.InMessage) {
 	case ws.ErrorAction:
 		s.handleServerError(msg.Data)
 	case ws.YouWin, ws.YouLose, ws.OpponentSurrendered:
-		s.handleGameOver(msg.Action)
+		s.handleGameOver(msg)
 	case ws.PlaceUnitAction:
 		s.handlePlaceUnit()
 	case ws.EndTurnAction:
@@ -90,16 +91,22 @@ func (s *Screen) handleServerError(data json.RawMessage) {
 	s.setStatus("ERROR: " + msg.Message)
 }
 
-func (s *Screen) handleGameOver(reason ws.Action) {
-	switch reason {
+func (s *Screen) handleGameOver(msg ws.InMessage) {
+	var stats server.Stats
+	err := json.Unmarshal(msg.Data, &stats)
+	if err != nil {
+		log.Fatal("handleGameOver unmarshal:", err)
+	}
+
+	switch msg.Action {
 	case ws.YouWin, ws.OpponentSurrendered:
 		var explain string
-		if reason == ws.OpponentSurrendered {
+		if msg.Action == ws.OpponentSurrendered {
 			explain = "Your opponent surrendered"
 		}
-		s.showGameOverOverlay(true, explain)
+		s.showGameOverOverlay(true, explain, &stats, s.player.ID)
 	case ws.YouLose:
-		s.showGameOverOverlay(false, "")
+		s.showGameOverOverlay(false, "", &stats, s.player.ID)
 	}
 }
 
