@@ -12,7 +12,7 @@ import (
 )
 
 // Default represents the fallback or standard arena scenario.
-const Default = ClassicFairArena
+const Default = EndGame
 
 // Scenarios maps scenario names to their respective initialization functions.
 var Scenarios = map[Name]func() *Scenario{}
@@ -97,7 +97,7 @@ func (s *Scenario) Arena() *server.Arena {
 // placeUnitAt picks a unit by templateID from player's hand,
 // sets its position and places it on the board cell at coord.
 // The unit is also appended to the scenario queue.
-func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *server.Unit { //nolint:unparam
+func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *server.Unit {
 	var unit *server.Unit
 	unit, from.Units = pickUnitByTemplateID(from.Units, unitID)
 	at := server.HexCoord{Q: atQ, R: atR}
@@ -109,9 +109,22 @@ func (s *Scenario) placeUnitAt(from *server.Player, unitID, atQ, atR int) *serve
 	}
 
 	unit.Pos = &at
+	unit.OwnerID = from.ID
+
 	s.Board.Cells[at].Unit = unit
 	s.Queue = append(s.Queue, unit)
 
+	return unit
+}
+
+// placeEnemyAt is the same as placeUnitAt, but sets IsOpponent to true.
+func (s *Scenario) placeEnemyAt(from *server.Player, unitID, atQ, atR int) *server.Unit {
+	unit := s.placeUnitAt(from, unitID, atQ, atR)
+	if unit == nil {
+		return unit
+	}
+
+	unit.IsOpponent = true
 	return unit
 }
 
