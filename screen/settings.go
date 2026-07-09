@@ -395,7 +395,7 @@ func (s *SettingsScreen) buildTabs() *widget.TabBook {
 			)),
 		),
 	)
-	keybindingTab.AddChild(s.buildKeybindingTab()) // Вызов нового метода
+	keybindingTab.AddChild(s.buildKeybindingTab())
 
 	tabButtonImg := tabButtonImage()
 	tabFace := ui.TextFace(16)

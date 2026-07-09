@@ -13,3 +13,8 @@ type Screen interface {
 	// Draw renders the screen onto the provided image.
 	Draw(screen *ebiten.Image)
 }
+
+// Resizable defines an interface for components that can be resized.
+type Resizable interface {
+	Resize(width, height int)
+}

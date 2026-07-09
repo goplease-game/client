@@ -9,6 +9,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
@@ -28,6 +29,7 @@ type Screen struct {
 	snapshot   ds.GameSnapshot
 	server     ws.Client
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	menuUI     *ebitenui.UI
 	gameOverUI *ebitenui.UI
 
@@ -149,19 +151,21 @@ type Screen struct {
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
 func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
-	s := &Screen{
-		snapshot:        snap,
-		server:          server,
-		board:           snap.Board,
-		roomID:          snap.ArenaID,
-		player:          snap.Player,
-		opponentName:    snap.OpponentName,
-		unitsQueue:      snap.UnitsQueue,
-		activeUnitID:    snap.ActiveUnitID,
-		roundNumber:     snap.Round,
-		unitCards:       make(map[string]*widget.Container),
-		turnTimeSeconds: snap.TurnTimeSeconds,
+	conf := config.Get()
 
+	s := &Screen{
+		snapshot:                   snap,
+		server:                     server,
+		board:                      snap.Board,
+		roomID:                     snap.ArenaID,
+		player:                     snap.Player,
+		opponentName:               snap.OpponentName,
+		unitsQueue:                 snap.UnitsQueue,
+		activeUnitID:               snap.ActiveUnitID,
+		roundNumber:                snap.Round,
+		unitCards:                  make(map[string]*widget.Container),
+		turnTimeSeconds:            snap.TurnTimeSeconds,
+		bg:                         backdrop.RandomOf(backdrop.ArenaScreen, conf.WindowW, conf.WindowH),
 		maxPhantomAPPerUnitPerTurn: snap.MaxPhantomAPPerUnitPerTurn,
 	}
 
@@ -188,6 +192,8 @@ func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
 		}
 	}
 done:
+
+	s.bg.Update()
 
 	tutorialWasVisible := s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible()
 
@@ -284,6 +290,7 @@ done:
 // (drag cards, tooltips). The movement animation is drawn as the topmost layer.
 // Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 
 	if u := s.unitByID(s.activeUnitID); u != nil {
@@ -347,6 +354,11 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	s.pendingDrawOps = nil
 }
 
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *Screen) Resize(width, height int) {
+	s.bg.Resize(width, height)
+}
+
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
 // and queue cards. Early-returns if nothing is currently pulsing.
 func (s *Screen) updatePulse() {
@@ -395,7 +407,7 @@ func (s *Screen) updateDropZoneAnim() {
 // that draws hex cells in the correct layer order.
 func (s *Screen) setupUI() {
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)),
+		// widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)).
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 

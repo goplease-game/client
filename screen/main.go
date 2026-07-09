@@ -13,6 +13,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/scenario"
@@ -42,6 +43,7 @@ var (
 type MainScreen struct {
 	serverCl   *ws.ClientProvider
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
 	exit       bool
 	descText   *widget.Text
@@ -52,12 +54,14 @@ type MainScreen struct {
 func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	serverCl.SwitchToReal()
 
+	conf := config.Get()
 	s := &MainScreen{
 		serverCl: serverCl,
+		bg:       backdrop.RandomOf(backdrop.MainScreen, conf.WindowW, conf.WindowH),
 	}
 
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
+		// widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})).
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
@@ -163,6 +167,7 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 		return nil, ebiten.Termination
 	}
 
+	s.bg.Update()
 	s.ui.Update()
 
 	if s.nextScreen != nil {
@@ -176,7 +181,13 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw implements game.Screen. It renders the main menu UI.
 func (s *MainScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
+}
+
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *MainScreen) Resize(width, height int) {
+	s.bg.Resize(width, height)
 }
 
 // mainMenu builds the title and menu button column shown on the main screen.

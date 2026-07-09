@@ -44,7 +44,7 @@ type Step struct {
 // AnchorTarget defines where the tutorial overlay is positioned on screen.
 type AnchorTarget int
 
-// Anchor тargets.
+// Anchor targets.
 const (
 	AnchorBottomRight AnchorTarget = iota // default
 	AnchorTopLeft
