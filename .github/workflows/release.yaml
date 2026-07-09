@@ -1,0 +1,169 @@
+name: Release Game
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on tags like v1.0.0, v0.2.1, etc.
+
+jobs:
+  build-and-release:
+    name: Build and Release for all platforms
+    runs-on: ubuntu-22.04 # Using 22.04 for older glibc version (better Linux compatibility)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      # Install system dependencies required for Linux CGO graphics compilation (Ebitengine)
+      - name: Install Linux graphics dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+
+      # Install go-winres utility for embedding Windows icons and metadata
+      - name: Install go-winres
+        run: go install github.com/tc-hib/go-winres@latest
+
+      # Set global metadata variables available across all build steps
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
+      # Generate default configuration file
+      - name: Generate default configuration file
+        run: |
+          mkdir -p config
+          cat > config/config_defaults.yaml << EOF
+          resolution: 900x750
+          server_addr: game.gopl.dev
+          secure: true
+          volume: 1
+          show_game_log: true
+          auto_show_info_panel: true
+          keybindings:
+            move: M
+            ability_1: Z
+            ability_2: X
+            ability_3: C
+            ability_4: V
+            show_game_log: L
+            show_coordinates: AltLeft
+            end_turn: Space
+          EOF
+
+      # =================================================================
+      #  WINDOWS BUILD
+      # =================================================================
+      - name: Build Windows Target
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: 1
+        run: |
+          # Prepare windows resources using go-winres
+          cd build/windows
+          go-winres make
+          cd ../..
+          cp build/windows/*.syso .
+          
+          # Compile executable
+          mkdir -p dist/windows
+          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/windows/goplease.exe cmd/game/main.go
+          
+          # Bundle executable and package into a ZIP archive
+          cd dist/windows
+          zip -r ../../goplease_windows_amd64.zip goplease.exe
+          cd ../..
+
+      # =================================================================
+      # MACOS BUILD (Cross-compilation without CGO)
+      # =================================================================
+      - name: Build macOS Target (.app bundle)
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          CGO_ENABLED: 0 # Disable CGO for smooth cross-compilation from Linux runner
+        run: |
+          # Set up standard macOS .app bundle directory hierarchy
+          APP_DIR="dist/macos/goplease.app/Contents"
+          mkdir -p "$APP_DIR/MacOS"
+          mkdir -p "$APP_DIR/Resources"
+          
+          # Compile native macOS binary
+          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o "$APP_DIR/MacOS/goplease" cmd/game/main.go
+          
+          # Copy predefined package metadata and icons
+          cp build/macos/Info.plist "$APP_DIR/"
+          cp build/macos/icon.icns "$APP_DIR/Resources/"
+          
+          # Compress .app directory bundle into a single ZIP archive
+          cd dist/macos
+          zip -r ../../goplease_macos_amd64.zip goplease.app
+          cd ../..
+
+      # =================================================================
+      # LINUX BUILD
+      # =================================================================
+      - name: Build Linux Target
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: 1 # CGO is required for Linux
+        run: |
+          # Setup package structure
+          mkdir -p dist/linux/goplease_linux
+          
+          # Compile native Linux binary
+          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/linux/goplease_linux/goplease cmd/game/main.go
+          
+          # Supply portable package with desktop entries and asset icons
+          cp build/linux/icon.png dist/linux/goplease_linux/
+          cp build/linux/goplease.desktop dist/linux/goplease_linux/
+          
+          # Archive build folder into tarball (.tar.gz)
+          cd dist/linux
+          tar -czf ../../goplease_linux_amd64.tar.gz goplease_linux
+          cd ../..
+
+      # =================================================================
+      # WASM
+      # =================================================================
+      - name: Build WASM Target Archive
+        env:
+          GOOS: js
+          GOARCH: wasm
+        run: |
+          # Compile Go code to WebAssembly binary
+          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o asset/wasm/goplease.wasm cmd/game/main.go
+          
+          # Extract required JavaScript support file from current Go SDK
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" asset/wasm/
+          
+          # Inject hash query strings into HTML entry points to bypass aggressive CDN/Browser caching
+          HASH=$(sha256sum asset/wasm/goplease.wasm | cut -c1-8)
+          sed -i "s/goplease\.wasm/goplease.wasm?v=${HASH}/g" asset/wasm/game.html
+          sed -i "s/game\.html/game.html?v=${HASH}/g" asset/wasm/index.html
+          
+          # Compress standalone web distribution package
+          tar -czf goplease_wasm.tar.gz -C asset/wasm .
+
+      # =================================================================
+      # 5. PUBLISH ASSETS TO GITHUB RELEASES
+      # =================================================================
+      - name: Create GitHub Release and Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            goplease_windows_amd64.zip
+            goplease_macos_amd64.zip
+            goplease_linux_amd64.tar.gz
+            goplease_wasm.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided automatically by GitHub Actions execution context

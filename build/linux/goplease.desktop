@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=go, please
+Comment=Turn-based hex-grid tactical PvP game
+Exec=goplease
+Icon=icon
+Terminal=false
+Categories=Game;Strategy;
