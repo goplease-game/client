@@ -12,6 +12,7 @@ import (
 	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
 	"github.com/goplease-game/server/ability"
@@ -152,6 +153,8 @@ type Screen struct {
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
 func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 	conf := config.Get()
+
+	sfx.StopAll()
 
 	s := &Screen{
 		snapshot:                   snap,
