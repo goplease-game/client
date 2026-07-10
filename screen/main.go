@@ -26,6 +26,8 @@ import (
 	"golang.org/x/image/colornames"
 )
 
+const mainMusicTheme = "its-time-for-an-adventure.ogg"
+
 // Shared color palette for the main menu UI.
 var (
 	nameColor                = ui.RGBFromHex("#00a8e8")
@@ -47,6 +49,7 @@ type MainScreen struct {
 	nextScreen game.Screen
 	exit       bool
 	descText   *widget.Text
+	music      *sfx.MusicTrack
 }
 
 // NewMainScreen creates the main menu screen with Play, Practice, Settings,
@@ -54,10 +57,14 @@ type MainScreen struct {
 func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	serverCl.SwitchToReal()
 
+	sfx.StopAll()
+	mainTune := sfx.PlayMusic(mainMusicTheme, true, time.Second*5)
+
 	conf := config.Get()
 	s := &MainScreen{
 		serverCl: serverCl,
 		bg:       backdrop.RandomOf(backdrop.MainScreen, conf.WindowW, conf.WindowH),
+		music:    mainTune,
 	}
 
 	root := widget.NewContainer(
@@ -262,18 +269,20 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online",
 		func(_ *widget.ButtonClickedEventArgs) {
+			s.music.FadeOut(5 * time.Second)
 			s.nextScreen = NewSearchScreen(s.serverCl)
 		})
 
 	pwfButton := s.mainMenuButtonWithDesc("Play with friend", 16,
 		"Challenge a friend using a join code.",
 		func(_ *widget.ButtonClickedEventArgs) {
-			s.nextScreen = NewPlayWithFriendScreen(s.serverCl)
+			s.nextScreen = NewPlayWithFriendScreen(s.serverCl, s)
 		})
 
 	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
 		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
 		func(_ *widget.ButtonClickedEventArgs) {
+			s.music.FadeOut(3 * time.Second)
 			s.nextScreen = newScenarioScreen(s.serverCl)
 		})
 

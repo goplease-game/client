@@ -9,6 +9,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
@@ -16,18 +17,22 @@ import (
 
 // AboutScreen shows information about the game: version, credits, etc.
 type AboutScreen struct {
-	previous   game.Screen
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
+	prevScreen game.Screen
 }
 
 // NewAboutScreen creates the about screen. previous is the screen
 // to return to when the player presses Back.
-func NewAboutScreen(previous game.Screen) *AboutScreen {
-	s := &AboutScreen{previous: previous}
+func NewAboutScreen(prevScreen *MainScreen) *AboutScreen {
+	s := &AboutScreen{
+		prevScreen: prevScreen,
+		bg:         prevScreen.bg,
+	}
 
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
+		// widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})).
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
@@ -93,7 +98,7 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 	}
 
 	backButton := secondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = s.previous
+		s.nextScreen = s.prevScreen
 	})
 
 	panel.AddChild(title)
@@ -110,6 +115,7 @@ func NewAboutScreen(previous game.Screen) *AboutScreen {
 // Update advances the about screen UI and returns the previous screen
 // once Back is pressed.
 func (s *AboutScreen) Update(_ *game.Game) (game.Screen, error) {
+	s.bg.Update()
 	s.ui.Update()
 
 	if s.nextScreen != nil {
@@ -123,5 +129,6 @@ func (s *AboutScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw renders the about screen UI.
 func (s *AboutScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 }

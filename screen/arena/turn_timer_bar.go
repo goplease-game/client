@@ -2,13 +2,17 @@ package arena
 
 import (
 	"image/color"
+	"time"
 
+	"github.com/goplease-game/client/sfx"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
 type timerBarState struct {
-	tick     int
-	duration int // total duration in frames
+	tick        int
+	duration    int  // total duration in frames
+	tickingSent bool // tracks if the under-10-seconds sound has started
+	sound       *sfx.MusicTrack
 }
 
 // startTurnTimer starts the turn timer for the active unit.
@@ -17,14 +21,20 @@ func (s *Screen) startTurnTimer() {
 		return
 	}
 	s.timerBar = &timerBarState{
-		tick:     0,
-		duration: s.turnTimeSeconds * 60,
+		tick:        0,
+		duration:    s.turnTimeSeconds * 60,
+		tickingSent: false,
 	}
 }
 
 // stopTurnTimer stops the turn timer.
 func (s *Screen) stopTurnTimer() {
-	s.timerBar = nil
+	if s.timerBar != nil {
+		if s.timerBar.sound != nil {
+			s.timerBar.sound.Stop()
+		}
+		s.timerBar = nil
+	}
 }
 
 // updateTurnTimer advances the turn timer and ends the turn when time runs out.
@@ -33,7 +43,18 @@ func (s *Screen) updateTurnTimer() {
 		return
 	}
 	s.timerBar.tick++
+
+	// Calculate remaining frames and check if it's 10 seconds (10 * 60 frames) or less.
+	remainingFrames := s.timerBar.duration - s.timerBar.tick
+	if remainingFrames <= 10*60 && !s.timerBar.tickingSent {
+		s.timerBar.tickingSent = true
+		s.timerBar.sound = sfx.PlayMusic(tickTockSound, false, 5*time.Second)
+	}
+
 	if s.timerBar.tick >= s.timerBar.duration {
+		if s.timerBar.sound != nil {
+			s.timerBar.sound.Stop()
+		}
 		s.timerBar = nil
 	}
 }

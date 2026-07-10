@@ -9,6 +9,7 @@ import (
 	"github.com/ebitenui/ebitenui"
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	server "github.com/goplease-game/server"
 	sds "github.com/goplease-game/server/ds"
@@ -51,8 +52,11 @@ func (s *Screen) showGameOverOverlay(win bool, explain string, stats *server.Sta
 	title := "You Lose"
 	titleColor := gameOverLoseColor
 	if win {
+		sfx.PlayMusic(youWinMusic, false)
 		title = "You Win"
 		titleColor = gameOverWinColor
+	} else {
+		sfx.PlayMusic(youLoseMusic, false)
 	}
 
 	overlay := widget.NewContainer(
