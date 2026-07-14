@@ -9,11 +9,11 @@ import (
 	"math/rand/v2"
 
 	"github.com/ebitenui/ebitenui"
-	eimage "github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/google/uuid"
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
@@ -118,7 +118,9 @@ func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) 
 // SearchScreen is the matchmaking screen shown while the client waits for an opponent.
 type SearchScreen struct {
 	serverCl        *ws.ClientProvider
+	prevScreen      game.Screen
 	ui              *ebitenui.UI
+	bg              backdrop.Backdrop
 	statusLbl       *widget.Text
 	elapsedLbl      *widget.Text
 	animPlaceholder *widget.Container
@@ -128,31 +130,16 @@ type SearchScreen struct {
 }
 
 // NewSearchScreen creates a SearchScreen and initiates a server connection.
-func NewSearchScreen(serverCl *ws.ClientProvider) *SearchScreen {
+func NewSearchScreen(serverCl *ws.ClientProvider, prevScreen *MainScreen) *SearchScreen {
 	s := &SearchScreen{
-		serverCl: serverCl,
+		serverCl:   serverCl,
+		prevScreen: prevScreen,
+		bg:         prevScreen.bg,
 	}
 
 	s.serverCl.Get().Connect(uuid.New().String())
 
-	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(eimage.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
-
-	center := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(12),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.MinSize(300, 0),
-		),
-	)
+	panel := ui.NewPanel(SearchingOppLabel)
 
 	animPlaceholder := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
@@ -188,41 +175,11 @@ func NewSearchScreen(serverCl *ws.ClientProvider) *SearchScreen {
 		),
 	)
 
-	center.AddChild(animPlaceholder)
-	center.AddChild(statusLbl)
-	center.AddChild(elapsedLbl)
+	panel.AddContent(animPlaceholder)
+	panel.AddContent(statusLbl)
+	panel.AddContent(elapsedLbl)
 
-	footer := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionEnd,
-				StretchHorizontal:  true,
-			}),
-		),
-	)
-
-	hintTF := ui.TextFace(15)
-	hintLbl := widget.NewText(
-		widget.TextOpts.Text("[Esc] cancel", &hintTF, colornames.Dimgray),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-	)
-	footer.AddChild(hintLbl)
-
-	root.AddChild(center)
-	root.AddChild(footer)
-
-	s.ui = &ebitenui.UI{Container: root}
+	s.ui = &ebitenui.UI{Container: panel.Build()}
 	s.statusLbl = statusLbl
 	s.elapsedLbl = elapsedLbl
 	s.animPlaceholder = animPlaceholder
@@ -232,6 +189,7 @@ func NewSearchScreen(serverCl *ws.ClientProvider) *SearchScreen {
 // Update implements game.Screen. It drives the matchmaking loop, unit animation, and input handling.
 func (s *SearchScreen) Update(_ *game.Game) (game.Screen, error) {
 	s.tick++
+	s.bg.Update()
 	s.ui.Update()
 
 	if !s.animReady {
@@ -265,7 +223,8 @@ func (s *SearchScreen) Update(_ *game.Game) (game.Screen, error) {
 				Data:   nil,
 			})
 		}
-		return NewMainScreen(s.serverCl), nil
+
+		return s.prevScreen, nil
 	}
 
 	for {
@@ -282,6 +241,7 @@ func (s *SearchScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw implements game.Screen. It renders the UI and all active unit animations.
 func (s *SearchScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 	if s.animReady {
 		rect := s.animPlaceholder.GetWidget().Rect

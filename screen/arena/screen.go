@@ -55,6 +55,7 @@ type Screen struct {
 	dropZoneCells    []*DropZoneCell     // safe-zone cells that accept unit drops
 	sortedCells      []*ui.HexCellWidget // board cells sorted by (R, Q) for deterministic overlay render order
 	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
+	boardMotes       *backdrop.MoteField
 
 	// UI widget references used for dynamic updates.
 	unitCards     map[string]*widget.Container // unitID:widget
@@ -138,9 +139,18 @@ type Screen struct {
 
 	nextActionHourglass *widget.Graphic
 
-	logWindow         *gameLogWindow
-	logPanelRef       *widget.Container
+	logWindow   *gameLogWindow
+	logPanelRef *widget.Container
+
+	// boardContainerRef is the outer container that stretches to fill the space
+	// between header and footer.
 	boardContainerRef *widget.Container
+
+	// boardWidgetRef is the inner container using HexLayout to position hex
+	// cells by axial coordinate. Its Rect gives the actual bounding box of the
+	// hex grid (unlike boardContainerRef, which is stretched to fill available
+	// space) — used to anchor board-relative visuals like the shadow.
+	boardWidgetRef *widget.Container
 
 	leftPanelRef   *widget.Container
 	infoPanelRef   *widget.Container
@@ -169,6 +179,7 @@ func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
 		unitCards:                  make(map[string]*widget.Container),
 		turnTimeSeconds:            snap.TurnTimeSeconds,
 		bg:                         backdrop.RandomOf(backdrop.ArenaScreen, conf.WindowW, conf.WindowH),
+		boardMotes:                 backdrop.NewMoteField(conf.WindowW, conf.WindowH),
 		maxPhantomAPPerUnitPerTurn: snap.MaxPhantomAPPerUnitPerTurn,
 	}
 
@@ -280,6 +291,8 @@ done:
 		s.infoPanelDirty = false
 	}
 
+	s.boardMotes.Update()
+
 	if s.nextScreen != nil {
 		return s.nextScreen, nil
 	}
@@ -295,6 +308,7 @@ done:
 func (s *Screen) Draw(screen *ebiten.Image) {
 	s.bg.Draw(screen)
 	s.ui.Draw(screen)
+	s.boardMotes.Draw(screen)
 
 	if u := s.unitByID(s.activeUnitID); u != nil {
 		if cell, ok := s.boardCellWidgets[u.Pos]; ok {
@@ -360,6 +374,7 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 // Resize updates the backdrop dimensions when the screen or window is resized.
 func (s *Screen) Resize(width, height int) {
 	s.bg.Resize(width, height)
+	s.boardMotes.Resize(width, height)
 }
 
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
@@ -438,25 +453,21 @@ func (s *Screen) setupUI() {
 		// EbitenUI windows (drag card, tooltips), giving us the correct layer order:
 		// hex fills → grid → unit portraits → drop zone FX → HUD badges → FX effects.
 		PostRenderHook: func(screen *ebiten.Image) {
-			// Layer 1: hex polygon fills (background color).
-			for _, cell := range s.boardCellWidgets {
-				cell.RenderFill(screen)
-			}
-			// Layer 2: grid stroke drawn as a single path to avoid double-width edges.
-			s.renderGrid(screen)
-			// Layer 3: unit portraits — sorted for deterministic overlap at hex borders.
+			s.drawBoard(screen)
+
+			// unit portraits — sorted for deterministic overlap at hex borders.
 			for _, cell := range s.sortedCells {
 				cell.RenderUnitLayer(screen)
 			}
-			// Layer 4: drop zone arrow animations.
+			// drop zone arrow animations.
 			for _, sc := range s.dropZoneCells {
 				sc.RenderAnim(screen)
 			}
-			// Layer 5: HUD badges (hp, shield, move indicator).
+			// HUD badges (hp, shield, move indicator).
 			for _, cell := range s.sortedCells {
 				cell.RenderHUDLayer(screen)
 			}
-			// Layer 6: FX (damage numbers, attack effects).
+			// FX (damage numbers, attack effects).
 			for _, cell := range s.sortedCells {
 				cell.RenderFXLayer(screen)
 			}

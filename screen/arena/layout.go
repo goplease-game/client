@@ -35,6 +35,17 @@ func (s *Screen) createHeader() *widget.Container {
 		),
 	)
 
+	bg := ui.NewTiledBackground(
+		ui.NoiseBg(),
+		headerBgColor,
+		nil,
+		widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+			StretchHorizontal: true,
+			StretchVertical:   true,
+		}),
+	)
+	h.AddChild(bg)
+
 	s.queuePanelRef = widget.NewContainer(
 		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(unitPanelBgColor)),
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
@@ -113,6 +124,17 @@ func (s *Screen) createFooter() *widget.Container {
 			widget.WidgetOpts.MinSize(0, footerH),
 		),
 	)
+
+	bg := ui.NewTiledBackground(
+		asset.Image("footer-bg.png"),
+		footerBgColor,
+		nil,
+		widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+			StretchHorizontal: true,
+			StretchVertical:   true,
+		}),
+	)
+	footer.AddChild(bg)
 
 	actionWidget := s.buildNextActionWidget()
 	actionWidget.GetWidget().LayoutData = widget.AnchorLayoutData{
