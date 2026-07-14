@@ -7,13 +7,13 @@ import (
 	"path"
 	"sync"
 
-	"github.com/goplease-game/client/ui"
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/colornames"
 )
 
 // imageCache stores pre-processed images to avoid redundant transformations.
 var imageCache sync.Map
+var solidImageCache sync.Map
 
 // ImageBuilder builds an *ebiten.Image with optional resize, tint, and shadow.
 // Results are cached at each step — resize, tint, and shadow — so shared
@@ -107,7 +107,7 @@ func (b *ImageBuilder) Render() *ebiten.Image {
 
 	if b.color != nil {
 		img = loadOrStore(b.tintKey(), func() *ebiten.Image {
-			return ui.TintImage(img, b.color)
+			return TintImage(img, b.color)
 		})
 	}
 
@@ -241,4 +241,49 @@ func (b *ImageBuilder) shadowKey() imageCacheKey {
 		b:       sb,
 	}
 	return key
+}
+
+// TintImage returns a copy of src tinted with iconColor, preserving the
+// original per-pixel brightness and alpha (e.g. for recoloring status icons).
+func TintImage(src *ebiten.Image, iconColor color.Color) *ebiten.Image {
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	result := ebiten.NewImage(w, h)
+
+	tr, tg, tb, _ := iconColor.RGBA()
+
+	for y := range h {
+		for x := range w {
+			cr, cg, cb, ca := src.At(x, y).RGBA()
+			if ca == 0 {
+				continue
+			}
+
+			brightness := (float32(cr) + float32(cg) + float32(cb)) / (3 * float32(ca))
+
+			result.Set(x, y, color.NRGBA{
+				R: uint8(float32(tr>>8) * brightness),
+				G: uint8(float32(tg>>8) * brightness),
+				B: uint8(float32(tb>>8) * brightness),
+				A: uint8(ca >> 8),
+			})
+		}
+	}
+
+	return result
+}
+
+// SolidImage returns a cached 1x1 *ebiten.Image filled with c.
+func SolidImage(c color.Color) *ebiten.Image {
+	r, g, b, a := c.RGBA()
+	key := struct{ r, g, b, a uint32 }{r, g, b, a}
+
+	if cached, ok := solidImageCache.Load(key); ok {
+		return cached.(*ebiten.Image) //nolint:forcetypeassert
+	}
+
+	img := ebiten.NewImage(1, 1)
+	img.Fill(c)
+	solidImageCache.Store(key, img)
+	return img
 }

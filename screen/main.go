@@ -270,7 +270,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online",
 		func(_ *widget.ButtonClickedEventArgs) {
 			s.music.FadeOut(5 * time.Second)
-			s.nextScreen = NewSearchScreen(s.serverCl)
+			s.nextScreen = NewSearchScreen(s.serverCl, s)
 		})
 
 	pwfButton := s.mainMenuButtonWithDesc("Play with friend", 16,
@@ -296,7 +296,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	var exitButton *widget.Button
 	if !config.IsWASM() {
-		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "", func(_ *widget.ButtonClickedEventArgs) {
+		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "Snap back to reality", func(_ *widget.ButtonClickedEventArgs) {
 			s.exit = true
 		})
 	}
@@ -324,7 +324,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 // text size change, a press-down text shift, and dynamic description text logic.
 func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc string, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
 	tf := ui.TextFace(size)
-	tfHover := ui.TextFace(size + 5)
+	tfHover := ui.TextFace(size + 2)
 	var button *widget.Button
 	button = widget.NewButton(
 		widget.ButtonOpts.WidgetOpts(
@@ -383,7 +383,7 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 // mainMenuButtonImage returns the nine-slice background images for
 // primary menu buttons.
 func mainMenuButtonImage() *widget.ButtonImage {
-	idle := image.NewNineSliceColor(menuButtonBgColor)
+	idle := image.NewBorderedNineSliceColor(menuButtonBgColor, ui.DarkenRGB(menuButtonBgColor, 20), 2)
 	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
 	pressed := image.NewNineSliceColor(colornames.Gold)
 
@@ -441,16 +441,9 @@ type buttonProps struct {
 
 // secondaryButton creates a smaller menu button styled like
 // mainMenuButton, used for secondary actions like Back.
-func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc, props ...buttonProps) *widget.Button {
+func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc, _ ...buttonProps) *widget.Button {
 	tf := ui.TextFace(size)
 	tfHover := ui.TextFace(size + 5)
-
-	var layoutData any = widget.RowLayoutData{
-		Position: widget.RowLayoutPositionCenter,
-	}
-	if len(props) > 0 && props[0].layoutData != nil {
-		layoutData = props[0].layoutData
-	}
 
 	var button *widget.Button
 	button = widget.NewButton(
@@ -459,7 +452,6 @@ func secondaryButton(text string, size float64, clickHandler widget.ButtonClicke
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
-			widget.WidgetOpts.LayoutData(layoutData),
 		),
 		widget.ButtonOpts.Image(mainMenuButtonImage()),
 		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
@@ -493,6 +485,7 @@ func secondaryButton(text string, size float64, clickHandler widget.ButtonClicke
 			button.Text().SetFace(&tf)
 		}),
 	)
+
 	return button
 }
 

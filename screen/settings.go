@@ -10,6 +10,7 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
@@ -22,6 +23,7 @@ import (
 type SettingsScreen struct {
 	previous   game.Screen
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
 
 	volumeSlider *widget.Slider
@@ -37,66 +39,35 @@ type SettingsScreen struct {
 
 // NewSettingsScreen creates the settings screen. previous is the screen
 // to return to when the player presses Save.
-func NewSettingsScreen(previous game.Screen) *SettingsScreen {
-	s := &SettingsScreen{previous: previous}
+func NewSettingsScreen(prevScreen *MainScreen) *SettingsScreen {
+	s := &SettingsScreen{
+		previous: prevScreen,
+		bg:       prevScreen.bg,
+	}
 
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
-	panel := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(25),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(50)),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionStart,
-			}),
-			widget.WidgetOpts.MinSize(460, 0),
-		),
-	)
-
-	titleTF := ui.TextFace(30)
-	title := widget.NewText(
-		widget.TextOpts.Text("Settings", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		})),
-	)
-	panel.AddChild(title)
-	panel.AddChild(s.buildTabs())
+	panel := ui.NewPanel("Settings: General")
+	panel.AddContent(s.buildTabs(panel))
 
 	// --- Save / Reset settings ---
-	actions := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(12),
-		)),
-		widget.ContainerOpts.WidgetOpts(widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		})),
-	)
-	actions.AddChild(secondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(secondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
 		err := config.Save()
 		if err != nil {
 			log.Printf("settings: failed to save config: %v", err)
 		}
 		s.nextScreen = s.previous
 	}))
-	actions.AddChild(secondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(secondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.previous
 	}))
-	actions.AddChild(secondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(secondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.resetToDefaults()
 	}))
 
-	panel.AddChild(actions)
-	root.AddChild(panel)
+	root.AddChild(panel.Build())
 
 	s.ui = &ebitenui.UI{Container: root}
 	return s
@@ -148,6 +119,7 @@ func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
 		}
 	}
 
+	s.bg.Update()
 	s.ui.Update()
 
 	if s.nextScreen != nil {
@@ -161,7 +133,13 @@ func (s *SettingsScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw renders the settings UI to screen.
 func (s *SettingsScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
+}
+
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *SettingsScreen) Resize(width, height int) {
+	s.bg.Resize(width, height)
 }
 
 // buildGeneralTab builds the General tab.
@@ -376,7 +354,7 @@ func (s *SettingsScreen) refreshKeyLabels() {
 }
 
 // buildTabs constructs the General | Keybinding tab book.
-func (s *SettingsScreen) buildTabs() *widget.TabBook {
+func (s *SettingsScreen) buildTabs(panel *ui.Panel) *widget.TabBook {
 	generalTab := widget.NewTabBookTab(
 		widget.TabBookTabOpts.Label("General"),
 		widget.TabBookTabOpts.ContainerOpts(
@@ -397,6 +375,11 @@ func (s *SettingsScreen) buildTabs() *widget.TabBook {
 	)
 	keybindingTab.AddChild(s.buildKeybindingTab())
 
+	tabTitles := map[*widget.TabBookTab]string{
+		generalTab:    "Settings: General",
+		keybindingTab: "Settings: Keybinding",
+	}
+
 	tabButtonImg := tabButtonImage()
 	tabFace := ui.TextFace(16)
 
@@ -414,6 +397,11 @@ func (s *SettingsScreen) buildTabs() *widget.TabBook {
 		),
 		widget.TabBookOpts.Tabs(generalTab, keybindingTab),
 		widget.TabBookOpts.InitialTab(generalTab),
+		widget.TabBookOpts.TabSelectedHandler(func(args *widget.TabBookTabSelectedEventArgs) {
+			if title, ok := tabTitles[args.Tab]; ok {
+				panel.Title(title)
+			}
+		}),
 	)
 }
 

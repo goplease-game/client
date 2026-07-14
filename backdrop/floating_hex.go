@@ -31,7 +31,7 @@ const (
 	hexMaxCount   = 100
 
 	hexImageAlpha  = 0.35 // portrait opacity, independent of the tile's own alpha
-	hexImageMargin = 5    // px subtracted from hex radius to size the portrait
+	hexImageMargin = -5   // px subtracted from hex radius to size the portrait
 	hexImageMinPx  = 8    // px, floor so asset.Image never gets a degenerate size
 )
 

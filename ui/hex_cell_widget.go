@@ -106,6 +106,7 @@ func (h *HexCellWidget) RenderFill(screen *ebiten.Image) {
 	if h.cachedRect.Empty() {
 		return
 	}
+
 	var path vector.Path
 	h.buildHexPath(&path)
 	var opts vector.DrawPathOptions
@@ -204,10 +205,10 @@ func (h *HexCellWidget) RenderFXLayer(screen *ebiten.Image) {
 func (h *HexCellWidget) SetColor(c color.Color) {
 	r, g, b, a := c.RGBA()
 	h.bgColor = color.RGBA{
-		R: uint8(r >> 8), //nolint:gosec
-		G: uint8(g >> 8), //nolint:gosec
-		B: uint8(b >> 8), //nolint:gosec
-		A: uint8(a >> 8), //nolint:gosec
+		R: uint8(r >> 8),
+		G: uint8(g >> 8),
+		B: uint8(b >> 8),
+		A: uint8(a >> 8),
 	}
 }
 

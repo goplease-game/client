@@ -5,11 +5,25 @@ import (
 	"sort"
 
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// createBoardContainer builds the EbitenUI container that holds all hex cell
+// boardShadowOffsetX and boardShadowOffsetY compensate for the padding baked
+// around the board silhouette in the shadow PNG asset (assets/board_shadow.png).
+// The asset's silhouette doesn't start at (0,0) — it's inset by this amount
+// on each side to leave room for the shadow to spread past the board's edges.
+// Subtracted from boardWidgetRef's Rect.Min when positioning the shadow, so
+// the asset's silhouette aligns exactly with the real hex grid regardless of
+// where the board is currently anchored on screen.
+const (
+	boardShadowOffsetX = 18
+	boardShadowOffsetY = 14
+)
+
+// createBoardContainer builds the widget.Container that holds all hex cell
 // widgets. It also populates boardCellWidgets and sortedCells.
 func (s *Screen) createBoardContainer() *widget.Container {
 	// Outer container stretches to fill the space between header and footer.
@@ -64,6 +78,7 @@ func (s *Screen) createBoardContainer() *widget.Container {
 	container.AddChild(boardWidget)
 
 	s.boardContainerRef = container
+	s.boardWidgetRef = boardWidget
 	return container
 }
 
@@ -168,4 +183,24 @@ func (s *Screen) onCellClicked(coord ds.HexCoord) {
 		s.deselectUnit()
 		s.showAbilityPanel(u)
 	}
+}
+
+// drawBoard bakes all hex fills into a single offscreen image on first call
+// (or after InvalidateBoardImage), then draws the shadow and the board with
+// one DrawImage call each instead of per-cell rendering every frame.
+func (s *Screen) drawBoard(screen *ebiten.Image) {
+	for _, cell := range s.boardCellWidgets {
+		cell.RenderFill(screen)
+	}
+
+	s.renderGrid(screen)
+
+	boardRect := s.boardWidgetRef.GetWidget().Rect
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(
+		float64(boardRect.Min.X-boardShadowOffsetX),
+		float64(boardRect.Min.Y-boardShadowOffsetY),
+	)
+
+	screen.DrawImage(asset.Image("board-shadow.png"), op)
 }
