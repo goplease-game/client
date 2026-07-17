@@ -68,7 +68,7 @@ jobs:
           sudo apt-get install -y imagemagick
           pip install icnsutil
 
-          mkdir -p iconset
+          mkdir -p iconset build/windows/winres
 
           # Render every size macOS/Windows expect from the 1024x1024 master
           for size in 16 32 128 256 512; do
@@ -85,10 +85,11 @@ jobs:
             iconset/icon_256x256.png iconset/icon_256x256@2x.png \
             iconset/icon_512x512.png iconset/icon_512x512@2x.png
 
-          # Windows .ico (multi-resolution container)
+          # Windows .ico — must live next to winres.json, since go-winres
+          # resolves "icon.ico" relative to the json file's own directory
           convert iconset/icon_16x16.png iconset/icon_32x32.png \
             iconset/icon_128x128.png iconset/icon_256x256.png \
-            build/windows/icon.ico
+            build/windows/winres/icon.ico
 
           # Linux — single flat PNG, 256x256 is the de facto standard
           cp iconset/icon_256x256.png build/linux/icon.png
