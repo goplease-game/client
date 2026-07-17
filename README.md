@@ -1,6 +1,6 @@
 # A "go, please" client
 
-A game client made with [Ebitengine](https://ebitengine.org/) and [EbitenUI](https://github.com/ebitenui)
+The game client for **[go, please](https://game.gopl.dev/)** game , built with [Go](https://go.dev/), [Ebitengine](https://ebitengine.org/), and [EbitenUI](https://github.com/ebitenui).
 
 ## Getting Started
 

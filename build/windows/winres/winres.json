@@ -1,0 +1,39 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": "icon.ico"
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0000": {
+        "identity": {
+          "name": "dev.gopl.game",
+          "version": "1.0.0.0"
+        },
+        "description": "go, please - turn-based hex-grid tactical PvP game",
+        "minimum-os": "win7",
+        "execution-level": "as invoker",
+        "dpi-awareness": "system"
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "0.0.0.1",
+          "product_version": "0.0.0.1"
+        },
+        "info": {
+          "0409": {
+            "ProductName": "go, please",
+            "FileDescription": "Turn-based hex-grid tactical PvP game",
+            "ProductVersion": "1.0.0.0",
+            "FileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  }
+}
