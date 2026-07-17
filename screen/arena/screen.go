@@ -9,8 +9,10 @@ import (
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
+	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
 	"github.com/goplease-game/server/ability"
@@ -28,6 +30,7 @@ type Screen struct {
 	snapshot   ds.GameSnapshot
 	server     ws.Client
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	menuUI     *ebitenui.UI
 	gameOverUI *ebitenui.UI
 
@@ -52,6 +55,7 @@ type Screen struct {
 	dropZoneCells    []*DropZoneCell     // safe-zone cells that accept unit drops
 	sortedCells      []*ui.HexCellWidget // board cells sorted by (R, Q) for deterministic overlay render order
 	boardCellWidgets map[ds.HexCoord]*ui.HexCellWidget
+	boardMotes       *backdrop.MoteField
 
 	// UI widget references used for dynamic updates.
 	unitCards     map[string]*widget.Container // unitID:widget
@@ -135,9 +139,18 @@ type Screen struct {
 
 	nextActionHourglass *widget.Graphic
 
-	logWindow         *gameLogWindow
-	logPanelRef       *widget.Container
+	logWindow   *gameLogWindow
+	logPanelRef *widget.Container
+
+	// boardContainerRef is the outer container that stretches to fill the space
+	// between header and footer.
 	boardContainerRef *widget.Container
+
+	// boardWidgetRef is the inner container using HexLayout to position hex
+	// cells by axial coordinate. Its Rect gives the actual bounding box of the
+	// hex grid (unlike boardContainerRef, which is stretched to fill available
+	// space) — used to anchor board-relative visuals like the shadow.
+	boardWidgetRef *widget.Container
 
 	leftPanelRef   *widget.Container
 	infoPanelRef   *widget.Container
@@ -149,19 +162,24 @@ type Screen struct {
 
 // NewScreen constructs a fully initialised arena Screen from a server snapshot.
 func NewScreen(snap ds.GameSnapshot, server ws.Client) *Screen {
-	s := &Screen{
-		snapshot:        snap,
-		server:          server,
-		board:           snap.Board,
-		roomID:          snap.ArenaID,
-		player:          snap.Player,
-		opponentName:    snap.OpponentName,
-		unitsQueue:      snap.UnitsQueue,
-		activeUnitID:    snap.ActiveUnitID,
-		roundNumber:     snap.Round,
-		unitCards:       make(map[string]*widget.Container),
-		turnTimeSeconds: snap.TurnTimeSeconds,
+	conf := config.Get()
 
+	sfx.StopAll()
+
+	s := &Screen{
+		snapshot:                   snap,
+		server:                     server,
+		board:                      snap.Board,
+		roomID:                     snap.ArenaID,
+		player:                     snap.Player,
+		opponentName:               snap.OpponentName,
+		unitsQueue:                 snap.UnitsQueue,
+		activeUnitID:               snap.ActiveUnitID,
+		roundNumber:                snap.Round,
+		unitCards:                  make(map[string]*widget.Container),
+		turnTimeSeconds:            snap.TurnTimeSeconds,
+		bg:                         backdrop.RandomOf(backdrop.ArenaScreen, conf.WindowW, conf.WindowH),
+		boardMotes:                 backdrop.NewMoteField(conf.WindowW, conf.WindowH),
 		maxPhantomAPPerUnitPerTurn: snap.MaxPhantomAPPerUnitPerTurn,
 	}
 
@@ -188,6 +206,8 @@ func (s *Screen) Update(_ *game.Game) (game.Screen, error) {
 		}
 	}
 done:
+
+	s.bg.Update()
 
 	tutorialWasVisible := s.tutorialOverlay != nil && s.tutorialOverlay.IsVisible()
 
@@ -271,6 +291,8 @@ done:
 		s.infoPanelDirty = false
 	}
 
+	s.boardMotes.Update()
+
 	if s.nextScreen != nil {
 		return s.nextScreen, nil
 	}
@@ -284,7 +306,9 @@ done:
 // (drag cards, tooltips). The movement animation is drawn as the topmost layer.
 // Implements game.Screen.
 func (s *Screen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
+	s.boardMotes.Draw(screen)
 
 	if u := s.unitByID(s.activeUnitID); u != nil {
 		if cell, ok := s.boardCellWidgets[u.Pos]; ok {
@@ -347,6 +371,12 @@ func (s *Screen) Draw(screen *ebiten.Image) {
 	s.pendingDrawOps = nil
 }
 
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *Screen) Resize(width, height int) {
+	s.bg.Resize(width, height)
+	s.boardMotes.Resize(width, height)
+}
+
 // updatePulse advances the sinusoidal pulse animation for highlighted hex cells
 // and queue cards. Early-returns if nothing is currently pulsing.
 func (s *Screen) updatePulse() {
@@ -395,7 +425,7 @@ func (s *Screen) updateDropZoneAnim() {
 // that draws hex cells in the correct layer order.
 func (s *Screen) setupUI() {
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)),
+		// widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(bodyBgColor)).
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
@@ -423,25 +453,21 @@ func (s *Screen) setupUI() {
 		// EbitenUI windows (drag card, tooltips), giving us the correct layer order:
 		// hex fills → grid → unit portraits → drop zone FX → HUD badges → FX effects.
 		PostRenderHook: func(screen *ebiten.Image) {
-			// Layer 1: hex polygon fills (background color).
-			for _, cell := range s.boardCellWidgets {
-				cell.RenderFill(screen)
-			}
-			// Layer 2: grid stroke drawn as a single path to avoid double-width edges.
-			s.renderGrid(screen)
-			// Layer 3: unit portraits — sorted for deterministic overlap at hex borders.
+			s.drawBoard(screen)
+
+			// unit portraits — sorted for deterministic overlap at hex borders.
 			for _, cell := range s.sortedCells {
 				cell.RenderUnitLayer(screen)
 			}
-			// Layer 4: drop zone arrow animations.
+			// drop zone arrow animations.
 			for _, sc := range s.dropZoneCells {
 				sc.RenderAnim(screen)
 			}
-			// Layer 5: HUD badges (hp, shield, move indicator).
+			// HUD badges (hp, shield, move indicator).
 			for _, cell := range s.sortedCells {
 				cell.RenderHUDLayer(screen)
 			}
-			// Layer 6: FX (damage numbers, attack effects).
+			// FX (damage numbers, attack effects).
 			for _, cell := range s.sortedCells {
 				cell.RenderFXLayer(screen)
 			}

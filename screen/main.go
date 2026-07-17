@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/ebitenui/ebitenui"
-	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/scenario"
@@ -22,16 +23,12 @@ import (
 	server "github.com/goplease-game/server"
 	"github.com/goplease-game/server/bot"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/colornames"
 )
 
-// Shared color palette for the main menu UI.
+const mainMusicTheme = "its-time-for-an-adventure.ogg"
+
 var (
-	nameColor                = ui.RGBFromHex("#00a8e8")
-	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
-	menuButtonHoverBgColor   = ui.LightenRGB(menuButtonBgColor, 35)
-	menuButtonTextColor      = ui.RGBFromHex("FFF8DE")
-	menuButtonHoverTextColor = ui.DarkenRGB(menuButtonBgColor, 45)
+	nameColor = ui.RGBFromHex("#00a8e8")
 )
 
 var (
@@ -42,9 +39,11 @@ var (
 type MainScreen struct {
 	serverCl   *ws.ClientProvider
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
 	exit       bool
 	descText   *widget.Text
+	music      *sfx.MusicTrack
 }
 
 // NewMainScreen creates the main menu screen with Play, Practice, Settings,
@@ -52,12 +51,17 @@ type MainScreen struct {
 func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	serverCl.SwitchToReal()
 
+	sfx.StopAll()
+	mainTune := sfx.PlayMusic(mainMusicTheme, true, time.Second*5)
+
+	conf := config.Get()
 	s := &MainScreen{
 		serverCl: serverCl,
+		bg:       backdrop.RandomOf(backdrop.MainScreen, conf.WindowW, conf.WindowH),
+		music:    mainTune,
 	}
 
 	root := widget.NewContainer(
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})),
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
@@ -163,6 +167,7 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 		return nil, ebiten.Termination
 	}
 
+	s.bg.Update()
 	s.ui.Update()
 
 	if s.nextScreen != nil {
@@ -176,7 +181,13 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw implements game.Screen. It renders the main menu UI.
 func (s *MainScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
+}
+
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *MainScreen) Resize(width, height int) {
+	s.bg.Resize(width, height)
 }
 
 // mainMenu builds the title and menu button column shown on the main screen.
@@ -218,11 +229,11 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
-	titleTF := ui.TextFace(40)
-	titleText := widget.NewText(
-		widget.TextOpts.Text("go, please", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
+	namePic := asset.Image("name.png")
+
+	titleImage := widget.NewGraphic(
+		widget.GraphicOpts.Image(namePic),
+		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Position: widget.RowLayoutPositionCenter,
 			}),
@@ -231,7 +242,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	descTF := ui.TextFace(16)
 	s.descText = widget.NewText(
-		widget.TextOpts.Text("", &descTF, menuButtonTextColor),
+		widget.TextOpts.Text("", &descTF, ui.MenuButtonTextColor),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 		widget.TextOpts.MaxWidth(300),
 	)
@@ -251,18 +262,20 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online",
 		func(_ *widget.ButtonClickedEventArgs) {
-			s.nextScreen = NewSearchScreen(s.serverCl)
+			s.music.FadeOut(5 * time.Second)
+			s.nextScreen = NewSearchScreen(s.serverCl, s)
 		})
 
 	pwfButton := s.mainMenuButtonWithDesc("Play with friend", 16,
 		"Challenge a friend using a join code.",
 		func(_ *widget.ButtonClickedEventArgs) {
-			s.nextScreen = NewPlayWithFriendScreen(s.serverCl)
+			s.nextScreen = NewPlayWithFriendScreen(s.serverCl, s)
 		})
 
 	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
 		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
 		func(_ *widget.ButtonClickedEventArgs) {
+			s.music.FadeOut(3 * time.Second)
 			s.nextScreen = newScenarioScreen(s.serverCl)
 		})
 
@@ -276,12 +289,12 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	var exitButton *widget.Button
 	if !config.IsWASM() {
-		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "", func(_ *widget.ButtonClickedEventArgs) {
+		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "Snap back to reality", func(_ *widget.ButtonClickedEventArgs) {
 			s.exit = true
 		})
 	}
 
-	menuC.AddChild(titleText)
+	menuC.AddChild(titleImage)
 	menuC.AddChild(playButton)
 	menuC.AddChild(pwfButton)
 	menuC.AddChild(practiceButton)
@@ -304,7 +317,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 // text size change, a press-down text shift, and dynamic description text logic.
 func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc string, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
 	tf := ui.TextFace(size)
-	tfHover := ui.TextFace(size + 5)
+	tfHover := ui.TextFace(size + 2)
 	var button *widget.Button
 	button = widget.NewButton(
 		widget.ButtonOpts.WidgetOpts(
@@ -317,11 +330,11 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 				Stretch:  true,
 			}),
 		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
+		widget.ButtonOpts.Image(ui.ButtonImage()),
 		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
+			Idle:    ui.MenuButtonTextColor,
+			Hover:   ui.MenuButtonHoverTextColor,
+			Pressed: ui.MenuButtonTextColor,
 		}),
 		widget.ButtonOpts.TextPadding(&widget.Insets{
 			Left:   45,
@@ -358,20 +371,6 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 	)
 
 	return button
-}
-
-// mainMenuButtonImage returns the nine-slice background images for
-// primary menu buttons.
-func mainMenuButtonImage() *widget.ButtonImage {
-	idle := image.NewNineSliceColor(menuButtonBgColor)
-	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
-	pressed := image.NewNineSliceColor(colornames.Gold)
-
-	return &widget.ButtonImage{
-		Idle:    idle,
-		Hover:   hover,
-		Pressed: pressed,
-	}
 }
 
 // newScenarioScreen loads the default scenario and starts an arena screen
@@ -412,76 +411,6 @@ func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 
 	log.Fatal("scenario: server closed without sending new game")
 	return nil
-}
-
-// buttonProps holds optional overrides for secondaryButton.
-type buttonProps struct {
-	layoutData any // widget.AnchorLayoutData or widget.RowLayoutData
-}
-
-// secondaryButton creates a smaller menu button styled like
-// mainMenuButton, used for secondary actions like Back.
-func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc, props ...buttonProps) *widget.Button {
-	tf := ui.TextFace(size)
-	tfHover := ui.TextFace(size + 5)
-
-	var layoutData any = widget.RowLayoutData{
-		Position: widget.RowLayoutPositionCenter,
-	}
-	if len(props) > 0 && props[0].layoutData != nil {
-		layoutData = props[0].layoutData
-	}
-
-	var button *widget.Button
-	button = widget.NewButton(
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.LayoutData(layoutData),
-		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
-		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
-		}),
-		widget.ButtonOpts.TextPadding(&widget.Insets{
-			Left:   25,
-			Right:  25,
-			Top:    10,
-			Bottom: 10,
-		}),
-		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
-			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			button.GetWidget().CustomData = true
-		}),
-		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
-			button.Text().SetPadding(&widget.Insets{})
-			button.GetWidget().CustomData = false
-		}),
-		widget.ButtonOpts.ClickedHandler(clickHandler),
-		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
-			sfx.Play("button_hover.ogg")
-			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			button.Text().SetFace(&tfHover)
-			button.GetWidget().Render(nil)
-		}),
-		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
-			button.Text().SetPadding(&widget.Insets{})
-			button.Text().SetFace(&tf)
-		}),
-	)
-	return button
-}
-
-func rowButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
-	return secondaryButton(text, size, clickHandler, buttonProps{
-		layoutData: widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		},
-	})
 }
 
 func fetchVersion(url string, out *widget.Text) {

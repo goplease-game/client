@@ -1,13 +1,13 @@
 package scenario
 
-// EndGame ...
-const EndGame = "End game"
+// YouWin ...
+const YouWin = "You win"
 
 func init() {
-	addScenario(EndGame, endGameScenario)
+	addScenario(YouWin, youWinScenario)
 }
 
-func endGameScenario() *Scenario {
+func youWinScenario() *Scenario {
 	s := NewSimpleScenario()
 
 	s.placeUnitAt(s.P1, BasID, 0, 0)

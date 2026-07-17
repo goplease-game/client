@@ -28,7 +28,7 @@ func NewArenaScreen(snap ds.GameSnapshot, serverCl *ws.ClientProvider, isPractic
 		}
 	} else {
 		ar.OnRestartScreen = func() game.Screen {
-			return NewSearchScreen(serverCl)
+			return NewSearchScreen(serverCl, NewMainScreen(serverCl))
 		}
 	}
 

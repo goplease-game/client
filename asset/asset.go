@@ -16,7 +16,7 @@ import (
 //go:embed data
 var dataFS embed.FS
 
-// assetErrPng holds the raw bytes of the fallback emergency placeholder image.
+// assetErrPng holds the raw bytes of the fallback placeholder image.
 //
 //go:embed data/asset_err.png
 var assetErrPng []byte

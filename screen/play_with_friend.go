@@ -12,6 +12,7 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/google/uuid"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/clipboard"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
@@ -25,112 +26,74 @@ import (
 type PlayWithFriendScreen struct {
 	provider   *ws.ClientProvider
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
+	prevScreen game.Screen
 	nextScreen game.Screen
 }
 
 // NewPlayWithFriendScreen creates the Play With Friend mode selection screen.
-func NewPlayWithFriendScreen(provider *ws.ClientProvider) *PlayWithFriendScreen {
-	s := &PlayWithFriendScreen{provider: provider}
+func NewPlayWithFriendScreen(provider *ws.ClientProvider, prevScreen *MainScreen) *PlayWithFriendScreen {
+	s := &PlayWithFriendScreen{
+		provider:   provider,
+		bg:         prevScreen.bg,
+		prevScreen: prevScreen,
+	}
+
+	panel := ui.NewPanel("Play with friend")
+
+	createBtn := ui.SecondaryButton("Create game", 16, func(_ *widget.ButtonClickedEventArgs) {
+		s.nextScreen = NewWaitForFriendScreen(s.provider, s)
+	})
+	joinBtn := ui.SecondaryButton("Join game", 16, func(_ *widget.ButtonClickedEventArgs) {
+		s.nextScreen = NewJoinFriendScreen(s.provider, s)
+	})
+
+	ui.StretchButton(createBtn)
+	ui.StretchButton(joinBtn)
+
+	panel.AddContent(createBtn, joinBtn)
+
+	backBtn := ui.SecondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
+		s.nextScreen = s.prevScreen
+	})
+	panel.AddControl(backBtn)
 
 	root := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
+	root.AddChild(panel.Build())
 
-	center := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(12),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(24)),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.MinSize(300, 0),
-		),
-	)
-
-	titleTF := ui.TextFace(28)
-	title := widget.NewText(
-		widget.TextOpts.Text("Play with friend", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-	)
-
-	createBtn := s.btn("Create game", func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewWaitForFriendScreen(s.provider)
-	})
-
-	joinBtn := s.btn("Join game", func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewJoinFriendScreen(s.provider)
-	})
-
-	backBtn := secondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewMainScreen(s.provider)
-	})
-
-	center.AddChild(title)
-	center.AddChild(createBtn)
-	center.AddChild(joinBtn)
-	center.AddChild(backBtn)
-
-	root.AddChild(center)
 	s.ui = &ebitenui.UI{Container: root}
 	return s
 }
 
 // Update implements game.Screen.
 func (s *PlayWithFriendScreen) Update(_ *game.Game) (game.Screen, error) {
+	s.bg.Update()
 	s.ui.Update()
+
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		return NewMainScreen(s.provider), nil
+		return s.prevScreen, nil
 	}
+
 	if s.nextScreen != nil {
 		next := s.nextScreen
 		s.nextScreen = nil
 		return next, nil
 	}
+
 	return s, nil
 }
 
 // Draw implements game.Screen.
 func (s *PlayWithFriendScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 }
 
-func (s *PlayWithFriendScreen) btn(text string, handler widget.ButtonClickedHandlerFunc) *widget.Button {
-	tf := ui.TextFace(16)
-	tfHover := ui.TextFace(21)
-	var b *widget.Button
-	b = widget.NewButton(
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
-		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
-		}),
-		widget.ButtonOpts.TextPadding(&widget.Insets{Left: 45, Right: 45, Top: 15, Bottom: 15}),
-		widget.ButtonOpts.ClickedHandler(handler),
-		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
-			b.Text().SetFace(&tfHover)
-		}),
-		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
-			b.Text().SetFace(&tf)
-		}),
-	)
-	return b
+// Resize updates the backdrop dimensions when the screen or window is resized.
+func (s *PlayWithFriendScreen) Resize(width, height int) {
+	s.bg.Resize(width, height)
 }
 
 // WaitForFriendScreen connects to the server, requests a friend room, displays
@@ -138,61 +101,38 @@ func (s *PlayWithFriendScreen) btn(text string, handler widget.ButtonClickedHand
 type WaitForFriendScreen struct {
 	provider   *ws.ClientProvider
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
-	titleLabel *widget.Text
-	codeLbl    *widget.Text
-	connected  bool
+	prevScreen game.Screen
+
+	panel     *ui.Panel
+	codeLbl   *widget.Text
+	connected bool
 }
 
 // NewWaitForFriendScreen creates the waiting screen and initiates a server connection.
-func NewWaitForFriendScreen(provider *ws.ClientProvider) *WaitForFriendScreen {
-	s := &WaitForFriendScreen{provider: provider}
+func NewWaitForFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriendScreen) *WaitForFriendScreen {
+	s := &WaitForFriendScreen{
+		provider:   provider,
+		bg:         prevScreen.bg,
+		prevScreen: prevScreen,
+	}
 
 	provider.Get().Connect(uuid.New().String())
 
-	root := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
-
-	center := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(16),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(24)),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.MinSize(400, 0),
-		),
-	)
-
-	titleTF := ui.TextFace(28)
-	titleLabel := widget.NewText(
-		widget.TextOpts.Text("Waiting for a friend…", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-	)
+	panel := ui.NewPanel("Waiting for a friend…")
+	s.panel = panel
 
 	codeTF := ui.TextFace(40)
 	codeRow := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewRowLayout(
 			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
 			widget.RowLayoutOpts.Spacing(10),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(0)),
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
+				Stretch: true,
 			}),
-			widget.WidgetOpts.MinSize(300, 0),
 		),
 	)
 
@@ -201,13 +141,13 @@ func NewWaitForFriendScreen(provider *ws.ClientProvider) *WaitForFriendScreen {
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
+				Stretch: true,
 			}),
 			widget.WidgetOpts.MinSize(200, 0),
 		),
 	)
 
-	copyBtn := secondaryButton("Copy", 14, func(_ *widget.ButtonClickedEventArgs) {
+	copyBtn := ui.SecondaryButton("Copy", 16, func(_ *widget.ButtonClickedEventArgs) {
 		clipboard.Write(s.codeLbl.Label)
 	})
 
@@ -218,37 +158,33 @@ func NewWaitForFriendScreen(provider *ws.ClientProvider) *WaitForFriendScreen {
 	hintLbl := widget.NewText(
 		widget.TextOpts.Text("\nSend this code to your friend.\nThey can join via\nPlay with friend → Join game.", &hintTF, colornames.Whitesmoke),
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
 	)
 
-	backBtn := secondaryButton("Cancel", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddContent(codeRow, hintLbl)
+
+	backBtn := ui.SecondaryButton("Cancel", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.provider.Get().Send(ws.OutMessage{Action: ws.CancelFriendRoomAction})
-		s.nextScreen = NewPlayWithFriendScreen(s.provider)
+		s.nextScreen = prevScreen
 	})
+	panel.AddControl(backBtn)
 
-	center.AddChild(titleLabel)
-	center.AddChild(codeRow)
-	center.AddChild(hintLbl)
-	center.AddChild(backBtn)
+	root := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+	root.AddChild(panel.Build())
 
-	root.AddChild(center)
 	s.ui = &ebitenui.UI{Container: root}
-	s.titleLabel = titleLabel
 	s.codeLbl = codeLbl
 	return s
 }
 
 // Update implements game.Screen.
 func (s *WaitForFriendScreen) Update(_ *game.Game) (game.Screen, error) {
+	s.bg.Update()
 	s.ui.Update()
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		return NewPlayWithFriendScreen(s.provider), nil
+		return s.prevScreen, nil
 	}
 
 	if s.nextScreen != nil {
@@ -262,10 +198,10 @@ func (s *WaitForFriendScreen) Update(_ *game.Game) (game.Screen, error) {
 	if !s.connected && server.Status() == ws.StatusConnected {
 		s.connected = true
 		server.Send(ws.OutMessage{Action: ws.CreateFriendGameAction})
-		s.titleLabel.Label = "Waiting for friend to join…"
+		s.panel.Title("Waiting for friend to join…")
 	}
 	if server.Status() == ws.StatusError {
-		s.titleLabel.Label = ConnErrorLabel
+		s.panel.Title(ConnErrorLabel)
 	}
 
 	for {
@@ -282,6 +218,7 @@ func (s *WaitForFriendScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw implements game.Screen.
 func (s *WaitForFriendScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 }
 
@@ -296,7 +233,7 @@ func (s *WaitForFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 			return nil
 		}
 		s.codeLbl.Label = data.JoinCode
-		s.titleLabel.Label = "Waiting for a friend…"
+		s.panel.Title("Waiting for a friend…")
 
 	case ws.NewGameAction:
 		var data ds.NewGamePayload
@@ -318,7 +255,7 @@ func (s *WaitForFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 	case ws.ErrorAction:
 		var e ds.ErrorResponse
 		_ = json.Unmarshal(msg.Data, &e)
-		s.titleLabel.Label = "Error: " + e.Message
+		s.panel.Title("Error: " + e.Message)
 	}
 	return nil
 }
@@ -327,48 +264,25 @@ func (s *WaitForFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 type JoinFriendScreen struct {
 	provider   *ws.ClientProvider
 	ui         *ebitenui.UI
+	bg         backdrop.Backdrop
 	nextScreen game.Screen
+	prevScreen game.Screen
 	statusLbl  *widget.Text
 	codeInput  *widget.TextInput
 	connected  bool
 }
 
 // NewJoinFriendScreen creates the join-by-code screen and initiates a server connection.
-func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
-	s := &JoinFriendScreen{provider: provider}
+func NewJoinFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriendScreen) *JoinFriendScreen {
+	s := &JoinFriendScreen{
+		provider:   provider,
+		bg:         prevScreen.bg,
+		prevScreen: prevScreen,
+	}
 
 	provider.Get().Connect(uuid.New().String())
 
-	root := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
-	)
-
-	center := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(20),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(24)),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-			widget.WidgetOpts.MinSize(320, 0),
-		),
-	)
-
-	titleTF := ui.TextFace(28)
-	title := widget.NewText(
-		widget.TextOpts.Text("Join friend's game", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-	)
+	panel := ui.NewPanel("Join friend's game")
 
 	statusTF := ui.TextFace(15)
 	statusLbl := widget.NewText(
@@ -376,8 +290,7 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
+				Stretch: true,
 			}),
 		),
 	)
@@ -389,8 +302,7 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 		)),
 		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
+				Stretch: true,
 			}),
 		),
 	)
@@ -399,8 +311,7 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 	codeInput := widget.NewTextInput(
 		widget.TextInputOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
+				Stretch: true,
 			}),
 			widget.WidgetOpts.MinSize(150, 0),
 		),
@@ -429,7 +340,7 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 		}),
 	)
 
-	pasteBtn := rowButton("Paste", 16, func(_ *widget.ButtonClickedEventArgs) {
+	pasteBtn := ui.SecondaryButton("Paste", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.statusLbl.Label = ""
 		clipboard.Read(func(text string) {
 			text = strings.ToUpper(strings.TrimSpace(text))
@@ -444,34 +355,21 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 	inputRow.AddChild(codeInput)
 	inputRow.AddChild(pasteBtn)
 
-	btnRow := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(10),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			}),
-		),
-	)
+	panel.AddContent(inputRow, statusLbl)
 
-	joinBtn := rowButton("Join", 16, func(_ *widget.ButtonClickedEventArgs) {
+	joinBtn := ui.SecondaryButton("Join", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.sendJoin()
 	})
-	backBtn := rowButton("Back", 16, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewPlayWithFriendScreen(s.provider)
+	backBtn := ui.SecondaryButton("Back", 16, func(_ *widget.ButtonClickedEventArgs) {
+		s.nextScreen = s.prevScreen
 	})
+	panel.AddControl(joinBtn, backBtn)
 
-	btnRow.AddChild(joinBtn)
-	btnRow.AddChild(backBtn)
+	root := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
+	)
+	root.AddChild(panel.Build())
 
-	center.AddChild(title)
-	center.AddChild(inputRow)
-	center.AddChild(statusLbl)
-	center.AddChild(btnRow)
-
-	root.AddChild(center)
 	s.ui = &ebitenui.UI{Container: root}
 	s.statusLbl = statusLbl
 	s.codeInput = codeInput
@@ -480,10 +378,11 @@ func NewJoinFriendScreen(provider *ws.ClientProvider) *JoinFriendScreen {
 
 // Update implements game.Screen.
 func (s *JoinFriendScreen) Update(_ *game.Game) (game.Screen, error) {
+	s.bg.Update()
 	s.ui.Update()
 
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
-		return NewPlayWithFriendScreen(s.provider), nil
+		return s.prevScreen, nil
 	}
 
 	if s.nextScreen != nil {
@@ -516,6 +415,7 @@ func (s *JoinFriendScreen) Update(_ *game.Game) (game.Screen, error) {
 
 // Draw implements game.Screen.
 func (s *JoinFriendScreen) Draw(screen *ebiten.Image) {
+	s.bg.Draw(screen)
 	s.ui.Draw(screen)
 }
 

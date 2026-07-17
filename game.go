@@ -9,7 +9,10 @@ import (
 // Game is the root ebiten.Game implementation.
 // It delegates Update/Draw to the currently active Screen.
 type Game struct {
-	screen Screen
+	screen     Screen
+	lastScreen Screen
+
+	lastW, lastH int
 }
 
 // New creates a new Game instance with the provided initial screen.
@@ -37,16 +40,29 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.screen.Draw(screen)
 }
 
-// Layout returns the logical screen dimensions from config.
+// Layout returns the logical screen dimensions.
 func (g *Game) Layout(w, h int) (int, int) {
 	conf := config.Get()
 
-	if w < conf.WindowW {
-		w = conf.WindowW
+	if ebiten.IsFullscreen() {
+		if m := ebiten.Monitor(); m != nil {
+			w, h = m.Size()
+		}
+	} else {
+		if w < conf.WindowW {
+			w = conf.WindowW
+		}
+		if h < conf.WindowH {
+			h = conf.WindowH
+		}
 	}
 
-	if h < conf.WindowH {
-		h = conf.WindowH
+	if w != g.lastW || h != g.lastH || g.screen != g.lastScreen {
+		if r, ok := g.screen.(Resizable); ok {
+			r.Resize(w, h)
+		}
+		g.lastW, g.lastH = w, h
+		g.lastScreen = g.screen
 	}
 
 	return w, h

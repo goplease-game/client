@@ -8,9 +8,21 @@ import (
 )
 
 // RGBFromHex parses a "RRGGBB" hex color string (with or without a leading
-// '#') into an opaque color.Color.
-func RGBFromHex(hex string) color.Color {
+// '#') into a color.Color.
+//
+// By default the color is fully opaque. An optional opacity percentage
+// (0-100) can be passed as the second argument: 0 means fully transparent
+// and 100 means fully opaque.
+func RGBFromHex(hex string, opacityOpt ...uint8) color.Color {
 	hex = strings.TrimPrefix(hex, "#")
+
+	opacity := uint8(100)
+	if len(opacityOpt) > 0 {
+		opacity = opacityOpt[0]
+		if opacity > 100 {
+			log.Fatalf("rgbFromHex: invalid opacity %d, must be 0-100", opacity)
+		}
+	}
 
 	if len(hex) != 6 {
 		log.Fatalf("rgbFromHex: invalid hex length %d", len(hex))
@@ -21,11 +33,14 @@ func RGBFromHex(hex string) color.Color {
 		log.Fatalf("rgbFromHex: parse hex %q: %s", hex, err)
 	}
 
+	// Convert 0-100 opacity (100 = fully opaque) to a 0-255 alpha value.
+	alpha := uint8(int(opacity) * 0xff / 100)
+
 	return color.NRGBA{
-		R: uint8(value >> 16), //nolint:gosec
-		G: uint8(value >> 8),  //nolint:gosec
-		B: uint8(value),       //nolint:gosec
-		A: 0xff,
+		R: uint8(value >> 16),
+		G: uint8(value >> 8),
+		B: uint8(value),
+		A: alpha,
 	}
 }
 

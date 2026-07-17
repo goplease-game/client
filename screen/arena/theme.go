@@ -52,7 +52,7 @@ var (
 	// Board colours.
 	boardBgColor           = ui.RGBFromHex("607B8F")
 	boardCellBgColor       = ui.DarkenRGB(boardBgColor, 10)
-	boardGridColor         = color.RGBA{0x45, 0x63, 0x7a, 255}
+	boardGridColor         = ui.DarkenRGB(boardBgColor, 20)
 	unitDropZoneColor      = ui.RGBFromHex("A7E399")
 	unitDropZoneHoverColor = ui.DarkenRGB(unitDropZoneColor, 50)
 	unitKilledBgColor      = ui.RGBFromHex("BFA28C")
