@@ -2,8 +2,10 @@ name: Release Game
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - test-release
+    # tags:
+      # - 'v*'
 
 permissions:
   contents: write
