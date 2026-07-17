@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p config
           cat > config/config_defaults.yaml << EOF
-          resolution: 900x750
+          resolution: 1000x750
           server_addr: game.gopl.dev
           secure: true
           volume: 1
@@ -59,10 +59,24 @@ jobs:
             iconset/icon_128x128.png iconset/icon_128x128@2x.png \
             iconset/icon_256x256.png iconset/icon_256x256@2x.png \
             iconset/icon_512x512.png iconset/icon_512x512@2x.png
+          
+          
+          # Windows ICO
+          for size in 16 24 32 48 64 128 256; do
+          convert build/icon-master.png \
+          -resize ${size}x${size} \
+          iconset/win_${size}x${size}.png
+          done
 
-          convert iconset/icon_16x16.png iconset/icon_32x32.png \
-            iconset/icon_128x128.png iconset/icon_256x256.png \
-            build/windows/winres/icon.ico
+          convert \
+          iconset/win_16x16.png \
+          iconset/win_24x24.png \
+          iconset/win_32x32.png \
+          iconset/win_48x48.png \
+          iconset/win_64x64.png \
+          iconset/win_128x128.png \
+          iconset/win_256x256.png \
+          build/windows/winres/icon.ico
 
           cp iconset/icon_256x256.png build/linux/icon.png
 
@@ -118,7 +132,7 @@ jobs:
           cp build/windows/*.syso cmd/game/
 
           mkdir -p dist/windows
-          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/windows/goplease.exe cmd/game/main.go
+          go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/windows/goplease.exe ./cmd/game
 
           rm -f cmd/game/*.syso
 
