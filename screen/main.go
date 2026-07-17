@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/ebitenui/ebitenui"
-	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/ds"
@@ -23,18 +23,12 @@ import (
 	server "github.com/goplease-game/server"
 	"github.com/goplease-game/server/bot"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/colornames"
 )
 
 const mainMusicTheme = "its-time-for-an-adventure.ogg"
 
-// Shared color palette for the main menu UI.
 var (
-	nameColor                = ui.RGBFromHex("#00a8e8")
-	menuButtonBgColor        = ui.RGBFromHex("#73A5CA")
-	menuButtonHoverBgColor   = ui.LightenRGB(menuButtonBgColor, 35)
-	menuButtonTextColor      = ui.RGBFromHex("FFF8DE")
-	menuButtonHoverTextColor = ui.DarkenRGB(menuButtonBgColor, 45)
+	nameColor = ui.RGBFromHex("#00a8e8")
 )
 
 var (
@@ -68,7 +62,6 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	}
 
 	root := widget.NewContainer(
-		// widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(color.NRGBA{0x13, 0x1a, 0x22, 0xff})).
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 	)
 
@@ -236,11 +229,11 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		),
 	)
 
-	titleTF := ui.TextFace(40)
-	titleText := widget.NewText(
-		widget.TextOpts.Text("go, please", &titleTF, nameColor),
-		widget.TextOpts.Position(widget.TextPositionCenter, widget.TextPositionCenter),
-		widget.TextOpts.WidgetOpts(
+	namePic := asset.Image("name.png")
+
+	titleImage := widget.NewGraphic(
+		widget.GraphicOpts.Image(namePic),
+		widget.GraphicOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
 				Position: widget.RowLayoutPositionCenter,
 			}),
@@ -249,7 +242,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 
 	descTF := ui.TextFace(16)
 	s.descText = widget.NewText(
-		widget.TextOpts.Text("", &descTF, menuButtonTextColor),
+		widget.TextOpts.Text("", &descTF, ui.MenuButtonTextColor),
 		widget.TextOpts.Position(widget.TextPositionStart, widget.TextPositionStart),
 		widget.TextOpts.MaxWidth(300),
 	)
@@ -301,7 +294,7 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		})
 	}
 
-	menuC.AddChild(titleText)
+	menuC.AddChild(titleImage)
 	menuC.AddChild(playButton)
 	menuC.AddChild(pwfButton)
 	menuC.AddChild(practiceButton)
@@ -337,11 +330,11 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 				Stretch:  true,
 			}),
 		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
+		widget.ButtonOpts.Image(ui.ButtonImage()),
 		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
+			Idle:    ui.MenuButtonTextColor,
+			Hover:   ui.MenuButtonHoverTextColor,
+			Pressed: ui.MenuButtonTextColor,
 		}),
 		widget.ButtonOpts.TextPadding(&widget.Insets{
 			Left:   45,
@@ -378,20 +371,6 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 	)
 
 	return button
-}
-
-// mainMenuButtonImage returns the nine-slice background images for
-// primary menu buttons.
-func mainMenuButtonImage() *widget.ButtonImage {
-	idle := image.NewBorderedNineSliceColor(menuButtonBgColor, ui.DarkenRGB(menuButtonBgColor, 20), 2)
-	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
-	pressed := image.NewNineSliceColor(colornames.Gold)
-
-	return &widget.ButtonImage{
-		Idle:    idle,
-		Hover:   hover,
-		Pressed: pressed,
-	}
 }
 
 // newScenarioScreen loads the default scenario and starts an arena screen
@@ -432,69 +411,6 @@ func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 
 	log.Fatal("scenario: server closed without sending new game")
 	return nil
-}
-
-// buttonProps holds optional overrides for secondaryButton.
-type buttonProps struct {
-	layoutData any // widget.AnchorLayoutData or widget.RowLayoutData
-}
-
-// secondaryButton creates a smaller menu button styled like
-// mainMenuButton, used for secondary actions like Back.
-func secondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc, _ ...buttonProps) *widget.Button {
-	tf := ui.TextFace(size)
-	tfHover := ui.TextFace(size + 5)
-
-	var button *widget.Button
-	button = widget.NewButton(
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
-		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
-		}),
-		widget.ButtonOpts.TextPadding(&widget.Insets{
-			Left:   25,
-			Right:  25,
-			Top:    10,
-			Bottom: 10,
-		}),
-		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
-			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			button.GetWidget().CustomData = true
-		}),
-		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
-			button.Text().SetPadding(&widget.Insets{})
-			button.GetWidget().CustomData = false
-		}),
-		widget.ButtonOpts.ClickedHandler(clickHandler),
-		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
-			sfx.Play("button_hover.ogg")
-			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			button.Text().SetFace(&tfHover)
-			button.GetWidget().Render(nil)
-		}),
-		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
-			button.Text().SetPadding(&widget.Insets{})
-			button.Text().SetFace(&tf)
-		}),
-	)
-
-	return button
-}
-
-func rowButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
-	return secondaryButton(text, size, clickHandler, buttonProps{
-		layoutData: widget.RowLayoutData{
-			Position: widget.RowLayoutPositionCenter,
-		},
-	})
 }
 
 func fetchVersion(url string, out *widget.Text) {

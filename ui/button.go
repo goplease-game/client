@@ -3,15 +3,25 @@ package ui
 
 import (
 	"bytes"
-	"fmt"
-	"image/color"
 	"log"
 
 	"github.com/ebitenui/ebitenui/image"
 	"github.com/ebitenui/ebitenui/widget"
+	"github.com/goplease-game/client/asset"
+	"github.com/goplease-game/client/sfx"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/goregular"
+)
+
+// Shared color palette for the main menu UI.
+var (
+	MenuButtonBgColor        = RGBFromHex("#73A5CA")
+	MenuButtonHoverBgColor   = LightenRGB(MenuButtonBgColor, 35)
+	MenuButtonTextColor      = RGBFromHex("FFF8DE")
+	MenuButtonHoverTextColor = DarkenRGB(MenuButtonBgColor, 45)
 )
 
 // regularSource and boldSource are the parsed font faces used to render
@@ -35,97 +45,99 @@ func init() {
 	}
 }
 
-// Button creates a styled button widget with the given label text,
-// wiring up click, press, and hover handlers for visual feedback.
-func Button(text string) (*widget.Button, error) {
-	face := TextFace(30)
+// SecondaryButton creates a smaller menu button styled like
+// mainMenuButton, used for secondary actions like Back.
+func SecondaryButton(text string, size float64, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
+	tf := TextFace(size)
+	tfHover := TextFace(size + 3)
 
 	var button *widget.Button
-	// construct a button.
 	button = widget.NewButton(
-		// set general widget options
 		widget.ButtonOpts.WidgetOpts(
-			// instruct the container's anchor layout to center the button both horizontally and vertically.
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionCenter,
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 			}),
-			widget.WidgetOpts.MouseButtonLongPressedHandler(func(args *widget.WidgetMouseButtonLongPressedEventArgs) {
-				fmt.Println("Long Press button ", args)
-			}),
 		),
-		// specify the images to use.
-		widget.ButtonOpts.Image(buttonImage()),
-
-		// specify the button's text, the font face, and the color.
-		widget.ButtonOpts.Text(text, &face, &widget.ButtonTextColor{
-			Idle: color.NRGBA{0xdf, 0xf4, 0xff, 0xff},
+		widget.ButtonOpts.Image(ButtonImage()),
+		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
+			Idle:    MenuButtonTextColor,
+			Hover:   MenuButtonHoverTextColor,
+			Pressed: MenuButtonTextColor,
 		}),
-		widget.ButtonOpts.TextProcessBBCode(false),
-		// specify that the button's text needs some padding for correct display.
 		widget.ButtonOpts.TextPadding(&widget.Insets{
-			Left:   45,
-			Right:  45,
-			Top:    15,
-			Bottom: 15,
+			Left:   25,
+			Right:  25,
+			Top:    10,
+			Bottom: 10,
 		}),
-		// Move the text down and right on press
 		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
 			button.GetWidget().CustomData = true
 		}),
-		// Move the text back to start on press released
 		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
 			button.GetWidget().CustomData = false
 		}),
-
-		// add a handler that reacts to clicking the button.
-		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			//
+		widget.ButtonOpts.ClickedHandler(clickHandler),
+		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
+			sfx.Play("button_hover.ogg")
+			button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
+			button.Text().SetFace(&tfHover)
+			button.GetWidget().Render(nil)
 		}),
-
-		// add a handler that reacts to entering the button with the cursor
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor entered button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY)
-			// If we moved the Text because we clicked on this button previously, move the text down and right
-			if button.GetWidget().CustomData == true {
-				button.Text().SetPadding(&widget.Insets{Top: 1, Bottom: -1})
-			}
-		}),
-
-		// add a handler that reacts to entering the button with the cursor.
-		widget.ButtonOpts.CursorEnteredHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor entered button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY)
-		}),
-
-		// add a handler that reacts to moving the cursor on the button.
-		widget.ButtonOpts.CursorMovedHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor moved on button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY, "diffX =", args.DiffX, "diffY =", args.DiffY)
-		}),
-
-		// add a handler that reacts to exiting the button with the cursor.
-		widget.ButtonOpts.CursorExitedHandler(func(args *widget.ButtonHoverEventArgs) {
-			println("cursor exited button: entered =", args.Entered, "offsetX =", args.OffsetX, "offsetY =", args.OffsetY)
-			// Reset the Text inset if the cursor is no longer over the button
+		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
 			button.Text().SetPadding(&widget.Insets{})
+			button.Text().SetFace(&tf)
 		}),
-
-		// Indicate that this button should not be submitted when enter or space are pressed
-		// widget.ButtonOpts.DisableDefaultKeys(),
 	)
 
-	return button, nil
+	return button
 }
 
-// buttonImage returns the nine-slice background images for a button's
-// idle, hover, and pressed states.
-func buttonImage() *widget.ButtonImage {
-	idle := image.NewNineSliceColor(color.NRGBA{R: 170, G: 170, B: 180, A: 255})
+// ImageButton creates a smaller menu button styled like
+// mainMenuButton, showing an icon instead of text. Used for secondary
+// actions like Back where an icon fits better than a label.
+func ImageButton(icon *ebiten.Image, clickHandler widget.ButtonClickedHandlerFunc) *widget.Button {
+	iconHover := asset.TintImage(icon, MenuButtonHoverTextColor)
 
-	hover := image.NewBorderedNineSliceColor(color.NRGBA{R: 130, G: 130, B: 150, A: 255}, color.NRGBA{70, 70, 70, 255}, 1)
+	var button *widget.Button
+	button = widget.NewButton(
+		widget.ButtonOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionCenter,
+				VerticalPosition:   widget.AnchorLayoutPositionCenter,
+			}),
+		),
+		widget.ButtonOpts.Image(ButtonImage()),
+		widget.ButtonOpts.GraphicPadding(*widget.NewInsetsSimple(10)),
 
-	pressed := image.NewAdvancedNineSliceColor(color.NRGBA{R: 130, G: 130, B: 150, A: 255}, image.NewBorder(3, 2, 2, 2, color.NRGBA{70, 70, 70, 255}))
+		widget.ButtonOpts.Graphic(&widget.GraphicImage{
+			Idle:  icon,
+			Hover: iconHover,
+		}),
+		widget.ButtonOpts.PressedHandler(func(_ *widget.ButtonPressedEventArgs) {
+			button.GetWidget().CustomData = true
+		}),
+		widget.ButtonOpts.ReleasedHandler(func(_ *widget.ButtonReleasedEventArgs) {
+			button.GetWidget().CustomData = false
+		}),
+		widget.ButtonOpts.ClickedHandler(clickHandler),
+		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
+			sfx.Play("button_hover.ogg")
+		}),
+		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
+		}),
+	)
+
+	return button
+}
+
+// ButtonImage returns the nine-slice background images for menu buttons.
+func ButtonImage() *widget.ButtonImage {
+	idle := image.NewBorderedNineSliceColor(MenuButtonBgColor, DarkenRGB(MenuButtonBgColor, 20), 2)
+	hover := image.NewNineSliceColor(MenuButtonHoverBgColor)
+	pressed := image.NewNineSliceColor(colornames.Gold)
 
 	return &widget.ButtonImage{
 		Idle:    idle,

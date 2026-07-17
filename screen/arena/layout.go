@@ -9,7 +9,6 @@ import (
 	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
-	"golang.org/x/image/colornames"
 )
 
 const (
@@ -61,48 +60,35 @@ func (s *Screen) createHeader() *widget.Container {
 		),
 	)
 
-	tf := ui.TextFace(16)
-	menuBtn := widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{
-			Idle:    image.NewNineSliceColor(color.NRGBA{0x44, 0x44, 0x44, 0xff}),
-			Hover:   image.NewNineSliceColor(color.NRGBA{0x66, 0x66, 0x66, 0xff}),
-			Pressed: image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x33, 0xff}),
-		}),
-		widget.ButtonOpts.Text("≡", &tf, &widget.ButtonTextColor{Idle: colornames.White}),
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(36, 36),
+	controls := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(4)),
+			widget.RowLayoutOpts.Spacing(4),
+		)),
+		widget.ContainerOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
 				HorizontalPosition: widget.AnchorLayoutPositionEnd,
 				VerticalPosition:   widget.AnchorLayoutPositionCenter,
 				Padding:            &widget.Insets{Right: 8},
 			}),
 		),
-		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			s.toggleGameMenu()
-		}),
 	)
 
-	logBtn := widget.NewButton(
-		widget.ButtonOpts.Image(&widget.ButtonImage{
-			Idle:    image.NewNineSliceColor(color.NRGBA{0x44, 0x44, 0x44, 0xff}),
-			Hover:   image.NewNineSliceColor(color.NRGBA{0x66, 0x66, 0x66, 0xff}),
-			Pressed: image.NewNineSliceColor(color.NRGBA{0x33, 0x33, 0x33, 0xff}),
-		}),
-		widget.ButtonOpts.Text("LOG", &tf, &widget.ButtonTextColor{Idle: colornames.White}),
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.MinSize(36, 36),
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionEnd,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-				Padding:            &widget.Insets{Right: 50},
-			}),
-		),
-		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
-			s.toggleGameLog()
-		}),
-	)
+	hambImage := asset.Image("hamburger-menu.png", 24)
+	menuBtn := ui.ImageButton(hambImage, func(_ *widget.ButtonClickedEventArgs) {
+		s.toggleGameMenu()
+	})
 
-	h.AddChild(logBtn)
+	logImage := asset.Image("log.png", 24)
+	logBtn := ui.ImageButton(logImage, func(_ *widget.ButtonClickedEventArgs) {
+		s.toggleGameLog()
+	})
+
+	controls.AddChild(logBtn)
+	controls.AddChild(menuBtn)
+
+	h.AddChild(controls)
 
 	h.AddChild(s.queuePanelRef)
 	h.AddChild(menuBtn)

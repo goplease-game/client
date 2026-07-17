@@ -4,7 +4,8 @@ to specific authors are contributed and distributed under the CC0 (Public Domain
 
 dead-head.png: https://game-icons.net/1x1/delapouite/dead-head.html \
 knockout.png: https://game-icons.net/1x1/skoll/knockout.html \
-hourglass.png: https://game-icons.net/1x1/lorc/sands-of-time.html
+hourglass.png: https://game-icons.net/1x1/lorc/sands-of-time.html \
+hamburger-menu.png: https://game-icons.net/1x1/delapouite/hamburger-menu.html
 
 Statuses:
  * debuff_ward: https://game-icons.net/1x1/lorc/eye-shield.html

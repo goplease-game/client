@@ -70,23 +70,10 @@ func (s *Screen) showGameOverOverlay(win bool, explain string, stats *server.Sta
 		),
 	)
 
-	panel := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionVertical),
-			widget.RowLayoutOpts.Spacing(20),
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(40)),
-		)),
-		widget.ContainerOpts.BackgroundImage(image.NewNineSliceColor(headerBgColor)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
-				HorizontalPosition: widget.AnchorLayoutPositionCenter,
-				VerticalPosition:   widget.AnchorLayoutPositionCenter,
-			}),
-		),
-	)
+	panel := ui.NewPanel()
 
 	tf := ui.TextFaceBold(48)
-	panel.AddChild(widget.NewText(
+	panel.AddContent(widget.NewText(
 		widget.TextOpts.Text(title, &tf, titleColor),
 		widget.TextOpts.WidgetOpts(
 			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -97,7 +84,7 @@ func (s *Screen) showGameOverOverlay(win bool, explain string, stats *server.Sta
 
 	if explain != "" {
 		tf := ui.TextFaceBold(20)
-		panel.AddChild(widget.NewText(
+		panel.AddContent(widget.NewText(
 			widget.TextOpts.Text(explain, &tf, colornames.Whitesmoke),
 			widget.TextOpts.WidgetOpts(
 				widget.WidgetOpts.LayoutData(widget.RowLayoutData{
@@ -108,35 +95,22 @@ func (s *Screen) showGameOverOverlay(win bool, explain string, stats *server.Sta
 	}
 
 	if stats != nil {
-		panel.AddChild(s.gameOverMetaPanel(stats, localPlayerID))
-		panel.AddChild(s.gameOverStatsGrid(stats, localPlayerID))
+		panel.AddContent(s.gameOverMetaPanel(stats, localPlayerID))
+		panel.AddContent(s.gameOverStatsGrid(stats, localPlayerID))
 	}
 
-	buttons := widget.NewContainer(
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
-			widget.RowLayoutOpts.Spacing(12),
-		)),
-		widget.ContainerOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-			}),
-		),
-	)
-
-	buttons.AddChild(s.menuButton("Play Again", func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Play Again", 14, func(_ *widget.ButtonClickedEventArgs) {
 		if s.OnRestartScreen != nil {
 			s.nextScreen = s.OnRestartScreen()
 		} else {
 			printD("Play Again: OnRestartScreen is not set")
 		}
 	}))
-	buttons.AddChild(s.menuButton("Main Menu", func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Main Menu", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.OnExitScreen()
 	}))
 
-	panel.AddChild(buttons)
-	overlay.AddChild(panel)
+	overlay.AddChild(panel.Build())
 
 	s.gameOverUI = &ebitenui.UI{Container: overlay}
 	s.gameOverVisible = true

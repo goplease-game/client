@@ -40,25 +40,29 @@ type Panel struct {
 // NewPanel creates a Panel with the given title. The content and controls
 // areas start empty; populate them with AddContent and AddControl before
 // calling Build.
-func NewPanel(title string) *Panel {
+func NewPanel(titleOpt ...string) *Panel {
 	p := &Panel{}
 
-	// Title
-	titleOuter, titleInner := NoiseContainer(
-		panelTitleBgColor,
-		widget.ContainerOpts.Layout(widget.NewRowLayout(
-			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(15)),
-		)),
-	)
+	if len(titleOpt) > 0 {
+		title := titleOpt[0]
 
-	titleTF := TextFace(30)
-	titleText := widget.NewText(
-		widget.TextOpts.Text(title, &titleTF, RGBFromHex(panelTitleTextColor)),
-	)
-	titleInner.AddChild(titleText)
+		// Title
+		titleOuter, titleInner := NoiseContainer(
+			panelTitleBgColor,
+			widget.ContainerOpts.Layout(widget.NewRowLayout(
+				widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(15)),
+			)),
+		)
 
-	p.title = titleOuter
-	p.titleText = titleText
+		titleTF := TextFace(30)
+		titleText := widget.NewText(
+			widget.TextOpts.Text(title, &titleTF, RGBFromHex(panelTitleTextColor)),
+		)
+		titleInner.AddChild(titleText)
+
+		p.title = titleOuter
+		p.titleText = titleText
+	}
 
 	// Content
 	contentOuter, contentInner := NoiseContainer(
@@ -102,7 +106,9 @@ func (p *Panel) AddControl(data ...widget.PreferredSizeLocateableWidget) {
 
 // Title updates the panel's title.
 func (p *Panel) Title(t string) {
-	p.titleText.Label = t
+	if p.titleText != nil {
+		p.titleText.Label = t
+	}
 }
 
 // Build assembles the panel into a single container.
@@ -159,11 +165,13 @@ func (p *Panel) Build() *widget.Container {
 		),
 	)
 
-	stretchChild(p.title)
-	stretchChild(p.content)
-	stretchChild(p.controls)
+	StretchContainer(p.title)
+	StretchContainer(p.content)
+	StretchContainer(p.controls)
 
-	stack.AddChild(p.title)
+	if p.title != nil {
+		stack.AddChild(p.title)
+	}
 	stack.AddChild(p.content)
 	stack.AddChild(p.controls)
 
@@ -216,10 +224,33 @@ func NoiseBg() *ebiten.Image {
 	return asset.Image("noise-bg.png")
 }
 
-// stretchChild sets RowLayoutData.Stretch on c's widget so it fills the
+// StretchWidget sets RowLayoutData.Stretch on c's widget so it fills the
 // full width of a vertical RowLayout parent.
-func stretchChild(c *widget.Container) {
-	c.GetWidget().LayoutData = widget.RowLayoutData{
+func StretchWidget(w *widget.Widget) {
+	if w == nil {
+		return
+	}
+	w.LayoutData = widget.RowLayoutData{
 		Stretch: true,
 	}
+}
+
+// StretchContainer sets RowLayoutData.Stretch on c's widget so it fills the
+// full width of a vertical RowLayout parent.
+func StretchContainer(c *widget.Container) {
+	if c == nil {
+		return
+	}
+
+	StretchWidget(c.GetWidget())
+}
+
+// StretchButton sets RowLayoutData.Stretch on c's widget so it fills the
+// full width of a vertical RowLayout parent.
+func StretchButton(b *widget.Button) {
+	if b == nil {
+		return
+	}
+
+	StretchWidget(b.GetWidget())
 }

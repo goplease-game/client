@@ -65,7 +65,7 @@ func NewAboutScreen(prevScreen *MainScreen) *AboutScreen {
 		panel.AddContent(text)
 	}
 
-	panel.AddControl(secondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.prevScreen
 	}))
 
