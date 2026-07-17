@@ -15,7 +15,6 @@ import (
 	"github.com/goplease-game/client/backdrop"
 	"github.com/goplease-game/client/clipboard"
 	"github.com/goplease-game/client/ds"
-	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -42,15 +41,19 @@ func NewPlayWithFriendScreen(provider *ws.ClientProvider, prevScreen *MainScreen
 
 	panel := ui.NewPanel("Play with friend")
 
-	createBtn := s.btn("Create game", func(_ *widget.ButtonClickedEventArgs) {
+	createBtn := ui.SecondaryButton("Create game", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewWaitForFriendScreen(s.provider, s)
 	})
-	joinBtn := s.btn("Join game", func(_ *widget.ButtonClickedEventArgs) {
+	joinBtn := ui.SecondaryButton("Join game", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = NewJoinFriendScreen(s.provider, s)
 	})
+
+	ui.StretchButton(createBtn)
+	ui.StretchButton(joinBtn)
+
 	panel.AddContent(createBtn, joinBtn)
 
-	backBtn := secondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
+	backBtn := ui.SecondaryButton("Back", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.prevScreen
 	})
 	panel.AddControl(backBtn)
@@ -91,36 +94,6 @@ func (s *PlayWithFriendScreen) Draw(screen *ebiten.Image) {
 // Resize updates the backdrop dimensions when the screen or window is resized.
 func (s *PlayWithFriendScreen) Resize(width, height int) {
 	s.bg.Resize(width, height)
-}
-
-func (s *PlayWithFriendScreen) btn(text string, handler widget.ButtonClickedHandlerFunc) *widget.Button {
-	tf := ui.TextFace(16)
-	tfHover := ui.TextFace(21)
-	var b *widget.Button
-	b = widget.NewButton(
-		widget.ButtonOpts.WidgetOpts(
-			widget.WidgetOpts.LayoutData(widget.RowLayoutData{
-				Position: widget.RowLayoutPositionCenter,
-				Stretch:  true,
-			}),
-		),
-		widget.ButtonOpts.Image(mainMenuButtonImage()),
-		widget.ButtonOpts.Text(text, &tf, &widget.ButtonTextColor{
-			Idle:    menuButtonTextColor,
-			Hover:   menuButtonHoverTextColor,
-			Pressed: menuButtonTextColor,
-		}),
-		widget.ButtonOpts.TextPadding(&widget.Insets{Left: 45, Right: 45, Top: 15, Bottom: 15}),
-		widget.ButtonOpts.ClickedHandler(handler),
-		widget.ButtonOpts.CursorEnteredHandler(func(_ *widget.ButtonHoverEventArgs) {
-			sfx.Play("button_hover.ogg")
-			b.Text().SetFace(&tfHover)
-		}),
-		widget.ButtonOpts.CursorExitedHandler(func(_ *widget.ButtonHoverEventArgs) {
-			b.Text().SetFace(&tf)
-		}),
-	)
-	return b
 }
 
 // WaitForFriendScreen connects to the server, requests a friend room, displays
@@ -174,7 +147,7 @@ func NewWaitForFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFri
 		),
 	)
 
-	copyBtn := secondaryButton("Copy", 14, func(_ *widget.ButtonClickedEventArgs) {
+	copyBtn := ui.SecondaryButton("Copy", 16, func(_ *widget.ButtonClickedEventArgs) {
 		clipboard.Write(s.codeLbl.Label)
 	})
 
@@ -189,7 +162,7 @@ func NewWaitForFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFri
 
 	panel.AddContent(codeRow, hintLbl)
 
-	backBtn := secondaryButton("Cancel", 14, func(_ *widget.ButtonClickedEventArgs) {
+	backBtn := ui.SecondaryButton("Cancel", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.provider.Get().Send(ws.OutMessage{Action: ws.CancelFriendRoomAction})
 		s.nextScreen = prevScreen
 	})
@@ -367,7 +340,7 @@ func NewJoinFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriend
 		}),
 	)
 
-	pasteBtn := rowButton("Paste", 16, func(_ *widget.ButtonClickedEventArgs) {
+	pasteBtn := ui.SecondaryButton("Paste", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.statusLbl.Label = ""
 		clipboard.Read(func(text string) {
 			text = strings.ToUpper(strings.TrimSpace(text))
@@ -384,10 +357,10 @@ func NewJoinFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriend
 
 	panel.AddContent(inputRow, statusLbl)
 
-	joinBtn := rowButton("Join", 16, func(_ *widget.ButtonClickedEventArgs) {
+	joinBtn := ui.SecondaryButton("Join", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.sendJoin()
 	})
-	backBtn := rowButton("Back", 16, func(_ *widget.ButtonClickedEventArgs) {
+	backBtn := ui.SecondaryButton("Back", 16, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.prevScreen
 	})
 	panel.AddControl(joinBtn, backBtn)

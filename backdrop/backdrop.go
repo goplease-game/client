@@ -38,7 +38,7 @@ const (
 
 // MainScreen holds the selection of backdrop kinds available for the main menu or hub screen.
 var MainScreen = []Kind{
-	KindNebulaWithFloatingHexes,
+	// KindNebulaWithFloatingHexes, // disabled for now, maybe can use this somewhere else
 	KindNebulaWithCrystalHexField,
 }
 

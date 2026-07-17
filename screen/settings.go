@@ -53,17 +53,17 @@ func NewSettingsScreen(prevScreen *MainScreen) *SettingsScreen {
 	panel.AddContent(s.buildTabs(panel))
 
 	// --- Save / Reset settings ---
-	panel.AddControl(secondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Save", 14, func(_ *widget.ButtonClickedEventArgs) {
 		err := config.Save()
 		if err != nil {
 			log.Printf("settings: failed to save config: %v", err)
 		}
 		s.nextScreen = s.previous
 	}))
-	panel.AddControl(secondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Return", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.nextScreen = s.previous
 	}))
-	panel.AddControl(secondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
+	panel.AddControl(ui.SecondaryButton("Reset settings", 14, func(_ *widget.ButtonClickedEventArgs) {
 		s.resetToDefaults()
 	}))
 
@@ -247,7 +247,7 @@ func (s *SettingsScreen) buildGeneralTab() *widget.Container {
 	addRow("Auto show info panel", "Open the unit details panel automatically for active unit.", s.autoShowInfoPanelCheckbox)
 
 	// --- Tutorial ---
-	tutorialResetButton := secondaryButton("Reset", 12, func(_ *widget.ButtonClickedEventArgs) {
+	tutorialResetButton := ui.SecondaryButton("Reset", 12, func(_ *widget.ButtonClickedEventArgs) {
 		config.Get().SkipTutorial = false
 	})
 	addRow("Tutorial", "Show the tutorial again next time you start a practice match.", tutorialResetButton)
@@ -303,7 +303,7 @@ func (s *SettingsScreen) buildKeybindingTab() *widget.Container {
 
 		// Right column: Key Assignment Button
 		var btn *widget.Button
-		btn = secondaryButton(game.KeyName(*keyRef), 14, func(_ *widget.ButtonClickedEventArgs) {
+		btn = ui.SecondaryButton(game.KeyName(*keyRef), 14, func(_ *widget.ButtonClickedEventArgs) {
 			// If another button was waiting, revert its text before switching
 			if activeButton != nil {
 				activeButton.Text().Label = game.KeyName(*activeBindingKey)
@@ -439,8 +439,8 @@ func sliderTrackImage() *widget.SliderTrackImage {
 }
 
 func sliderHandleImage() *widget.ButtonImage {
-	idle := image.NewNineSliceColor(menuButtonBgColor)
-	hover := image.NewNineSliceColor(menuButtonHoverBgColor)
+	idle := image.NewNineSliceColor(ui.MenuButtonBgColor)
+	hover := image.NewNineSliceColor(ui.MenuButtonHoverBgColor)
 	return &widget.ButtonImage{
 		Idle:    idle,
 		Hover:   hover,
@@ -451,7 +451,7 @@ func sliderHandleImage() *widget.ButtonImage {
 func tabButtonImage() *widget.ButtonImage {
 	idle := image.NewNineSliceColor(ui.RGBFromHex("#1D262F"))
 	hover := image.NewNineSliceColor(ui.RGBFromHex("#2A3540"))
-	pressed := image.NewNineSliceColor(menuButtonBgColor)
+	pressed := image.NewNineSliceColor(ui.MenuButtonBgColor)
 	disabled := image.NewNineSliceColor(ui.RGBFromHex("#12181E"))
 	return &widget.ButtonImage{
 		Idle:     idle,
@@ -485,7 +485,7 @@ func setCheckboxState(cb *widget.Checkbox, checked bool) {
 func buildCheckboxImages() *widget.CheckboxImage {
 	bgIdleColor := ui.RGBFromHex("#2A3540")
 	bgHoverColor := ui.RGBFromHex("#354250")
-	markColor := menuButtonBgColor
+	markColor := ui.MenuButtonBgColor
 
 	uncheckedIdle := checkboxGraphic(bgIdleColor, color.NRGBA{0, 0, 0, 0})
 	uncheckedHover := checkboxGraphic(bgHoverColor, color.NRGBA{0, 0, 0, 0})
