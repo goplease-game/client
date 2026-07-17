@@ -2,9 +2,11 @@
 package main
 
 import (
+	"image"
 	"log"
 
 	game "github.com/goplease-game/client"
+	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/config"
 	"github.com/goplease-game/client/screen"
 	"github.com/goplease-game/client/sfx"
@@ -16,6 +18,8 @@ func main() {
 	conf := config.Get()
 	ebiten.SetWindowSize(conf.WindowW, conf.WindowH)
 	ebiten.SetWindowTitle("go, please")
+
+	ebiten.SetWindowIcon([]image.Image{asset.Image("window-icon.png")})
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 
 	if conf.Fullscreen {
