@@ -2,43 +2,22 @@ name: Release Game
 
 on:
   push:
-    branches: [test-release]
-    # tags:
-      # - 'v*' # Triggers on tags like v1.0.0, v0.2.1, etc.
+    tags:
+      - 'v*'
 
 permissions:
-  contents: write # required for softprops/action-gh-release to create/publish releases
+  contents: write
 
 jobs:
-  build-and-release:
-    name: Build and Release for all platforms
-    runs-on: ubuntu-22.04 # Using 22.04 for older glibc version (better Linux compatibility)
-
+  # =================================================================
+  # SHARED ASSETS: icons + config, built once and reused by all jobs
+  # =================================================================
+  prepare-assets:
+    name: Generate icons and config
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.26'
-
-      # Install system dependencies required for Linux CGO graphics compilation (Ebitengine)
-      - name: Install Linux graphics dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libglu1-mesa-dev \
-            libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
-
-      # Install go-winres utility for embedding Windows icons and metadata
-      - name: Install go-winres
-        run: go install github.com/tc-hib/go-winres@latest
-
-      # Set global metadata variables available across all build steps
-      - name: Set build metadata
-        run: |
-          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
-
-      # Generate default configuration file
       - name: Generate default configuration file
         run: |
           mkdir -p config
@@ -60,24 +39,20 @@ jobs:
             end_turn: Space
           EOF
 
-      # =================================================================
-      # GENERATE PLATFORM ICONS FROM SINGLE MASTER SOURCE
-      # =================================================================
       - name: Generate platform-specific icons
         run: |
+          sudo apt-get update
           sudo apt-get install -y imagemagick
           pip install icnsutil
 
           mkdir -p iconset build/windows/winres
 
-          # Render every size macOS/Windows expect from the 1024x1024 master
           for size in 16 32 128 256 512; do
             double=$((size * 2))
             convert build/icon-master.png -resize ${size}x${size} iconset/icon_${size}x${size}.png
             convert build/icon-master.png -resize ${double}x${double} iconset/icon_${size}x${size}@2x.png
           done
 
-          # macOS .icns (uses the standard Apple iconset naming/sizes)
           python3 -m icnsutil compose build/macos/icon.icns \
             iconset/icon_16x16.png iconset/icon_16x16@2x.png \
             iconset/icon_32x32.png iconset/icon_32x32@2x.png \
@@ -85,129 +60,246 @@ jobs:
             iconset/icon_256x256.png iconset/icon_256x256@2x.png \
             iconset/icon_512x512.png iconset/icon_512x512@2x.png
 
-          # Windows .ico — must live next to winres.json, since go-winres
-          # resolves "icon.ico" relative to the json file's own directory
           convert iconset/icon_16x16.png iconset/icon_32x32.png \
             iconset/icon_128x128.png iconset/icon_256x256.png \
             build/windows/winres/icon.ico
 
-          # Linux — single flat PNG, 256x256 is the de facto standard
           cp iconset/icon_256x256.png build/linux/icon.png
 
-      # =================================================================
-      #  WINDOWS BUILD
-      # =================================================================
+      # Bundle everything platform jobs need: config + generated icons
+      - name: Upload shared assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-assets
+          path: |
+            config/config_defaults.yaml
+            build/windows/winres/icon.ico
+            build/macos/icon.icns
+            build/linux/icon.png
+          retention-days: 1
+
+  # =================================================================
+  # WINDOWS BUILD
+  # =================================================================
+  build-windows:
+    name: Build Windows
+    needs: prepare-assets
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Install go-winres
+        run: go install github.com/tc-hib/go-winres@latest
+
+      - name: Download shared assets
+        uses: actions/download-artifact@v4
+        with:
+          name: build-assets
+
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build Windows Target
         env:
           GOOS: windows
           GOARCH: amd64
           CGO_ENABLED: 1
         run: |
-          # Prepare windows resources using go-winres
           cd build/windows
           go-winres make
           cd ../..
 
-          # go build only auto-links .syso files found in the main package's
-          # own directory, not the module root — so copy it next to main.go
           cp build/windows/*.syso cmd/game/
 
-          # Compile executable
           mkdir -p dist/windows
           go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/windows/goplease.exe cmd/game/main.go
 
-          # Clean up the generated resource file so it doesn't linger in the workspace
           rm -f cmd/game/*.syso
 
-          # Bundle executable and package into a ZIP archive
           cd dist/windows
           zip -r ../../goplease_windows_amd64.zip goplease.exe
           cd ../..
 
-      # =================================================================
-      # MACOS BUILD (Cross-compilation without CGO)
-      # =================================================================
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goplease_windows_amd64
+          path: goplease_windows_amd64.zip
+          retention-days: 1
+
+  # =================================================================
+  # MACOS BUILD (native — runs on a real macOS runner, no cross-compile)
+  # =================================================================
+  build-macos:
+    name: Build macOS
+    needs: prepare-assets
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Download shared assets
+        uses: actions/download-artifact@v4
+        with:
+          name: build-assets
+
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build macOS Target (.app bundle)
         env:
           GOOS: darwin
           GOARCH: amd64
-          CGO_ENABLED: 0 # Disable CGO for smooth cross-compilation from Linux runner
+          CGO_ENABLED: 1 # native build — Xcode's clang handles amd64/arm64 out of the box
         run: |
-          # Set up standard macOS .app bundle directory hierarchy
           APP_DIR="dist/macos/goplease.app/Contents"
           mkdir -p "$APP_DIR/MacOS"
           mkdir -p "$APP_DIR/Resources"
 
-          # Compile native macOS binary
           go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o "$APP_DIR/MacOS/goplease" cmd/game/main.go
 
-          # Copy predefined package metadata and icons
           cp build/macos/Info.plist "$APP_DIR/"
           cp build/macos/icon.icns "$APP_DIR/Resources/"
 
-          # Compress .app directory bundle into a single ZIP archive
           cd dist/macos
           zip -r ../../goplease_macos_amd64.zip goplease.app
           cd ../..
 
-      # =================================================================
-      # LINUX BUILD
-      # =================================================================
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goplease_macos_amd64
+          path: goplease_macos_amd64.zip
+          retention-days: 1
+
+  # =================================================================
+  # LINUX BUILD
+  # =================================================================
+  build-linux:
+    name: Build Linux
+    needs: prepare-assets
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Install Linux graphics dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl1-mesa-dev libglu1-mesa-dev \
+            libx11-dev libxcursor-dev libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev
+
+      - name: Download shared assets
+        uses: actions/download-artifact@v4
+        with:
+          name: build-assets
+
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build Linux Target
         env:
           GOOS: linux
           GOARCH: amd64
-          CGO_ENABLED: 1 # CGO is required for Linux
+          CGO_ENABLED: 1
         run: |
-          # Setup package structure
           mkdir -p dist/linux/goplease_linux
 
-          # Compile native Linux binary
           go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o dist/linux/goplease_linux/goplease cmd/game/main.go
 
-          # Supply portable package with desktop entries and asset icons
           cp build/linux/icon.png dist/linux/goplease_linux/
           cp build/linux/goplease.desktop dist/linux/goplease_linux/
 
-          # Archive build folder into tarball (.tar.gz)
           cd dist/linux
           tar -czf ../../goplease_linux_amd64.tar.gz goplease_linux
           cd ../..
 
-      # =================================================================
-      # WASM
-      # =================================================================
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goplease_linux_amd64
+          path: goplease_linux_amd64.tar.gz
+          retention-days: 1
+
+  # =================================================================
+  # WASM
+  # =================================================================
+  build-wasm:
+    name: Build WASM
+    needs: prepare-assets
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Set build metadata
+        run: |
+          echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
       - name: Build WASM Target Archive
         env:
           GOOS: js
           GOARCH: wasm
         run: |
-          # Compile Go code to WebAssembly binary
           go build -ldflags "-s -w -X 'github.com/goplease-game/client.Commit=${SHORT_SHA}' -X 'github.com/goplease-game/client.BuildDate=${BUILD_DATE}'" -o asset/wasm/goplease.wasm cmd/game/main.go
 
-          # Extract required JavaScript support file from current Go SDK
           cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" asset/wasm/
 
-          # Inject hash query strings into HTML entry points to bypass aggressive CDN/Browser caching
           HASH=$(sha256sum asset/wasm/goplease.wasm | cut -c1-8)
           sed -i "s/goplease\.wasm/goplease.wasm?v=${HASH}/g" asset/wasm/game.html
           sed -i "s/game\.html/game.html?v=${HASH}/g" asset/wasm/index.html
 
-          # Compress standalone web distribution package
           tar -czf goplease_wasm.tar.gz -C asset/wasm .
 
-      # =================================================================
-      # 5. PUBLISH ASSETS TO GITHUB RELEASES
-      # =================================================================
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goplease_wasm
+          path: goplease_wasm.tar.gz
+          retention-days: 1
+
+  # =================================================================
+  # PUBLISH — waits for all platform builds, then creates the release
+  # =================================================================
+  release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-macos, build-linux, build-wasm]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-artifacts
+
       - name: Create GitHub Release and Upload Artifacts
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            goplease_windows_amd64.zip
-            goplease_macos_amd64.zip
-            goplease_linux_amd64.tar.gz
-            goplease_wasm.tar.gz
+            dist-artifacts/goplease_windows_amd64/goplease_windows_amd64.zip
+            dist-artifacts/goplease_macos_amd64/goplease_macos_amd64.zip
+            dist-artifacts/goplease_linux_amd64/goplease_linux_amd64.tar.gz
+            dist-artifacts/goplease_wasm/goplease_wasm.tar.gz
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided automatically by GitHub Actions execution context
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
