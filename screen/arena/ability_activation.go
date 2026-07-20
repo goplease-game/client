@@ -10,7 +10,7 @@ import (
 	"github.com/goplease-game/client/grid"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ws"
-	"github.com/goplease-game/server/ability"
+	"github.com/goplease-game/game-server/ability"
 )
 
 // onAbilityCardClicked is called when the player clicks an ability card.

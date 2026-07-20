@@ -2,7 +2,7 @@
 resolution: 1000x750
 
 # Server address to connect to
-# See https://github.com/goplease-game/server
+# See https://github.com/goplease-game/game-server
 server_addr: localhost:8090
 secure: false
 

@@ -8,7 +8,7 @@ import (
 	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/sfx"
-	"github.com/goplease-game/server/ability"
+	"github.com/goplease-game/game-server/ability"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/setanarut/anim"
 )

@@ -12,7 +12,7 @@ import (
 var links = map[string]string{
 	"source":          "https://github.com/goplease-game",
 	"source-client":   "https://github.com/goplease-game/client",
-	"source-server":   "https://github.com/goplease-game/server",
+	"source-server":   "https://github.com/goplease-game/game-server",
 	"golang":          "https://go.dev",
 	"ebitengine":      "https://ebitengine.org",
 	"ebitenui":        "https://github.com/ebitenui/ebitenui",

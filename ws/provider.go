@@ -3,8 +3,8 @@ package ws
 import (
 	"sync"
 
-	game "github.com/goplease-game/server"
-	"github.com/goplease-game/server/ds"
+	game "github.com/goplease-game/game-server"
+	"github.com/goplease-game/game-server/ds"
 )
 
 // ClientProvider owns the active client and allows switching between

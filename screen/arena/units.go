@@ -14,7 +14,7 @@ import (
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
 	"github.com/goplease-game/client/ws"
-	"github.com/goplease-game/server/ability/status"
+	"github.com/goplease-game/game-server/ability/status"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/colornames"

@@ -1,7 +1,7 @@
 // Package ds ...
 package ds
 
-import "github.com/goplease-game/server/ability"
+import "github.com/goplease-game/game-server/ability"
 
 // UseAbilityPayload is the payload for requesting that a unit use an ability,
 // optionally targeting a specific hex coordinate.

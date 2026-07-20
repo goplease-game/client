@@ -4,8 +4,8 @@ import (
 	"slices"
 
 	"github.com/ebitenui/ebitenui/widget"
-	"github.com/goplease-game/server/ability"
-	"github.com/goplease-game/server/ability/status"
+	"github.com/goplease-game/game-server/ability"
+	"github.com/goplease-game/game-server/ability/status"
 )
 
 // Unit represents a single combat unit on the board, including its stats,

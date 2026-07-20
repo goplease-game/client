@@ -11,8 +11,8 @@ import (
 	"github.com/ebitenui/ebitenui/widget"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
-	server "github.com/goplease-game/server"
-	sds "github.com/goplease-game/server/ds"
+	server "github.com/goplease-game/game-server"
+	sds "github.com/goplease-game/game-server/ds"
 	"golang.org/x/image/colornames"
 )
 

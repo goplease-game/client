@@ -11,8 +11,8 @@ import (
 	"github.com/goplease-game/client/asset"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/ui"
-	"github.com/goplease-game/server/ability"
-	"github.com/goplease-game/server/ability/status"
+	"github.com/goplease-game/game-server/ability"
+	"github.com/goplease-game/game-server/ability/status"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"golang.org/x/image/colornames"
 )

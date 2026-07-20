@@ -10,8 +10,8 @@ import (
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/tutorial"
 	"github.com/goplease-game/client/ws"
-	server "github.com/goplease-game/server"
-	"github.com/goplease-game/server/ability"
+	server "github.com/goplease-game/game-server"
+	"github.com/goplease-game/game-server/ability"
 	"golang.org/x/image/colornames"
 )
 

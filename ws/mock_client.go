@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log"
 
-	game "github.com/goplease-game/server"
-	"github.com/goplease-game/server/api"
-	"github.com/goplease-game/server/ds"
+	game "github.com/goplease-game/game-server"
+	"github.com/goplease-game/game-server/api"
+	"github.com/goplease-game/game-server/ds"
 )
 
 // MockClient implements Client over an in-process Session for practice and scenario modes.

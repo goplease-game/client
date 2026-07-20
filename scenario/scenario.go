@@ -6,9 +6,9 @@ import (
 	"log"
 
 	"github.com/goplease-game/client/tutorial"
-	server "github.com/goplease-game/server"
-	"github.com/goplease-game/server/bot"
-	sds "github.com/goplease-game/server/ds"
+	server "github.com/goplease-game/game-server"
+	"github.com/goplease-game/game-server/bot"
+	sds "github.com/goplease-game/game-server/ds"
 )
 
 // Default represents the fallback or standard arena scenario.

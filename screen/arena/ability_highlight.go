@@ -3,7 +3,7 @@ package arena
 import (
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/grid"
-	"github.com/goplease-game/server/ability"
+	"github.com/goplease-game/game-server/ability"
 )
 
 var hexDirections = [6]ds.HexCoord{
