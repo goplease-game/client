@@ -287,10 +287,17 @@ func (s *MainScreen) mainMenu() *widget.Container {
 		s.nextScreen = NewAboutScreen(s)
 	})
 
-	var exitButton *widget.Button
+	var lastBtn *widget.Button
 	if !config.IsWASM() {
-		exitButton = s.mainMenuButtonWithDesc("Exit", 14, "Snap back to reality", func(_ *widget.ButtonClickedEventArgs) {
+		lastBtn = s.mainMenuButtonWithDesc("Exit", 14, "Snap back to reality", func(_ *widget.ButtonClickedEventArgs) {
 			s.exit = true
+		})
+	} else {
+		lastBtn = s.mainMenuButtonWithDesc("Download", 14, "Native binary for Windows, macOS and Linux", func(_ *widget.ButtonClickedEventArgs) {
+			err := game.OpenLink("latest-releases")
+			if err != nil {
+				fmt.Printf("open download link: %v\n", err)
+			}
 		})
 	}
 
@@ -301,8 +308,8 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	menuC.AddChild(settButton)
 	menuC.AddChild(aboutButton)
 
-	if exitButton != nil {
-		menuC.AddChild(exitButton)
+	if lastBtn != nil {
+		menuC.AddChild(lastBtn)
 	}
 
 	rowC.AddChild(menuC)
