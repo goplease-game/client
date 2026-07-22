@@ -147,8 +147,8 @@ func defaultConfig() *Config {
 }
 
 func normalizeConfig(conf *Config) {
+	defConf := defaultConfig()
 	if isOldFormat(conf.ServerAddr) {
-		defConf := defaultConfig()
 		conf.ServerAddr = defConf.ServerAddr
 		conf.Secure = defConf.Secure
 
@@ -175,6 +175,8 @@ func normalizeConfig(conf *Config) {
 
 	conf.WindowW = w
 	conf.WindowH = h
+
+	conf.ServerAddr = defConf.ServerAddr
 }
 
 // parseResolution parses a resolution string in "WIDTHxHEIGHT" format (e.g.
