@@ -23,7 +23,7 @@ jobs:
           mkdir -p config
           cat > config/config_defaults.yaml << EOF
           resolution: 1000x750
-          server_addr: game.gopl.dev
+          server_addr: gs.gopl.dev
           secure: true
           volume: 1
           show_game_log: true
