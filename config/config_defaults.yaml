@@ -1,10 +1,17 @@
 # Window size
 resolution: 1000x750
 
-# Server address to connect to
+# Game server config
 # See https://github.com/goplease-game/game-server
-server_addr: localhost:8090
-secure: false
+game_server:
+  addr: localhost:8090
+  secure: false
+
+# Content server config
+# See https://github.com/goplease-game/game-server
+content_server:
+  addr: localhost:8080
+  secure: false
 
 # Sound volume
 volume: 1

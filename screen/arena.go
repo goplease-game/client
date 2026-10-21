@@ -4,7 +4,6 @@ import (
 	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/ds"
 	"github.com/goplease-game/client/screen/arena"
-	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -16,19 +15,19 @@ type ArenaScreen struct {
 // NewArenaScreen creates the arena screen for snap, wiring up exit and
 // restart transitions depending on whether this is a practice match
 // (against the mock client) or a real one against server.
-func NewArenaScreen(snap ds.GameSnapshot, serverCl *ws.ClientProvider, isPractice bool) game.Screen {
-	ar := arena.NewScreen(snap, serverCl.Get())
+func NewArenaScreen(ctx *game.Context, snap ds.GameSnapshot, isPractice bool) game.Screen {
+	ar := arena.NewScreen(snap, ctx.Server.Get())
 	ar.OnExitScreen = func() game.Screen {
-		return NewMainScreen(serverCl)
+		return NewMainScreen(ctx)
 	}
 
 	if isPractice {
 		ar.OnRestartScreen = func() game.Screen {
-			return newScenarioScreen(serverCl)
+			return newScenarioScreen(ctx)
 		}
 	} else {
 		ar.OnRestartScreen = func() game.Screen {
-			return NewSearchScreen(serverCl, NewMainScreen(serverCl))
+			return NewSearchScreen(ctx, NewMainScreen(ctx))
 		}
 	}
 

@@ -4,7 +4,6 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"log"
 	"runtime"
 	"strings"
 	"sync"
@@ -44,9 +43,15 @@ type Config struct {
 	WindowW int `yaml:"-"`
 	WindowH int `yaml:"-"`
 
-	// ServerAddr is the address of the game server.
-	ServerAddr string `yaml:"server_addr"`
-	Secure     bool   `yaml:"secure"`
+	GameServer struct {
+		Addr   string `yaml:"addr"`
+		Secure bool   `yaml:"secure"`
+	} `yaml:"game_server"`
+
+	ContentServer struct {
+		Addr   string `yaml:"addr"`
+		Secure bool   `yaml:"secure"`
+	} `yaml:"content_server"`
 
 	// Volume is the audio volume level.
 	Volume float64 `yaml:"volume"`
@@ -148,23 +153,8 @@ func defaultConfig() *Config {
 
 func normalizeConfig(conf *Config) {
 	defConf := defaultConfig()
-	if isOldFormat(conf.ServerAddr) {
-		conf.ServerAddr = defConf.ServerAddr
-		conf.Secure = defConf.Secure
-
-		newData, err := yaml.Marshal(conf)
-		if err != nil {
-			panic(err)
-		}
-
-		err = confM.save(newData)
-		if err != nil {
-			log.Printf("unable to save fixed config: %v", err)
-		}
-	}
 
 	if conf.Keybindings == nil {
-		defConf := defaultConfig()
 		conf.Keybindings = defConf.Keybindings
 	}
 
@@ -176,7 +166,8 @@ func normalizeConfig(conf *Config) {
 	conf.WindowW = w
 	conf.WindowH = h
 
-	conf.ServerAddr = defConf.ServerAddr
+	conf.GameServer = defConf.GameServer
+	conf.ContentServer = defConf.ContentServer
 }
 
 // parseResolution parses a resolution string in "WIDTHxHEIGHT" format (e.g.

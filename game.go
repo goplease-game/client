@@ -3,6 +3,9 @@ package game
 
 import (
 	"github.com/goplease-game/client/config"
+	contentclient "github.com/goplease-game/client/content-client"
+	"github.com/goplease-game/client/user"
+	"github.com/goplease-game/client/ws"
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -66,4 +69,12 @@ func (g *Game) Layout(w, h int) (int, int) {
 	}
 
 	return w, h
+}
+
+// Context bundles dependencies shared across screen constructors:
+// server connections, API clients, and the current user session.
+type Context struct {
+	Server  *ws.ClientProvider
+	Content *contentclient.Client
+	User    *user.User
 }

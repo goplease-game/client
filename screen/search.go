@@ -117,6 +117,7 @@ func (a *unitAnim) draw(screen *ebiten.Image, containerRect stdImage.Rectangle) 
 
 // SearchScreen is the matchmaking screen shown while the client waits for an opponent.
 type SearchScreen struct {
+	ctx             *game.Context
 	serverCl        *ws.ClientProvider
 	prevScreen      game.Screen
 	ui              *ebitenui.UI
@@ -130,9 +131,10 @@ type SearchScreen struct {
 }
 
 // NewSearchScreen creates a SearchScreen and initiates a server connection.
-func NewSearchScreen(serverCl *ws.ClientProvider, prevScreen *MainScreen) *SearchScreen {
+func NewSearchScreen(ctx *game.Context, prevScreen *MainScreen) *SearchScreen {
 	s := &SearchScreen{
-		serverCl:   serverCl,
+		ctx:        ctx,
+		serverCl:   ctx.Server,
 		prevScreen: prevScreen,
 		bg:         prevScreen.bg,
 	}
@@ -309,7 +311,7 @@ func (s *SearchScreen) handleMessage(msg ws.InMessage) game.Screen {
 			TurnTimeSeconds:            data.TurnTimeSeconds,
 			MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 		}
-		return NewArenaScreen(snap, s.serverCl, false)
+		return NewArenaScreen(s.ctx, snap, false)
 	case ws.ErrorAction:
 		var e ds.ErrorResponse
 		_ = json.Unmarshal(msg.Data, &e)

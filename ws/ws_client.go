@@ -3,13 +3,13 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
-	game "github.com/goplease-game/client"
 	"github.com/goplease-game/client/config"
 )
 
@@ -39,7 +39,13 @@ type WSClient struct { //nolint:revive
 
 // wsURL returns the WebSocket server address from config.
 func wsURL() string {
-	return game.ServerWS(playPath)
+	conf := config.Get()
+	scheme := "ws"
+	if conf.GameServer.Secure {
+		scheme = "wss"
+	}
+
+	return fmt.Sprintf("%s://%s/%s", scheme, conf.GameServer.Addr, playPath)
 }
 
 // NewWSClient creates a new WSClient, enabling protocol logging to a file

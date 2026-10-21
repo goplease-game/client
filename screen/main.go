@@ -19,6 +19,7 @@ import (
 	"github.com/goplease-game/client/scenario"
 	"github.com/goplease-game/client/sfx"
 	"github.com/goplease-game/client/ui"
+	"github.com/goplease-game/client/user"
 	"github.com/goplease-game/client/ws"
 	server "github.com/goplease-game/game-server"
 	"github.com/goplease-game/game-server/bot"
@@ -38,25 +39,31 @@ var (
 // MainScreen is the entry screen with the "Play" button.
 type MainScreen struct {
 	serverCl   *ws.ClientProvider
+	usr        *user.User
 	ui         *ebitenui.UI
 	bg         backdrop.Backdrop
 	nextScreen game.Screen
 	exit       bool
 	descText   *widget.Text
 	music      *sfx.MusicTrack
+
+	userBarText   *widget.Text
+	userBarButton *widget.Button
+	loginPending  bool
 }
 
 // NewMainScreen creates the main menu screen with Play, Practice, Settings,
 // About, and (on non-WASM builds) Exit buttons.
-func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
-	serverCl.SwitchToReal()
+func NewMainScreen(ctx *game.Context) *MainScreen {
+	ctx.Server.SwitchToReal()
 
 	sfx.StopAll()
 	mainTune := sfx.PlayMusic(mainMusicTheme, true, time.Second*5)
 
 	conf := config.Get()
 	s := &MainScreen{
-		serverCl: serverCl,
+		serverCl: ctx.Server,
+		usr:      ctx.User,
 		bg:       backdrop.RandomOf(backdrop.MainScreen, conf.WindowW, conf.WindowH),
 		music:    mainTune,
 	}
@@ -125,7 +132,7 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	game.SetLinksTheme(clientV.GetWidget())
 	game.SetLinksTheme(serverV.GetWidget())
 
-	go fetchVersion(game.ServerAPI("version/"), serverV)
+	go fetchVersion(game.GameServerAPI("version/"), serverV)
 
 	versions.AddChild(clientV)
 	versions.AddChild(serverV)
@@ -152,7 +159,8 @@ func NewMainScreen(serverCl *ws.ClientProvider) *MainScreen {
 	footer.AddChild(versions)
 	footer.AddChild(discordLink)
 
-	root.AddChild(s.mainMenu())
+	root.AddChild(s.userBar())
+	root.AddChild(s.mainMenu(ctx))
 	root.AddChild(footer)
 
 	s.ui = &ebitenui.UI{Container: root}
@@ -166,6 +174,8 @@ func (s *MainScreen) Update(_ *game.Game) (game.Screen, error) {
 	if s.exit {
 		return nil, ebiten.Termination
 	}
+
+	s.refreshUserBar()
 
 	s.bg.Update()
 	s.ui.Update()
@@ -191,7 +201,7 @@ func (s *MainScreen) Resize(width, height int) {
 }
 
 // mainMenu builds the title and menu button column shown on the main screen.
-func (s *MainScreen) mainMenu() *widget.Container {
+func (s *MainScreen) mainMenu(ctx *game.Context) *widget.Container {
 	c := widget.NewContainer(
 		widget.ContainerOpts.Layout(widget.NewAnchorLayout()),
 		widget.ContainerOpts.WidgetOpts(
@@ -263,20 +273,20 @@ func (s *MainScreen) mainMenu() *widget.Container {
 	playButton := s.mainMenuButtonWithDesc("PLAY", 30, "Challenge other players online",
 		func(_ *widget.ButtonClickedEventArgs) {
 			s.music.FadeOut(5 * time.Second)
-			s.nextScreen = NewSearchScreen(s.serverCl, s)
+			s.nextScreen = NewSearchScreen(ctx, s)
 		})
 
 	pwfButton := s.mainMenuButtonWithDesc("Play with friend", 16,
 		"Challenge a friend using a join code.",
 		func(_ *widget.ButtonClickedEventArgs) {
-			s.nextScreen = NewPlayWithFriendScreen(s.serverCl, s)
+			s.nextScreen = NewPlayWithFriendScreen(ctx, s)
 		})
 
 	practiceButton := s.mainMenuButtonWithDesc("Practice", 16,
 		"Learn the basics and play local matches against Richard the Bot. No internet connection required.",
 		func(_ *widget.ButtonClickedEventArgs) {
 			s.music.FadeOut(3 * time.Second)
-			s.nextScreen = newScenarioScreen(s.serverCl)
+			s.nextScreen = newScenarioScreen(ctx)
 		})
 
 	settButton := s.mainMenuButtonWithDesc("Settings", 16, "", func(_ *widget.ButtonClickedEventArgs) {
@@ -382,7 +392,7 @@ func (s *MainScreen) mainMenuButtonWithDesc(text string, size float64, desc stri
 
 // newScenarioScreen loads the default scenario and starts an arena screen
 // backed by a connected mock client.
-func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
+func newScenarioScreen(ctx *game.Context) game.Screen {
 	sc := scenario.Load(scenario.Default)
 	session := server.NewSessionFromSnapshot(sc.Arena())
 
@@ -391,7 +401,7 @@ func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 		go b.Run()
 	}
 
-	mockCl := serverCl.SwitchToMock(session, sc.P1.ID)
+	mockCl := ctx.Server.SwitchToMock(session, sc.P1.ID)
 	session.Start()
 
 	for msg := range mockCl.Inbox() {
@@ -412,7 +422,7 @@ func newScenarioScreen(serverCl *ws.ClientProvider) game.Screen {
 				MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 				Tutorial:                   sc.Tutorial,
 			}
-			return NewArenaScreen(snap, serverCl, true)
+			return NewArenaScreen(ctx, snap, true)
 		}
 	}
 
@@ -453,4 +463,84 @@ func fetchVersion(url string, out *widget.Text) {
 	}
 
 	out.Label = "Server: [link=source-server]" + v.Commit + " @ " + date + "[/link]"
+}
+
+// userBar builds the top-right panel showing "Guest [Login]" or the
+// authenticated username. Refreshed every frame in Update() via refreshUserBar.
+func (s *MainScreen) userBar() *widget.Container {
+	c := widget.NewContainer(
+		widget.ContainerOpts.Layout(widget.NewRowLayout(
+			widget.RowLayoutOpts.Direction(widget.DirectionHorizontal),
+			widget.RowLayoutOpts.Spacing(8),
+			widget.RowLayoutOpts.Padding(widget.NewInsetsSimple(10)),
+		)),
+		widget.ContainerOpts.WidgetOpts(
+			widget.WidgetOpts.LayoutData(widget.AnchorLayoutData{
+				HorizontalPosition: widget.AnchorLayoutPositionEnd,
+				VerticalPosition:   widget.AnchorLayoutPositionStart,
+			}),
+		),
+	)
+
+	tf := ui.TextFace(16)
+	s.userBarText = widget.NewText(
+		widget.TextOpts.Text("", &tf, nameColor),
+		widget.TextOpts.Position(widget.TextPositionEnd, widget.TextPositionStart),
+	)
+
+	s.userBarButton = widget.NewButton(
+		widget.ButtonOpts.Image(ui.ButtonImage()),
+		widget.ButtonOpts.Text("Login", &tf, &widget.ButtonTextColor{
+			Idle:    ui.MenuButtonTextColor,
+			Hover:   ui.MenuButtonHoverTextColor,
+			Pressed: ui.MenuButtonTextColor,
+		}),
+		widget.ButtonOpts.ClickedHandler(func(_ *widget.ButtonClickedEventArgs) {
+			s.onLoginClicked()
+		}),
+	)
+
+	c.AddChild(s.userBarText)
+	c.AddChild(s.userBarButton)
+
+	return c
+}
+
+func (s *MainScreen) onLoginClicked() {
+	if s.loginPending {
+		return
+	}
+	s.loginPending = true
+
+	s.usr.OnVerificationURI = func(uri, userCode string) {
+		if err := game.OpenURL(uri); err != nil {
+			log.Printf("open device auth URL: %v (code: %s)", err, userCode)
+		}
+	}
+	s.usr.OnAuthError = func(err error) {
+		s.loginPending = false
+		log.Printf("device auth failed: %v", err)
+	}
+
+	s.usr.StartLogin()
+}
+
+// refreshUserBar syncs the top bar with the current auth state. Cheap
+// enough to call unconditionally every frame from Update().
+func (s *MainScreen) refreshUserBar() {
+	switch s.usr.Status() {
+	case user.StatusAuthenticated:
+		s.loginPending = false
+		s.userBarText.Label = s.usr.Username()
+		s.userBarButton.GetWidget().Disabled = true
+		s.userBarButton.SetText("")
+	case user.StatusPendingAuth:
+		s.userBarText.Label = "Guest"
+		s.userBarButton.SetText("Waiting...")
+		s.userBarButton.GetWidget().Disabled = true
+	default: // StatusGuest
+		s.userBarText.Label = "Guest"
+		s.userBarButton.SetText("Login")
+		s.userBarButton.GetWidget().Disabled = false
+	}
 }

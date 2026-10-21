@@ -32,9 +32,9 @@ type PlayWithFriendScreen struct {
 }
 
 // NewPlayWithFriendScreen creates the Play With Friend mode selection screen.
-func NewPlayWithFriendScreen(provider *ws.ClientProvider, prevScreen *MainScreen) *PlayWithFriendScreen {
+func NewPlayWithFriendScreen(ctx *game.Context, prevScreen *MainScreen) *PlayWithFriendScreen {
 	s := &PlayWithFriendScreen{
-		provider:   provider,
+		provider:   ctx.Server,
 		bg:         prevScreen.bg,
 		prevScreen: prevScreen,
 	}
@@ -42,10 +42,10 @@ func NewPlayWithFriendScreen(provider *ws.ClientProvider, prevScreen *MainScreen
 	panel := ui.NewPanel("Play with friend")
 
 	createBtn := ui.SecondaryButton("Create game", 16, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewWaitForFriendScreen(s.provider, s)
+		s.nextScreen = NewWaitForFriendScreen(ctx, s)
 	})
 	joinBtn := ui.SecondaryButton("Join game", 16, func(_ *widget.ButtonClickedEventArgs) {
-		s.nextScreen = NewJoinFriendScreen(s.provider, s)
+		s.nextScreen = NewJoinFriendScreen(ctx, s)
 	})
 
 	ui.StretchButton(createBtn)
@@ -99,6 +99,7 @@ func (s *PlayWithFriendScreen) Resize(width, height int) {
 // WaitForFriendScreen connects to the server, requests a friend room, displays
 // the join code, and waits for the opponent to connect.
 type WaitForFriendScreen struct {
+	ctx        *game.Context
 	provider   *ws.ClientProvider
 	ui         *ebitenui.UI
 	bg         backdrop.Backdrop
@@ -111,14 +112,15 @@ type WaitForFriendScreen struct {
 }
 
 // NewWaitForFriendScreen creates the waiting screen and initiates a server connection.
-func NewWaitForFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriendScreen) *WaitForFriendScreen {
+func NewWaitForFriendScreen(ctx *game.Context, prevScreen *PlayWithFriendScreen) *WaitForFriendScreen {
 	s := &WaitForFriendScreen{
-		provider:   provider,
+		ctx:        ctx,
+		provider:   ctx.Server,
 		bg:         prevScreen.bg,
 		prevScreen: prevScreen,
 	}
 
-	provider.Get().Connect(uuid.New().String())
+	s.provider.Get().Connect(uuid.New().String())
 
 	panel := ui.NewPanel("Waiting for a friend…")
 	s.panel = panel
@@ -250,7 +252,7 @@ func (s *WaitForFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 			TurnTimeSeconds:            data.TurnTimeSeconds,
 			MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 		}
-		return NewArenaScreen(snap, s.provider, false)
+		return NewArenaScreen(s.ctx, snap, false)
 
 	case ws.ErrorAction:
 		var e ds.ErrorResponse
@@ -262,6 +264,7 @@ func (s *WaitForFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 
 // JoinFriendScreen lets the player enter a join code to connect to a friend's game.
 type JoinFriendScreen struct {
+	ctx        *game.Context
 	provider   *ws.ClientProvider
 	ui         *ebitenui.UI
 	bg         backdrop.Backdrop
@@ -273,14 +276,15 @@ type JoinFriendScreen struct {
 }
 
 // NewJoinFriendScreen creates the join-by-code screen and initiates a server connection.
-func NewJoinFriendScreen(provider *ws.ClientProvider, prevScreen *PlayWithFriendScreen) *JoinFriendScreen {
+func NewJoinFriendScreen(ctx *game.Context, prevScreen *PlayWithFriendScreen) *JoinFriendScreen {
 	s := &JoinFriendScreen{
-		provider:   provider,
+		ctx:        ctx,
+		provider:   ctx.Server,
 		bg:         prevScreen.bg,
 		prevScreen: prevScreen,
 	}
 
-	provider.Get().Connect(uuid.New().String())
+	s.provider.Get().Connect(uuid.New().String())
 
 	panel := ui.NewPanel("Join friend's game")
 
@@ -451,7 +455,7 @@ func (s *JoinFriendScreen) handleMessage(msg ws.InMessage) game.Screen {
 			TurnTimeSeconds:            data.TurnTimeSeconds,
 			MaxPhantomAPPerUnitPerTurn: data.MaxPhantomAPPerUnitPerTurn,
 		}
-		return NewArenaScreen(snap, s.provider, false)
+		return NewArenaScreen(s.ctx, snap, false)
 
 	case ws.FriendRoomNotFoundAction:
 		s.statusLbl.Label = "Code not found. Check the code and try again."

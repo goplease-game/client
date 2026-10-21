@@ -6,26 +6,14 @@ import (
 	"github.com/goplease-game/client/config"
 )
 
-// ServerWS returns the WebSocket endpoint URL for the given server path.
-// The URL uses either the ws or wss scheme depending on the current configuration.
-func ServerWS(path string) string {
-	conf := config.Get()
-	scheme := "ws"
-	if conf.Secure {
-		scheme = "wss"
-	}
-
-	return fmt.Sprintf("%s://%s/%s", scheme, conf.ServerAddr, path)
-}
-
-// ServerAPI returns the HTTP API endpoint URL for the given server path.
+// GameServerAPI returns the HTTP API endpoint URL for the given server path.
 // The URL uses either the http or https scheme depending on the current configuration.
-func ServerAPI(path string) string {
+func GameServerAPI(path string) string {
 	conf := config.Get()
 	scheme := "http"
-	if conf.Secure {
+	if conf.GameServer.Secure {
 		scheme = "https"
 	}
 
-	return fmt.Sprintf("%s://%s/api/%s", scheme, conf.ServerAddr, path)
+	return fmt.Sprintf("%s://%s/api/%s", scheme, conf.GameServer.Addr, path)
 }
